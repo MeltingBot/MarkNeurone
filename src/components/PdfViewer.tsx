@@ -860,11 +860,44 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
    * was read; the form shows the image so that the user corrects it, or
    * types a handwritten passage the OCR could not read.
    */
-  const onZone = async (pageNumber: number, rect: Rect, client: Rect) => {
-    const size = sizes[pageNumber - 1];
-    if (!opened || !size) return;
+  const onZone = (pageNumber: number, rect: Rect, client: Rect) => {
     setZoneMode(false);
-    const unit = { left: rect.left / scale, top: rect.top / scale, right: rect.right / scale, bottom: rect.bottom / scale };
+    void readArea(pageNumber, [{ left: rect.left / scale, top: rect.top / scale, right: rect.right / scale, bottom: rect.bottom / scale }], client);
+  };
+
+  /** Reads the rectangle of a selection again, at high resolution: same passage, better reading. */
+  const rereadSelection = (passage: Passage) => {
+    const size = sizes[passage.page - 1];
+    if (!size || !passage.quads.length) return;
+    // One rectangle per line of the selection, with a small margin.
+    const margin = 2;
+    const parts = passage.quads.map((q) => {
+      const r = pdfQuadToViewport(q, size.transform);
+      return { left: Math.max(0, r.left - margin), top: Math.max(0, r.top - margin), right: Math.min(size.width, r.right + margin), bottom: Math.min(size.height, r.bottom + margin) };
+    });
+    setPending(null);
+    void readArea(passage.page, parts, passage.clientBox, {
+      quads: passage.quads,
+      ...(passage.textRange ? { textRange: passage.textRange } : {}),
+      ...(passage.origin ? { origin: passage.origin } : {}),
+      ...(passage.suggestion ? { suggestion: passage.suggestion } : {}),
+    });
+  };
+
+  /**
+   * OCR of rectangles of a page (page units at scale 1): a framed zone, or the
+   * lines of a selection, each read on its own so that a selection over two
+   * lines does not take in the rest of them.
+   */
+  const readArea = async (pageNumber: number, parts: Rect[], client: Rect, keep: Partial<Passage> = {}) => {
+    const size = sizes[pageNumber - 1];
+    if (!opened || !size || !parts.length) return;
+    const unit = {
+      left: Math.min(...parts.map((r) => r.left)),
+      top: Math.min(...parts.map((r) => r.top)),
+      right: Math.max(...parts.map((r) => r.right)),
+      bottom: Math.max(...parts.map((r) => r.bottom)),
+    };
     const quad = viewportRectToPdf(unit, size.transform) as Quad;
     setZoneBusy({ page: pageNumber, quad });
     try {
@@ -876,10 +909,30 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       canvas.height = Math.max(1, Math.round((unit.bottom - unit.top) * OCR_SCALE));
       await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -unit.left * OCR_SCALE, -unit.top * OCR_SCALE] }).promise;
       const image = canvas.toDataURL('image/png');
-      const prepared = await engine.preprocessImage(canvas, { deskew: false });
-      const lines = await engine.recognize(prepared.canvas);
-      const read = buildOcrPage(lines, { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: 0 });
-      const text = ocrPageText(read).text.trim();
+      const texts: string[] = [];
+      const lines: { t: string; c: number }[][] = [];
+      let sum = 0;
+      let count = 0;
+      for (const part of parts) {
+        const piece = document.createElement('canvas');
+        const x = Math.round((part.left - unit.left) * OCR_SCALE);
+        const y = Math.round((part.top - unit.top) * OCR_SCALE);
+        piece.width = Math.max(1, Math.round((part.right - part.left) * OCR_SCALE));
+        piece.height = Math.max(1, Math.round((part.bottom - part.top) * OCR_SCALE));
+        piece.getContext('2d')!.drawImage(canvas, x, y, piece.width, piece.height, 0, 0, piece.width, piece.height);
+        const prepared = await engine.preprocessImage(piece, { deskew: false, dropColor: true });
+        const read = buildOcrPage(await engine.recognize(prepared.canvas), { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: 0 });
+        const text = ocrPageText(read).text.trim();
+        if (text) texts.push(text);
+        for (const l of read.lines) {
+          lines.push(l.w.map((w) => ({ t: w.t, c: w.c })));
+          for (const w of l.w) {
+            sum += w.c;
+            count++;
+          }
+        }
+      }
+      const text = texts.join(' ');
       const pageOcr = ocrPages[String(pageNumber)];
       const range = pageOcr ? rangeInBox(pageOcr, [unit.left, unit.top, unit.right, unit.bottom]) : null;
       setPending({
@@ -888,9 +941,10 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
         text,
         ...(range ? { textRange: range } : {}),
         ...(text ? { context: text } : {}),
-        ocr: { rawText: text, confidence: read.confidence },
-        preview: { image, lines: read.lines.map((l) => l.w.map((w) => ({ t: w.t, c: w.c }))), framed: true },
+        ocr: { rawText: text, confidence: count ? Math.round(sum / count) : 0 },
+        preview: { image, lines, framed: true },
         clientBox: client,
+        ...keep,
       });
     } catch (err) {
       console.error('MarkNeurone: zone reading failed', err);
@@ -1223,7 +1277,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       canvas.height = Math.round(viewport.height);
       await page.render({ canvas, viewport }).promise;
       if (cancelled) return;
-      const prepared = await engine.preprocessImage(canvas);
+      const prepared = await engine.preprocessImage(canvas, { dropColor: true });
       if (cancelled) return;
       const lines = await engine.recognize(prepared.canvas);
       if (cancelled) return;
@@ -1631,6 +1685,8 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           onCancel: cancelPending,
           ...suggestionLabel(pending),
           onReject: pending.suggestion ? () => reject(pending) : undefined,
+          // A selection on a scanned page can be read again, more finely.
+          onReread: ocrPages[String(pending.page)] && !pending.preview?.framed ? () => rereadSelection(pending) : undefined,
         })
       : null,
     menu ? h(ReaderContextMenu, { ...menu, onClose: () => setMenu(null) }) : null,

@@ -10,7 +10,9 @@ Première version, en cours de développement.
 - PDF numérisés : OCR en arrière-plan avec Tesseract.js et le modèle français `fast` embarqué, interruptible, mis en cache avec le dossier.
 - DOCX, ODT, TXT (UTF-8 ou Windows-1252) et Markdown, affichés comme une feuille de texte.
 - Recherche dans tout le document (Ctrl+F), texte reconnu compris.
+- Relecture d'une sélection à haute résolution, ligne par ligne.
 - Passage encadré à la souris (clic droit ou touche Z), relu à haute résolution.
+- Encre de couleur (tampons) retirée de l'image avant la reconnaissance.
 - Image du passage dans le formulaire lorsque la lecture est douteuse ou que le passage est encadré, pour corriger la lecture ; texte lu par l'OCR conservé à côté du texte validé.
 - Correction de la sélection de texte : le passage du pointeur sur un interligne ne sélectionne plus la fin de la page.
 

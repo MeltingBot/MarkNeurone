@@ -11,6 +11,7 @@ npm run bench                    # rapport dans out/report/report.md et report.j
 npm run bench -- --models fast,best_int --filter photocopie --pages 1
 npm run bench -- --input data/   # pièces fournies, sans vérité terrain : temps et confiance seulement
 npm run bench -- --dump          # écrit aussi le texte de chaque page dans out/report/text/
+npm run bench -- --drop-color    # retire l'encre de couleur (tampons) avant l'OCR, comme le plugin
 npm test                         # tests du cœur du plugin et des métriques du banc
 ```
 
@@ -54,6 +55,7 @@ Une suggestion fausse est le plus souvent une valeur mal lue mais encore reconnu
 - **Adresses Ethereum** : 0 à 1 sur 2. Une erreur sur 40 caractères hexadécimaux (« 5 » lu « s ») suffit à les perdre.
 - **Adresses IP** : sensibles au bruit et au tampon.
 - **Le prétraitement** améliore nettement le biais, le bruit et la photocopie, et n'apporte rien sur la page propre ni sous un tampon.
+- **Tampons de couleur** : avec `--drop-color`, l'image passe en niveaux de gris par le canal le plus clair (maximum de R, V, B) au lieu de la luminance. L'encre rouge ou bleue devient presque blanche et le texte noir reste noir. Avec prétraitement, la variante tampon passe de 3,1 % à 0,5 % d'erreur par caractère et de 52/62 à 59/62 suggestions, sans changement sur les autres variantes. Le plugin applique ce réglage. Il est sans effet sur un document numérisé en niveaux de gris, et retire aussi un texte imprimé en couleur.
 
 Pour voir ce que l'OCR a lu à l'endroit d'une suggestion manquée : `npm run bench -- --dump` écrit le texte de chaque page dans `out/report/text/`.
 

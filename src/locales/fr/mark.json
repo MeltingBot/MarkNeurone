@@ -161,5 +161,6 @@
   "checksum_invalid": "Clé de contrôle invalide : erreur de lecture probable.",
   "misread_suspect": "Caractères probablement mal lus : vérifiez la valeur sur le document.",
   "zone_read": "Encadrer un passage",
-  "zone_error": "La lecture de la zone a échoué."
+  "zone_error": "La lecture de la zone a échoué.",
+  "reread_selection": "Relire la sélection"
 }

@@ -18,7 +18,9 @@ Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'auditi
 
 - **PDF avec couche texte**, affichés avec PDF.js.
 - **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document. Lorsqu'un mot du passage a été lu avec une faible confiance, le formulaire affiche l'image du passage pour corriger la lecture avant de valider. Le texte lu par l'OCR reste enregistré à côté du texte validé.
-- **Passage encadré.** Lorsque la sélection de texte ne convient pas (passage mal lu, sous un tampon, manuscrit), « Encadrer un passage » dans le menu du clic droit (touche Z) permet de l'entourer à la souris. Le passage est relu à haute résolution et traité comme une sélection, avec son image dans le formulaire ; si rien n'est lu, le texte se saisit dans le formulaire.
+- **Relecture d'une sélection.** Sur une page numérisée, la barre de sélection propose « Relire la sélection » : le passage est relu seul, à haute résolution et sans l'encre de couleur (tampons), et le formulaire affiche son image.
+- **Passage encadré.** Pour ce qui ne peut pas être sélectionné (passage manuscrit, zone sans texte reconnu), « Encadrer un passage » dans le menu du clic droit (touche Z) permet de l'entourer à la souris. Si rien n'est lu, le texte se saisit dans le formulaire en s'aidant de l'image.
+- **Tampons.** Avant la reconnaissance, l'encre de couleur (tampons rouges ou bleus) est retirée de l'image. Un texte imprimé en couleur est retiré de la même façon.
 - **DOCX, ODT, TXT et Markdown.** Le texte est affiché sur une page continue avec ses titres, paragraphes, listes et tableaux. La mise en page d'origine n'est pas reproduite.
 
 ### Création d'objets dans le graphe
