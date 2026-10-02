@@ -95,7 +95,6 @@
   "menu_link_hint": "Pour lier : clic sur un élément, puis clic droit ou Ctrl+clic sur l'autre",
   "menu_open_sheet": "Ouvrir la fiche",
   "menu_remove_highlight": "Retirer le surlignage",
-  "link_pair": "Lier « {{from}} » → « {{to}} »",
   "link_pair_action": "Créer le lien (L)",
   "clear_selection": "Vider la sélection (Échap)",
   "section_location": "Localisation",

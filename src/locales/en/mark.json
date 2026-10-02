@@ -95,7 +95,6 @@
   "menu_link_hint": "To link: click an element, then right-click or Ctrl+click the other",
   "menu_open_sheet": "Open sheet",
   "menu_remove_highlight": "Remove highlight",
-  "link_pair": "Link “{{from}}” → “{{to}}”",
   "link_pair_action": "Create link (L)",
   "clear_selection": "Clear selection (Esc)",
   "section_location": "Location",

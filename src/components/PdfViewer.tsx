@@ -1517,13 +1517,14 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
         className: 'absolute z-10 flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-accent/30 rounded sketchy-border-soft panel-shadow text-xs text-text-primary',
         style: { top: 8, left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100% - 32px)' },
       },
-        h(Link2, { size: 14, className: 'text-accent shrink-0' }),
-        h('span', { className: 'truncate' }, t('link_pair', { from: nameOf(elementOf(linkPair.from)!), to: nameOf(elementOf(linkPair.to)!) })),
+        h('span', { className: 'truncate' }, `${nameOf(elementOf(linkPair.from)!)} → ${nameOf(elementOf(linkPair.to)!)}`),
         h('button', {
           type: 'button',
           onClick: () => openLinkDraft(linkPair.from, linkPair.to),
-          className: 'ml-auto px-2 py-0.5 text-xs font-medium text-accent border border-accent/30 rounded hover:bg-accent/20',
-        }, t('link_pair_action')),
+          title: t('link_pair_action'),
+          'aria-label': t('link_pair_action'),
+          className: 'ml-auto p-1 rounded text-accent hover:bg-accent/20',
+        }, h(Link2, { size: 14 })),
         h('button', { type: 'button', onClick: () => setSelectedIds([]), title: t('clear_selection'), className: 'p-1 text-text-tertiary hover:text-text-secondary' },
           h(api.icons.X, { size: 12 })))
     : null;
