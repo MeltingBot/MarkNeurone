@@ -16,7 +16,7 @@ import { extractPatterns } from '../core/patterns/patterns.ts';
 import { LOW_CONFIDENCE } from '../core/ocrLayout.ts';
 import { formatCoordinate, parseLatLng } from '../core/geo.ts';
 import { canPickOnMap, pickOnMap } from '../services/mapPicker.ts';
-import { DEFAULT_PROFILE } from '../profiles/default.ts';
+import { getProfile, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import type { Passage } from '../services/selectionCapture.ts';
 import {
   concernedElements,
@@ -48,6 +48,7 @@ import {
 } from '../services/znTypes.ts';
 import type { Gesture } from './SelectionBar.tsx';
 import * as S from './znStyles.ts';
+import { ColorDot } from './ColorDot.tsx';
 
 export interface Draft {
   gesture: Gesture;
@@ -161,71 +162,13 @@ function Section(p: { title: string; badge?: number; children?: ReactTypes.React
 
 // ─── New element ─────────────────────────────────────────────
 
-/** ZN's node palette (DEFAULT_COLORS), offered for tag colors. */
-const TAG_COLORS = [
-  'var(--color-node-yellow)',
-  'var(--color-node-pink)',
-  'var(--color-node-blue)',
-  'var(--color-node-green)',
-  'var(--color-node-orange)',
-  'var(--color-node-purple)',
-  'var(--color-node-red)',
-  'var(--color-node-cyan)',
-  'var(--color-node-lime)',
-];
-
 /** Color of a tag, chosen from ZN's palette or freely; applies to every element carrying the tag. */
 function TagColorButton(p: { env: Env; tag: string }) {
-  const { React, h } = host();
-  const { env } = p;
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
-  const [rect, setRect] = React.useState<DOMRect | null>(null);
-  const color = tagColor(env.tagSets, p.tag);
-  const choose = (value: string | null) => {
-    setRect(null);
-    env.run(() => graph.setTagColor(p.tag, value));
-  };
-  const swatch = (value: string | null, key: string) =>
-    h('button', {
-      key,
-      type: 'button',
-      onClick: () => choose(value),
-      title: value ? undefined : env.t('tag_color_none'),
-      className: `w-5 h-5 rounded border-2 ${color === value ? 'border-accent' : value ? 'border-transparent' : 'border-border-default'}`,
-      style: { background: value ?? 'var(--color-bg-primary)' },
-    });
-  return h(React.Fragment, null,
-    h('button', {
-      ref: buttonRef,
-      type: 'button',
-      onClick: () => setRect(rect ? null : buttonRef.current?.getBoundingClientRect() ?? null),
-      title: env.t('tag_color'),
-      className: 'inline-block rounded-full shrink-0 focus:outline-none',
-      style: { width: 8, height: 8, background: color ?? 'var(--color-border-strong)' },
-    }),
-    rect
-      ? h(React.Fragment, null,
-          h('div', { className: 'fixed inset-0 z-[9998]', onMouseDown: () => setRect(null) }),
-          h('div', {
-            className: 'fixed bg-bg-primary border border-border-default rounded shadow-lg z-[9999] p-2 flex flex-wrap gap-1.5',
-            style: { top: rect.bottom + 6, left: rect.left - 4, width: 160 },
-            onKeyDown: (e: ReactTypes.KeyboardEvent) => {
-              if (e.key === 'Escape') {
-                e.stopPropagation();
-                setRect(null);
-              }
-            },
-          },
-          swatch(null, 'none'),
-          TAG_COLORS.map((c) => swatch(c, c)),
-          h('input', {
-            type: 'color',
-            value: color && color.startsWith('#') ? color : '#888888',
-            onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => choose(e.target.value),
-            title: env.t('tag_color_custom'),
-            className: 'w-5 h-5 rounded cursor-pointer border-0 p-0',
-          })))
-      : null);
+  const { h } = host();
+  return h(ColorDot, {
+    color: tagColor(p.env.tagSets, p.tag),
+    onChoose: (value: string | null) => p.env.run(() => graph.setTagColor(p.tag, value)),
+  });
 }
 
 /**
@@ -246,8 +189,8 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
     (s: { currentDossier: { settings: { existingTags: string[] } } | null }) => s.currentDossier?.settings.existingTags ?? NO_TAGS,
   );
   const tagSetNames = new Set(env.tagSets.map((ts) => ts.name));
-  const shortcut = new Map(DEFAULT_PROFILE.grid.map((g) => [g.tag, g.key]));
-  const all = [...new Set([...DEFAULT_PROFILE.grid.map((g) => g.tag), ...tagSetNames, ...existingTags])].sort((a, b) => {
+  const shortcut = new Map(getProfile().grid.map((g) => [g.tag, g.key]));
+  const all = [...new Set([...getProfile().grid.map((g) => g.tag), ...tagSetNames, ...existingTags])].sort((a, b) => {
     // Profile tags first, in shortcut order; then alphabetical, as in ZN.
     const ka = shortcut.get(a);
     const kb = shortcut.get(b);
@@ -401,7 +344,7 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
   const { env, passage } = p;
   const [label, setLabel] = React.useState(trimPunctuation(passage.text));
   const [tags, setTags] = React.useState<string[]>(() => {
-    const tag = passage.suggestion && DEFAULT_PROFILE.suggestionTags[passage.suggestion.kind];
+    const tag = passage.suggestion && getProfile().suggestionTags[passage.suggestion.kind];
     return tag ? [tag] : [];
   });
   const [busy, setBusy] = React.useState(false);
@@ -411,7 +354,7 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
       id: el.id,
       label: el.label,
       aliases: el.properties
-        .filter((pr) => DEFAULT_PROFILE.aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()) && typeof pr.value === 'string')
+        .filter((pr) => getProfile().aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()) && typeof pr.value === 'string')
         .map((pr) => pr.value as string),
     }));
     return findCandidates(label, named).slice(0, 5);
@@ -446,7 +389,7 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
     },
     onKeyDown: (e: ReactTypes.KeyboardEvent) => {
       escapeTo(p.onCancel)(e);
-      const g = e.altKey ? DEFAULT_PROFILE.grid.find((x) => x.key === e.key) : undefined;
+      const g = e.altKey ? getProfile().grid.find((x) => x.key === e.key) : undefined;
       if (g) {
         e.preventDefault();
         toggle(g.tag);
@@ -580,7 +523,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     for (const el of env.elements) for (const pr of el.properties) if (!keys.has(pr.key)) keys.set(pr.key, pr.type ?? 'text');
     return keys;
   }, [element, env.elements, env.tagSets]);
-  const [key, setKey] = React.useState((passage.suggestion && DEFAULT_PROFILE.suggestionKeys[passage.suggestion.kind]) ?? '');
+  const [key, setKey] = React.useState((passage.suggestion && getProfile().suggestionKeys[passage.suggestion.kind]) ?? '');
   const [type, setType] = React.useState<ZnPropertyType>(guessType(trimPunctuation(passage.text)));
   const firstDate = React.useMemo(() => findDates(passage.text, passage.referenceYear)[0], [passage]);
   const [value, setValue] = React.useState(() => {
@@ -1274,6 +1217,8 @@ export function ElementSheet(props: Props) {
   const { ctx, elementId, draft, annotations, selectedAnnotationId } = props;
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
   const { LocateFixed } = api.icons;
+  // The forms read the profile: they follow a change made in the settings.
+  React.useSyncExternalStore(subscribeSettings, getSettingsVersion);
 
   const allElements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
   const elements = React.useMemo(

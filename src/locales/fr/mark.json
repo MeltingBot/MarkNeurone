@@ -165,5 +165,17 @@
   "reread_selection": "Relire la sélection",
   "marker_tab": "Marqueur",
   "marker_select": "Sélectionnez un élément.",
-  "marker_none": "Aucun passage"
+  "marker_none": "Aucun passage",
+  "settings_title": "Réglages MarkNeurone",
+  "settings_tags": "Tags proposés",
+  "settings_aliases": "Propriétés lues comme alias",
+  "settings_alias_placeholder": "Clé de propriété",
+  "settings_suggestions": "Suggestions",
+  "settings_ocr": "OCR",
+  "settings_drop_color": "Retirer l'encre de couleur (tampons) avant la reconnaissance",
+  "settings_defaults": "Valeurs par défaut",
+  "settings_save": "Enregistrer",
+  "settings_move_up": "Monter",
+  "settings_remove": "Retirer",
+  "settings_error": "Les réglages n'ont pas pu être enregistrés."
 }
