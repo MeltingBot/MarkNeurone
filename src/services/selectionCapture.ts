@@ -40,7 +40,7 @@ export interface Passage {
   /** Set on scanned pages: what the OCR read, and how sure it was. */
   ocr?: { rawText: string; confidence: number };
   /** Scanned page: image of the passage and words as read, to check and correct the reading. */
-  preview?: { image: string; lines: PreviewLines };
+  preview?: { image: string; lines: PreviewLines; framed?: boolean };
   /** Set when the passage comes from a pre-highlighting suggestion. */
   origin?: AnnotationOrigin;
   suggestion?: { kind: SuggestionKind; checksumOk?: boolean; suspect?: boolean; elementIds?: string[] };
