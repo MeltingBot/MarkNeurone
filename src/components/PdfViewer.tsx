@@ -1493,7 +1493,8 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       disabled: !ready,
       'aria-pressed': suggestionsOn,
       title: t(suggestionsOn ? 'suggestions_hide' : 'suggestions_show'),
-      className: `${toolButton}${suggestionsOn ? ' bg-bg-tertiary text-accent' : ''}`,
+      // Grey when off, accent when on: the icon alone tells the state.
+      className: `p-1.5 rounded disabled:opacity-40 ${suggestionsOn ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
     }, h(api.icons.Sparkles, { size: 14 })),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', { onClick: () => stepZoom(-1), disabled: !ready, title: t('viewer_zoom_out'), className: toolButton }, h(ZoomOut, { size: 14 })),
