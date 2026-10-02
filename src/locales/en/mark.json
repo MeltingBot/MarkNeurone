@@ -162,6 +162,5 @@
   "checksum_invalid": "Invalid check digits: probable misreading.",
   "misread_suspect": "Characters probably misread: check the value against the document.",
   "zone_read": "Frame a passage",
-  "zone_error": "Reading the area failed.",
-  "suggestions_label": "Suggestions"
+  "zone_error": "Reading the area failed."
 }

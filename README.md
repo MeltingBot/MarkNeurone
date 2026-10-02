@@ -36,7 +36,7 @@ Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en 
 
 ### Suggestions
 
-Le bouton « Suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
+Le bouton « Afficher les suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
 
 - les noms des éléments déjà présents dans le dossier (libellés et propriétés « Alias »), dans la couleur de leur tag, y compris en ordre inversé ou avec une initiale pour le prénom ;
 - les téléphones, plaques d'immatriculation, IBAN, SIRET, NIR, adresses e-mail, URL, adresses IP, adresses Bitcoin et Ethereum, montants en euros et dates.

@@ -1493,9 +1493,8 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       disabled: !ready,
       'aria-pressed': suggestionsOn,
       title: t(suggestionsOn ? 'suggestions_hide' : 'suggestions_show'),
-      className: `flex items-center gap-1 px-2 h-7 text-xs rounded border disabled:opacity-50 ${
-        suggestionsOn ? 'bg-bg-tertiary text-accent border-accent/40' : 'text-text-secondary border-border-default hover:bg-bg-tertiary'}`,
-    }, h(api.icons.Sparkles, { size: 14 }), t('suggestions_label')),
+      className: `${toolButton}${suggestionsOn ? ' bg-bg-tertiary text-accent' : ''}`,
+    }, h(api.icons.Sparkles, { size: 14 })),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', { onClick: () => stepZoom(-1), disabled: !ready, title: t('viewer_zoom_out'), className: toolButton }, h(ZoomOut, { size: 14 })),
       h('span', { className: 'text-center', style: { minWidth: 40 } }, `${percent} %`),
