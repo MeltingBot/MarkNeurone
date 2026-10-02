@@ -392,6 +392,15 @@ const NO_ARCS: LinkArcInfo[] = [];
 const NO_SEARCH_HITS: { start: number; end: number; current: boolean }[] = [];
 const NO_SUGGESTIONS: PageSuggestion[] = [];
 const SUGGESTION_COLOR = 'var(--color-text-tertiary)';
+
+/** An element that holds a document and is named after its file: not a name to look for in texts. */
+function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string }[]): boolean {
+  const label = el.label.trim().toLowerCase();
+  return (el.assetIds ?? []).some((id) => {
+    const name = assets.find((a) => a.id === id)?.filename.toLowerCase();
+    return !!name && (label === name || label === name.replace(/\.[^.]+$/, ''));
+  });
+}
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
 
@@ -1115,10 +1124,11 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
   };
 
   /** Names the dictionary looks for: labels, and values of the profile's alias properties. */
+  const assets: { id: string; filename: string }[] = api.stores.useDossierStore((s: { assets: { id: string; filename: string }[] }) => s.assets);
   const named = React.useMemo<NamedElement[]>(
     () =>
       elements
-        .filter((el) => isGraphElement(el) && el.label?.trim())
+        .filter((el) => isGraphElement(el) && el.label?.trim() && !isDocumentCarrier(el, assets))
         .map((el) => ({
           id: el.id,
           label: el.label,
@@ -1126,7 +1136,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
             .filter((pr) => typeof pr.value === 'string' && DEFAULT_PROFILE.aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()))
             .map((pr) => pr.value as string),
         })),
-    [elements],
+    [elements, assets],
   );
 
   const suggestions = React.useMemo<Suggestion[]>(
@@ -1187,12 +1197,25 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     };
   };
 
-  const suggestionTitle = (p: Passage): string | undefined => {
+  /**
+   * What a suggestion was recognized as: its type, or the element already in
+   * the dossier, shown with its tag color as on the canvas.
+   */
+  const suggestionLabel = (p: Passage): { title: string; titleColor?: string | null; titleHint?: string } | null => {
     const s = p.suggestion;
-    if (!s) return undefined;
-    if (s.kind !== 'name') return t(`suggestion_kind_${s.kind}`);
+    if (!s) return null;
+    if (s.kind !== 'name') return { title: t(`suggestion_kind_${s.kind}`) };
     const ids = s.elementIds ?? [];
-    return ids.length > 1 ? t('suggestion_homonyms', { count: ids.length }) : t('suggestion_known', { name: nameOf(ids[0] ?? '') });
+    if (ids.length > 1) return { title: t('suggestion_homonyms', { count: ids.length }), titleColor: null };
+    const element = elements.find((el) => el.id === ids[0]);
+    const tag = element?.tags[0];
+    const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
+    const color = tag ? tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null : null;
+    return { title: element?.label ?? '', titleColor: color, titleHint: t('suggestion_known', { name: element?.label ?? '' }) };
+  };
+  const suggestionTitle = (p: Passage) => {
+    const label = suggestionLabel(p);
+    return label?.titleHint ?? label?.title;
   };
 
   const reject = (p: Passage) => {
@@ -1442,7 +1465,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           passage: pending,
           onChoose: chooseGesture,
           onCancel: cancelPending,
-          title: suggestionTitle(pending),
+          ...suggestionLabel(pending),
           onReject: pending.suggestion ? () => reject(pending) : undefined,
         })
       : null,

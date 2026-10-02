@@ -17,12 +17,16 @@ interface Props {
   onCancel: () => void;
   /** Suggestion clicked: what it is, and how to dismiss it. */
   title?: string;
+  /** Known element: its tag color, shown as a dot before the name. */
+  titleColor?: string | null;
+  /** Tooltip of the title. */
+  titleHint?: string;
   onReject?: () => void;
 }
 
 const KEYS: Record<string, Gesture> = { e: 'element', p: 'property', v: 'event', g: 'location' };
 
-export function SelectionBar({ passage, onChoose, onCancel, title, onReject }: Props) {
+export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject }: Props) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -87,7 +91,11 @@ export function SelectionBar({ passage, onChoose, onCancel, title, onReject }: P
   // What the suggestion was recognized as: the type, or the known element.
   title
     ? h(React.Fragment, null,
-        h('span', { className: 'pl-1.5 pr-1 text-[11px] text-text-tertiary truncate', style: { maxWidth: 160 } }, title),
+        h('span', { className: 'inline-flex items-center gap-1.5 pl-1.5 pr-1 text-[11px] text-text-tertiary min-w-0', title: titleHint ?? title },
+          titleColor !== undefined
+            ? h('span', { className: 'inline-block rounded-full shrink-0', style: { width: 8, height: 8, background: titleColor ?? 'var(--color-border-strong)' } })
+            : null,
+          h('span', { className: 'truncate', style: { maxWidth: 160 } }, title)),
         h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }))
     : null,
   button('element', `${t('gesture_element')} (E)`, icons.Highlighter, () => onChoose('element')),
