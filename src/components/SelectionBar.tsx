@@ -22,11 +22,13 @@ interface Props {
   /** Tooltip of the title. */
   titleHint?: string;
   onReject?: () => void;
+  /** Scanned page: read the selection again at high resolution. */
+  onReread?: () => void;
 }
 
 const KEYS: Record<string, Gesture> = { e: 'element', p: 'property', v: 'event', g: 'location' };
 
-export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject }: Props) {
+export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject, onReread }: Props) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -102,6 +104,11 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
   button('property', `${t('gesture_property')} (P)`, icons.Tag, () => onChoose('property')),
   button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),
   button('location', `${t('gesture_location')} (G)`, icons.MapPin, () => onChoose('location')),
+  onReread
+    ? h(React.Fragment, null,
+        h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }),
+        button('reread', t('reread_selection'), icons.ScanText, onReread))
+    : null,
   onReject
     ? h(React.Fragment, null,
         h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }),
