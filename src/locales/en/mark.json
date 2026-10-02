@@ -152,8 +152,8 @@
   "suggestion_kind_nir": "NIR",
   "suggestion_kind_email": "Email",
   "suggestion_kind_url": "URL",
-  "suggestion_kind_ipv4": "IP address",
-  "suggestion_kind_ipv6": "IP address",
+  "suggestion_kind_ipv4": "IPv4 address",
+  "suggestion_kind_ipv6": "IPv6 address",
   "suggestion_kind_btc": "Bitcoin address",
   "suggestion_kind_eth": "Ethereum address",
   "suggestion_kind_amount": "Amount",
@@ -176,7 +176,7 @@
   "settings_error": "Settings could not be saved.",
   "settings_aliases_hint": "The value of these properties is looked for in documents as another name of the element.",
   "settings_tab_tags": "Tags",
-  "settings_tab_aliases": "Nicknames",
-  "settings_tab_suggestions": "Suggestions",
-  "settings_tab_ocr": "OCR"
+  "settings_tab_recognition": "Recognition",
+  "settings_aliases": "Nickname properties",
+  "settings_col_tag": "Tag"
 }
