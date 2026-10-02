@@ -39,7 +39,7 @@ import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
 import { deleteAnnotation, reattachToElement, rejectSuggestion } from '../services/qualify.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
-import type { NamedElement } from '../core/dictionary.ts';
+import { normalizeName, type NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
 import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
@@ -831,14 +831,17 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const nameOf = (id: string) => elements.find((el) => el.id === id)?.label ?? '';
 
   /** Two highlights of distinct elements selected with Ctrl+click, in click order. */
+  /** The selection comes from "identical passages": not a pair to link (homonyms). */
+  const [sameSelection, setSameSelection] = React.useState(false);
   const linkPair = React.useMemo(() => {
+    if (sameSelection) return null;
     const picked = selectedIds
       .map((id) => annotations.find((a) => a.id === id))
       .filter((a): a is Annotation => !!a && !!elementOf(a) && elements.some((el) => el.id === elementOf(a)));
     const first = picked[0];
     const last = [...picked].reverse().find((a) => elementOf(a) !== (first && elementOf(first)));
     return first && last ? { from: first, to: last } : null;
-  }, [selectedIds, annotations, elements]);
+  }, [selectedIds, annotations, elements, sameSelection]);
 
   const openLinkDraft = (from: Annotation, to: Annotation) => {
     setPending(null);
@@ -848,6 +851,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   /** Click on a highlight: select it (Ctrl/Cmd adds to the selection) and show its sheet. */
   const selectHighlight = (hit: Annotation, additive: boolean) => {
+    setSameSelection(false);
     if (additive) {
       setSelectedIds((ids) => (ids.includes(hit.id) ? ids.filter((id) => id !== hit.id) : [...ids, hit.id]));
       return;
@@ -1012,6 +1016,17 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setDraft(null);
     window.getSelection()?.removeAllRanges();
   }, []);
+
+  /**
+   * Selects every highlight of the document with the same text and kind as
+   * this one (case, accents and punctuation aside), whatever element it was
+   * attached to: homonyms and duplicates show side by side.
+   */
+  const selectSameText = (hit: Annotation) => {
+    const text = normalizeName(hit.text);
+    setSelectedIds(placed.filter((a) => a.kind === hit.kind && a.status !== 'rejected' && normalizeName(a.text) === text).map((a) => a.id));
+    setSameSelection(true);
+  };
 
   /** Scrolls the document to a passage and marks it. */
   const gotoAnnotation = (a: Annotation) => {
@@ -1187,7 +1202,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         ...at,
         header: label,
         sections: [
-          [{ id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) }],
+          [
+            { id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) },
+            ...(hit.kind === 'link' ? [] : [{ id: 'same', label: t('menu_select_same'), icon: api.icons.ListChecks, action: () => selectSameText(hit) }]),
+          ],
           linkItems,
           [{
             id: 'remove',

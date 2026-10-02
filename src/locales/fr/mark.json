@@ -179,5 +179,6 @@
   "settings_tab_recognition": "Reconnaissance",
   "settings_aliases": "Propriétés de surnom",
   "settings_col_tag": "Tag",
-  "settings_no_tag": "Aucun"
+  "settings_no_tag": "Aucun",
+  "menu_select_same": "Sélectionner les passages identiques"
 }
