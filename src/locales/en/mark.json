@@ -144,7 +144,7 @@
   "suggestions_hide": "Hide suggestions",
   "suggestion_reject": "Dismiss",
   "key_delete": "Del",
-  "suggestion_known": "Known: {{name}}",
+  "suggestion_known": "Already in the dossier: {{name}}",
   "suggestion_homonyms": "{{count}} elements with this name",
   "suggestion_kind_phone": "Phone",
   "suggestion_kind_plate": "Plate",

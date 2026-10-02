@@ -113,7 +113,7 @@ function guessType(text: string): ZnPropertyType {
   // A leading zero means an identifier (phone, postcode), not a quantity.
   if (/^-?(?:0|[1-9]\d{0,11})(?:[.,]\d+)?$/.test(t.replace(/\s/g, ''))) return 'number';
   const [date] = findDates(t);
-  if (date && date.raw.length >= t.length * 0.6) return 'date';
+  if (date && date.raw.length >= t.length * 0.6) return date.hasTime ? 'datetime' : 'date';
   return 'text';
 }
 
@@ -124,6 +124,8 @@ function formatValue(value: ZnProperty['value']): string {
 
 function parseValue(type: ZnPropertyType | undefined, raw: string): ZnProperty['value'] {
   if (type === 'date') return raw ? new Date(`${raw}T12:00:00`) : null;
+  // "yyyy-mm-dd" or "yyyy-mm-ddThh:mm", in local time as ZN's panel does.
+  if (type === 'datetime') return raw ? new Date(raw.includes('T') ? raw : `${raw}T00:00`) : null;
   if (type === 'number') return raw === '' ? null : Number(raw.replace(/\s/g, '').replace(',', '.'));
   return raw;
 }
@@ -556,22 +558,24 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   }, [element, env.elements, env.tagSets]);
   const [key, setKey] = React.useState((passage.suggestion && DEFAULT_PROFILE.suggestionKeys[passage.suggestion.kind]) ?? '');
   const [type, setType] = React.useState<ZnPropertyType>(guessType(trimPunctuation(passage.text)));
+  const firstDate = React.useMemo(() => findDates(passage.text, passage.referenceYear)[0], [passage]);
   const [value, setValue] = React.useState(() => {
-    if (guessType(passage.text) !== 'date') return trimPunctuation(passage.text);
-    const [d] = findDates(passage.text, passage.referenceYear);
-    return d ? toDateInputValue(d.date) : '';
+    const guessed = guessType(passage.text);
+    if (guessed !== 'date' && guessed !== 'datetime') return trimPunctuation(passage.text);
+    return firstDate ? toDateInputValue(firstDate.date) : '';
   });
+  const [time, setTime] = React.useState(() => (firstDate?.hasTime ? timeOf(firstDate.date) : ''));
   const [busy, setBusy] = React.useState(false);
 
   const onKeyChange = (next: string) => {
     setKey(next);
     const known = suggested.get(next);
-    if (known === 'text' || known === 'number' || known === 'date' || known === 'link') setType(known);
+    if (known === 'text' || known === 'number' || known === 'date' || known === 'datetime' || known === 'link') setType(known);
   };
   const valid = key.trim() && value.trim();
   const submit = async () => {
     setBusy(true);
-    const ok = await env.run(() => qualifyAsProperty(env.ctx, passage, element.id, { key: key.trim(), value: parseValue(type, value.trim()), type }));
+    const ok = await env.run(() => qualifyAsProperty(env.ctx, passage, element.id, { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type }));
     if (ok) p.onDone();
     else setBusy(false);
   };
@@ -590,12 +594,16 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   h('div', { className: 'flex gap-2' },
     h('div', { className: 'space-y-1 flex-1' },
       h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
-      h('input', { type: type === 'date' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) }),
+      h('div', { className: 'flex gap-1' },
+        h('input', { type: type === 'date' || type === 'datetime' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) }),
+        type === 'datetime'
+          ? h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) })
+          : null),
       h(ChecksumWarning, { env, passage })),
     h('div', { className: 'space-y-1', style: { width: 96 } },
       h('label', { className: S.SMALL_LABEL }, env.t('field_type')),
       h('select', { className: S.INPUT_IN_CARD, value: type, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as ZnPropertyType) },
-        (['text', 'number', 'date', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))))),
+        (['text', 'number', 'date', 'datetime', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))))),
   h('div', { className: S.BUTTON_ROW },
     h('button', { type: 'button', onClick: p.onDone, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),
     h('button', { type: 'submit', disabled: busy || !valid, className: S.BUTTON_PRIMARY_SMALL }, env.t('add_property'))));

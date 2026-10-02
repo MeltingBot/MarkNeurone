@@ -30,6 +30,8 @@ export interface ZnElement {
   tags: string[];
   properties: ZnProperty[];
   source: string;
+  /** Files attached to the element (ZN assets). */
+  assetIds?: string[];
   events: ZnElementEvent[];
   position: { x: number; y: number };
   geo?: ZnGeo | null;

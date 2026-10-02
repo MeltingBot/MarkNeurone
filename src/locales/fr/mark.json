@@ -144,7 +144,7 @@
   "suggestions_hide": "Masquer les suggestions",
   "suggestion_reject": "Ignorer",
   "key_delete": "Suppr",
-  "suggestion_known": "Connu : {{name}}",
+  "suggestion_known": "Déjà dans le dossier : {{name}}",
   "suggestion_homonyms": "{{count}} éléments de même nom",
   "suggestion_kind_phone": "Téléphone",
   "suggestion_kind_plate": "Immatriculation",
