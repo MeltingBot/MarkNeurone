@@ -16,7 +16,6 @@ import * as S from './znStyles.ts';
 
 const KINDS: SuggestionKind[] = ['phone', 'plate', 'iban', 'siret', 'nir', 'email', 'url', 'ipv4', 'ipv6', 'btc', 'eth', 'amount', 'date'];
 
-const SECTION_TITLE = 'text-xs text-text-secondary font-medium uppercase tracking-wider';
 const INPUT = 'w-full px-2 py-1 text-xs rounded border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:border-accent';
 const BUTTON_PRIMARY = 'bg-accent text-white hover:bg-accent-hover px-3 py-1.5 text-sm font-medium rounded sketchy-border disabled:opacity-50';
 const BUTTON_SECONDARY = 'border border-border-default text-text-primary bg-bg-primary hover:bg-bg-secondary px-3 py-1.5 text-sm font-medium rounded sketchy-border';
@@ -33,6 +32,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [colors, setColors] = React.useState<Record<string, string | null>>({});
   const [aliasInput, setAliasInput] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [tab, setTab] = React.useState<'tags' | 'aliases' | 'suggestions' | 'ocr'>('tags');
   const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
   const colorOf = (tag: string) =>
     tag in colors ? colors[tag] : tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null;
@@ -67,8 +67,16 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   // Shortcuts follow the order of the rows, as normalizeSettings will store them.
   const shown = normalizeSettings(draft).profile.grid;
 
-  const section = (title: string, hint: string | null, ...children: ReactTypes.ReactNode[]) =>
-    h('div', { className: 'space-y-2' }, h('h3', { className: SECTION_TITLE, title: hint ?? undefined }, title), ...children);
+  /** Content of one tab; null for the others. */
+  const section = (id: typeof tab, content: ReactTypes.ReactNode, more: ReactTypes.ReactNode = null) =>
+    tab === id ? h('div', { className: 'space-y-2' }, content, more) : null;
+  // Tabs as in ZN's modals (StorageModal).
+  const tabs = [
+    { id: 'tags' as const, label: t('settings_tab_tags'), icon: api.icons.Tag },
+    { id: 'aliases' as const, label: t('settings_tab_aliases'), icon: api.icons.UserRound, hint: t('settings_aliases_hint') },
+    { id: 'suggestions' as const, label: t('settings_tab_suggestions'), icon: api.icons.Sparkles },
+    { id: 'ocr' as const, label: t('settings_tab_ocr'), icon: api.icons.ScanText },
+  ];
 
   return h('div', {
     className: 'fixed inset-0 z-50 flex items-center justify-center',
@@ -91,8 +99,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         h('h2', { className: 'text-sm font-semibold text-text-primary' }, t('settings_title')),
         h('button', { type: 'button', onClick: onClose, title: t('reader_close'), className: S.ICON_BUTTON }, h(X, { size: 16 }))),
 
-      h('div', { className: 'p-4 overflow-y-auto flex-1 space-y-6' },
-        section(t('settings_tags'), null,
+      h('div', { className: 'flex border-b border-border-default px-4' },
+        tabs.map(({ id, label, icon: Icon, hint }) =>
+          h('button', {
+            key: id,
+            type: 'button',
+            onClick: () => setTab(id),
+            title: hint,
+            className: `flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+              tab === id ? 'border-accent text-accent' : 'border-transparent text-text-tertiary hover:text-text-secondary'}`,
+          }, h(Icon, { size: 13 }), label))),
+
+      h('div', { className: 'p-4 overflow-y-auto flex-1', style: { minHeight: 320 } },
+        section('tags', 
           h('div', { className: 'space-y-1' },
             profile.grid.map((g, i) =>
               // The shortcut is in the tooltip, not in a column.
@@ -111,7 +130,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               }, h(Plus, { size: 12 }), t('tag_add'))
             : null),
 
-        section(t('settings_aliases'), t('settings_aliases_hint'),
+        section('aliases', 
           h('div', { className: 'flex flex-wrap items-center gap-1.5' },
             profile.aliasKeys.map((k) =>
               h('span', { key: k, className: S.TAG_CHIP }, k,
@@ -132,7 +151,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               onBlur: addAlias,
             }))),
 
-        section(t('settings_suggestions'), null,
+        section('suggestions', 
           h('div', { className: 'grid gap-x-2 gap-y-1 items-center', style: { gridTemplateColumns: '120px 1fr 1fr' } },
             h('span', null),
             h('span', { className: S.SMALL_LABEL }, t('field_tags')),
@@ -155,7 +174,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               }),
             ]))),
 
-        section(t('settings_ocr'), null,
+        section('ocr', 
           h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
             h('input', {
               type: 'checkbox',

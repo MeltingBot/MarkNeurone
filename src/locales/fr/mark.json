@@ -167,16 +167,16 @@
   "marker_select": "Sélectionnez un élément.",
   "marker_none": "Aucun passage",
   "settings_title": "Réglages MarkNeurone",
-  "settings_tags": "Tags proposés",
-  "settings_aliases": "Propriétés de surnom",
   "settings_alias_placeholder": "Nom de la propriété",
-  "settings_suggestions": "Suggestions",
-  "settings_ocr": "OCR",
   "settings_drop_color": "Retirer l'encre de couleur (tampons) avant la reconnaissance",
   "settings_defaults": "Valeurs par défaut",
   "settings_save": "Enregistrer",
   "settings_move_up": "Monter",
   "settings_remove": "Retirer",
   "settings_error": "Les réglages n'ont pas pu être enregistrés.",
-  "settings_aliases_hint": "La valeur de ces propriétés est cherchée dans les documents comme un autre nom de l'élément."
+  "settings_aliases_hint": "La valeur de ces propriétés est cherchée dans les documents comme un autre nom de l'élément.",
+  "settings_tab_tags": "Tags",
+  "settings_tab_aliases": "Surnoms",
+  "settings_tab_suggestions": "Suggestions",
+  "settings_tab_ocr": "OCR"
 }
