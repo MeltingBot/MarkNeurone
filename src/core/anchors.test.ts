@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { anchorIds, anchorLabel, anchorToken, appendAnchor, removeAnchor, shortId } from './anchors.ts';
+
+const ID = '1A2B3C4D-0000-4000-8000-000000000000';
+
+describe('anchors', () => {
+  it('builds a short token from a UUID', () => {
+    expect(shortId(ID)).toBe('1a2b3c4d');
+    expect(anchorToken(ID)).toBe('[mn:1a2b3c4d]');
+    expect(anchorLabel('pv.pdf', 3, ID)).toBe('pv.pdf p.3 [mn:1a2b3c4d]');
+    expect(anchorLabel('pv.docx', null, ID)).toBe('pv.docx [mn:1a2b3c4d]');
+  });
+
+  it('appends to an existing source without duplicates', () => {
+    const label = anchorLabel('pv.pdf', 3, ID);
+    expect(appendAnchor('', label)).toBe(label);
+    expect(appendAnchor('Fichier SIV', label)).toBe(`Fichier SIV ; ${label}`);
+    expect(appendAnchor(`Fichier SIV ; ${label}`, label)).toBe(`Fichier SIV ; ${label}`);
+  });
+
+  it('finds every anchor, including after a merge concatenated two sources', () => {
+    const merged = 'pv.pdf p.3 [mn:1a2b3c4d] ; autre.pdf p.1 [mn:99aa00ff]';
+    expect(anchorIds(merged)).toEqual(['1a2b3c4d', '99aa00ff']);
+    expect(anchorIds(undefined)).toEqual([]);
+  });
+
+  it('removes one anchor and keeps the other sources', () => {
+    const label = anchorLabel('pv.pdf', 3, ID);
+    expect(removeAnchor(`Fichier SIV ; ${label} ; autre.pdf p.1 [mn:99aa00ff]`, ID)).toBe('Fichier SIV ; autre.pdf p.1 [mn:99aa00ff]');
+    expect(removeAnchor(label, ID)).toBe('');
+    expect(removeAnchor('Fichier SIV', ID)).toBe('Fichier SIV');
+  });
+});

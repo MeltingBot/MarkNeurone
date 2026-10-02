@@ -1,0 +1,22 @@
+{
+  "name": "markneurone-ocr-bench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen": "tsx gen/generate.ts",
+    "bench": "tsx run.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --root ../.. src/core bench"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.10",
+    "pdfjs-dist": "6.2.108",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

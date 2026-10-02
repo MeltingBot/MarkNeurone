@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-plugin/
+*.log
+
+# OCR bench: user-provided documents and generated outputs never enter the repo
+bench/ocr/data/
+bench/ocr/out/
+.playwright-mcp/

@@ -1,0 +1,40 @@
+{
+  "name": "markneurone",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Annotated document reading plugin for ZeroNeurone (PDF, DOCX, ODT, TXT, Markdown; highlights to graph elements, local OCR)",
+  "main": "src/plugin-external.ts",
+  "scripts": {
+    "dev": "vite",
+    "dev:watch": "vite build --config vite.config.plugin.ts --watch",
+    "build": "tsc -b && vite build --config vite.config.plugin.ts",
+    "build:dev": "tsc -b && vite build --config vite.config.plugin.ts --minify false",
+    "build:plugin": "vite build --config vite.config.plugin.ts",
+    "build:plugin:dev": "vite build --config vite.config.plugin.ts --minify false",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "zeroneurone-app": "*"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4",
+    "vitest": "^4.0.18"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "6.2.108",
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0"
+  }
+}
