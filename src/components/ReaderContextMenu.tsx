@@ -30,7 +30,9 @@ const PANEL_CLASS = 'fixed py-1 bg-bg-primary border border-border-default sketc
 // Above the reader modal (z-50).
 const Z_OVERLAY = 60;
 const Z_PANEL = 61;
-const WIDTH = 240;
+// The menu takes the width of its longest entry, within these bounds.
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 360;
 
 export function ReaderContextMenu({ x, y, header, sections, onClose }: Props) {
   const api = getHostAPI();
@@ -44,7 +46,7 @@ export function ReaderContextMenu({ x, y, header, sections, onClose }: Props) {
     rootRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const left = Math.max(8, Math.min(x, window.innerWidth - WIDTH - 8));
+  const left = Math.max(8, Math.min(x, window.innerWidth - MAX_WIDTH - 8));
   const top = height && y + height > window.innerHeight - 8 ? Math.max(8, y - height) : y;
   const visible = sections.map((section) => section).filter((section) => section.length > 0);
 
@@ -86,7 +88,7 @@ export function ReaderContextMenu({ x, y, header, sections, onClose }: Props) {
       className: `w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left outline-none transition-colors ${color}`,
     },
     item.icon ? h(item.icon, { size: 14, className: 'shrink-0' }) : h('span', { className: 'w-3.5 shrink-0' }),
-    h('span', { className: 'truncate' }, item.label),
+    h('span', { className: 'whitespace-nowrap' }, item.label),
     item.shortcut ? h('span', { className: 'ml-auto pl-4 shrink-0 text-xs text-text-tertiary' }, item.shortcut) : null);
   };
 
@@ -107,7 +109,7 @@ export function ReaderContextMenu({ x, y, header, sections, onClose }: Props) {
       onKeyDown,
       onContextMenu: (e: ReactTypes.MouseEvent) => e.preventDefault(),
       className: `${PANEL_CLASS} outline-none`,
-      style: { left, top, width: WIDTH, zIndex: Z_PANEL },
+      style: { left, top, minWidth: MIN_WIDTH, maxWidth: MAX_WIDTH, zIndex: Z_PANEL },
     },
     header
       ? h('div', { className: 'px-3 pt-1.5 pb-0.5 text-xs text-text-tertiary truncate', title: header }, header)
