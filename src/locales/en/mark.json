@@ -92,7 +92,6 @@
   "type_geo": "Coords.",
   "menu_copy": "Copy",
   "menu_link_to": "Link “{{from}}” → “{{to}}”",
-  "menu_link_hint": "To link: click an element, then right-click or Ctrl+click the other",
   "menu_open_sheet": "Open sheet",
   "menu_remove_highlight": "Remove highlight",
   "link_pair_action": "Create link (L)",
@@ -180,5 +179,5 @@
   "settings_aliases": "Nickname properties",
   "settings_col_tag": "Tag",
   "settings_no_tag": "None",
-  "menu_select_same": "Select identical passages"
+  "menu_select_same": "Identical passages"
 }

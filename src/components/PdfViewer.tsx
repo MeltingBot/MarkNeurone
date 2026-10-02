@@ -1194,8 +1194,6 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           icon: Link2,
           action: () => openLinkDraft(selected, hit),
         });
-      } else if (hitElement) {
-        linkItems.push({ id: 'link-hint', label: t('menu_link_hint'), icon: Link2, disabled: true, action: () => undefined });
       }
       const label = hit.kind === 'link' ? (links.find((l) => l.id === hit.targetId)?.label || t('link_unnamed')) : nameOf(hit.targetId ?? '');
       setMenu({
