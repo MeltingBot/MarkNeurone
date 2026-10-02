@@ -81,7 +81,6 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
               key: a.id,
               type: 'button',
               onClick: () => openReader({ dossierId, assetId: asset.id, annotationId: a.id }),
-              title: a.context ?? a.text,
               className: 'w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-bg-secondary',
             },
             h(icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
