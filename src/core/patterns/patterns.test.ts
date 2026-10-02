@@ -14,6 +14,31 @@ describe('extractPatterns', () => {
     expect(found('NIR 1 85 05 78 006 084 92')).toEqual([{ kind: 'nir', text: '1 85 05 78 006 084 92', ok: false }]);
   });
 
+  it('finds phone numbers written together, with dots, or with a country code', () => {
+    const text = '0612345678, 06.12.34.56.78, 06-12-34-56-78, +33 6 12 34 56 78, +33 (0)6 12 34 56 78, 0033612345678, ' +
+      '+32 470 12 34 56, +44 7700 900123, 0041 79 123 45 67, +1 415-555-0123.';
+    expect(found(text)).toEqual([
+      '0612345678', '06.12.34.56.78', '06-12-34-56-78', '+33 6 12 34 56 78', '+33 (0)6 12 34 56 78', '0033612345678',
+      '+32 470 12 34 56', '+44 7700 900123', '0041 79 123 45 67', '+1 415-555-0123',
+    ].map((t) => ({ kind: 'phone', text: t })));
+  });
+
+  it('finds an international number wrapped after its country code', () => {
+    expect(found('et le +41\n74 647 39 38.')).toEqual([{ kind: 'phone', text: '+41\n74 647 39 38' }]);
+  });
+
+  it('checks Bitcoin addresses and flags the usual OCR confusions', () => {
+    const valid = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+    expect(found(`adresse ${valid}.`)).toEqual([{ kind: 'btc', text: valid, ok: true }]);
+    expect(found('adresse bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5.')).toEqual([{ kind: 'btc', text: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5', ok: false }]);
+    const misread = extractPatterns('adresse bclqw5O8d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4.');
+    expect(misread).toMatchObject([{ kind: 'btc', checksumOk: true, suspect: true }]);
+  });
+
+  it('does not read a short number with a plus sign as a phone', () => {
+    expect(kinds('score +12 34, total +3 points')).toEqual([]);
+  });
+
   it('finds contact and network identifiers, without trailing punctuation', () => {
     expect(found('Écrire à jules.terrier+pv@exemple.test, voir https://exemple.test/a?b=1). IP 192.168.1.20 ou 2001:db8::8a2e:370:7334.')).toEqual([
       { kind: 'email', text: 'jules.terrier+pv@exemple.test' },

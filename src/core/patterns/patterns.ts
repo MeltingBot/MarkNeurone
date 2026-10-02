@@ -3,7 +3,7 @@
 // and dates. Deterministic and explainable: each match says what it is.
 
 import { extractIdentifiers, type IdentifierKind } from './identifiers.ts';
-import { nirValid } from './checksums.ts';
+import { bech32Valid, nirValid } from './checksums.ts';
 import { findDates } from '../dates.ts';
 
 export type PatternKind = IdentifierKind | 'nir' | 'email' | 'url' | 'ipv4' | 'ipv6' | 'btc' | 'eth' | 'amount' | 'date';
@@ -14,7 +14,19 @@ export interface PatternMatch {
   end: number;
   /** false when the identifier carries a check digit and the check fails: probable misreading. */
   checksumOk?: boolean;
+  /** Characters typical of OCR confusions were read in place of the expected ones (bcl for bc1). */
+  suspect?: boolean;
 }
+
+// International numbers: +CC or 00CC, then groups of digits. French ones are
+// matched by extractIdentifiers; the longer match wins where both apply.
+// Separators as for French numbers: a number may be wrapped after its country code.
+const PHONE_INTL = /(?<![\d+])(?:\+|00)[1-9]\d{0,2}(?:[\s.\-]{0,2}\(0\))?(?:[\s.\-]{0,2}\d{1,4}){2,6}(?!\d)/g;
+/** 8 to 15 digits after the country code prefix, as in E.164. */
+const intlDigits = (raw: string) => {
+  const n = raw.replace(/^00/, '').replace(/\(0\)/, '').replace(/\D/g, '').length;
+  return n >= 8 && n <= 15;
+};
 
 const EMAIL = /(?<![\w.+-])[\w.+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(?![\w-])/g;
 const URL = /(?<![\w@/])(?:https?:\/\/|www\.)[^\s<>"«»]+/gi;
@@ -22,7 +34,10 @@ const OCTET = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
 const IPV4 = new RegExp(`(?<![\\d.])(?:${OCTET}\\.){3}${OCTET}(?![\\d]|\\.\\d)`, 'g');
 // Full form, or compressed with "::": a time such as 11:19 never matches.
 const IPV6 = /(?<![\w:])(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,5})?|::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6}))(?![\w:])/gi;
-const BTC = /(?<![A-Za-z0-9])(?:bc1[ac-hj-np-z02-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})(?![A-Za-z0-9])/g;
+// Segwit (bech32) addresses, tolerating the usual OCR confusions: "bcl" or "bcI"
+// for "bc1", "O" for "0". Legacy base58 addresses as written.
+const BTC_SEGWIT = /(?<![A-Za-z0-9])bc[1lI][ac-hj-np-z02-9O]{25,62}(?![A-Za-z0-9])/g;
+const BTC_LEGACY = /(?<![A-Za-z0-9])[13][a-km-zA-HJ-NP-Z1-9]{25,34}(?![A-Za-z0-9])/g;
 const ETH = /(?<![A-Za-z0-9])0x[a-fA-F0-9]{40}(?![A-Za-z0-9])/g;
 // 1 200 €, 1.200,50 euros, 500 EUR (thin and non-breaking spaces as thousands separators).
 const AMOUNT = /(?<![\d,.])(?:\d{1,3}(?:[   .]\d{3})+|\d+)(?:,\d{1,2})?[   ]?(?:€|euros?(?![\p{L}])|EUR(?![\p{L}]))/giu;
@@ -33,7 +48,7 @@ function trimUrl(raw: string): string {
   return raw.replace(/[.,;:!?)\]'"»]+$/, '');
 }
 
-function collect(text: string, re: RegExp, kind: PatternKind, accept?: (raw: string) => boolean | { checksumOk: boolean }): PatternMatch[] {
+function collect(text: string, re: RegExp, kind: PatternKind, accept?: (raw: string) => boolean | { checksumOk: boolean; suspect?: boolean }): PatternMatch[] {
   const out: PatternMatch[] = [];
   for (const m of text.matchAll(re)) {
     const raw = kind === 'url' ? trimUrl(m[0]) : m[0];
@@ -64,12 +79,17 @@ function dropOverlaps(matches: PatternMatch[]): PatternMatch[] {
 export function extractPatterns(text: string): PatternMatch[] {
   return dropOverlaps([
     ...extractIdentifiers(text).map(({ kind, start, end, checksumOk }) => ({ kind, start, end, ...(checksumOk !== undefined ? { checksumOk } : {}) })),
+    ...collect(text, PHONE_INTL, 'phone', intlDigits),
     ...collect(text, NIR, 'nir', (raw) => ({ checksumOk: nirValid(raw) })),
     ...collect(text, EMAIL, 'email'),
     ...collect(text, URL, 'url'),
     ...collect(text, IPV4, 'ipv4'),
     ...collect(text, IPV6, 'ipv6', (raw) => /[0-9a-f]{2}/i.test(raw)),
-    ...collect(text, BTC, 'btc', looksLikeAddress),
+    ...collect(text, BTC_SEGWIT, 'btc', (raw) => {
+      const read = `bc1${raw.slice(3).replace(/O/g, '0')}`;
+      return { checksumOk: bech32Valid(read), ...(read !== raw ? { suspect: true } : {}) };
+    }),
+    ...collect(text, BTC_LEGACY, 'btc', looksLikeAddress),
     ...collect(text, ETH, 'eth'),
     ...collect(text, AMOUNT, 'amount'),
     ...findDates(text).map((d) => ({ kind: 'date' as const, start: d.start, end: d.end })),

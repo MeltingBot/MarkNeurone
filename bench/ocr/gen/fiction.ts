@@ -1,3 +1,5 @@
+import { BECH32_CHARSET, bech32Checksum } from '../../../src/core/patterns/checksums.ts';
+
 // Fictional content for generated test reports (procès-verbaux).
 // Every name, company, number and place is invented; identifiers are random
 // but carry valid check digits so that the bench can test checksum flagging.
@@ -47,10 +49,29 @@ export interface PageTruth {
   text: string;
 }
 
+/**
+ * A phone number as people write it: French with spaces, dots or hyphens,
+ * written together, with +33 or 0033, or a foreign number (Belgium, Switzerland,
+ * Spain, United Kingdom).
+ */
 export function phone(rng: Rng): { raw: string; value: string } {
   const value = pick(rng, ['06', '07', '01', '02', '04', '05', '09']) + digits(rng, 8);
-  const sep = pick(rng, [' ', ' ', '.', '']);
-  const raw = sep === '' ? value : value.match(/../g)!.join(sep);
+  const pairs = value.match(/../g)!;
+  const national = value.slice(1);
+  const raw = pick(rng, [
+    () => pairs.join(' '),
+    () => pairs.join(' '),
+    () => pairs.join('.'),
+    () => pairs.join('-'),
+    () => value,
+    () => `+33 ${national[0]} ${national.slice(1).match(/../g)!.join(' ')}`,
+    () => `+33${national}`,
+    () => `0033 ${national[0]} ${national.slice(1).match(/../g)!.join(' ')}`,
+    () => `+32 4${digits(rng, 2)} ${digits(rng, 2)} ${digits(rng, 2)} ${digits(rng, 2)}`,
+    () => `+41 7${digits(rng, 1)} ${digits(rng, 3)} ${digits(rng, 2)} ${digits(rng, 2)}`,
+    () => `+34 6${digits(rng, 2)} ${digits(rng, 3)} ${digits(rng, 3)}`,
+    () => `+44 7${digits(rng, 3)} ${digits(rng, 6)}`,
+  ])();
   return { raw, value };
 }
 
@@ -103,13 +124,15 @@ export function nir(rng: Rng): string {
 }
 
 const HEX = '0123456789abcdef';
-const BECH32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const chars = (rng: Rng, set: string, n: number) => Array.from({ length: n }, () => set[Math.floor(rng() * set.length)]).join('');
 
 export const ipv4 = (rng: Rng) => [10 + Math.floor(rng() * 200), Math.floor(rng() * 256), Math.floor(rng() * 256), 1 + Math.floor(rng() * 254)].join('.');
 export const ipv6 = (rng: Rng) => `2001:db8:${chars(rng, HEX, 4)}::${chars(rng, HEX, 3)}:${chars(rng, HEX, 4)}`;
-/** Syntax of a bech32 address; the checksum is not computed (the plugin does not verify it). */
-export const btc = (rng: Rng) => `bc1q${chars(rng, BECH32, 38)}`;
+/** Segwit version 0 address (20-byte program) with a valid bech32 checksum. */
+export function btc(rng: Rng): string {
+  const data = [0, ...Array.from({ length: 32 }, () => Math.floor(rng() * 32))];
+  return `bc1${data.map((d) => BECH32_CHARSET[d]).join('')}${bech32Checksum('bc', data)}`;
+}
 export const eth = (rng: Rng) => `0x${chars(rng, HEX, 40)}`;
 export function amount(rng: Rng): string {
   const euros = 50 + Math.floor(rng() * 9000);
@@ -174,6 +197,10 @@ export function buildReport(rng: Rng, pageCount: number): { pages: string[][]; t
       const mail = add('email', `${who.split(' ').pop()!.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z]/g, '')}.${digits(rng, 2)}@exemple.test`);
       const link = add('url', `https://exemple.test/annonce/${digits(rng, 6)}`);
       return `"${who}, que tout le monde appelle ${alias}, m'écrivait à l'adresse ${mail}. Il m'a envoyé le lien ${link} pour voir le matériel."`;
+    },
+    () => {
+      const numbers = [0, 1, 2, 3].map(() => add('phone', phone(rng).raw));
+      return `"Dans son répertoire, il y avait le ${numbers[0]}, le ${numbers[1]}, le ${numbers[2]} et le ${numbers[3]}."`;
     },
     () => {
       const a = add('ipv4', ipv4(rng));

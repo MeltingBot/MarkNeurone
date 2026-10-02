@@ -39,7 +39,7 @@ export interface Passage {
   ocr?: { rawText: string; confidence: number };
   /** Set when the passage comes from a pre-highlighting suggestion. */
   origin?: AnnotationOrigin;
-  suggestion?: { kind: SuggestionKind; checksumOk?: boolean; elementIds?: string[] };
+  suggestion?: { kind: SuggestionKind; checksumOk?: boolean; suspect?: boolean; elementIds?: string[] };
   /** Bounding box of the selection in client coordinates, to place the form. */
   clientBox: { left: number; top: number; right: number; bottom: number };
 }

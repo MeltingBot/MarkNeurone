@@ -159,5 +159,6 @@
   "suggestion_kind_eth": "Adresse Ethereum",
   "suggestion_kind_amount": "Montant",
   "suggestion_kind_date": "Date",
-  "checksum_invalid": "Clé de contrôle invalide : erreur de lecture probable."
+  "checksum_invalid": "Clé de contrôle invalide : erreur de lecture probable.",
+  "misread_suspect": "Caractères probablement mal lus : vérifiez la valeur sur le document."
 }

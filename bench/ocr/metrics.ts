@@ -62,9 +62,9 @@ export interface KindScore {
   found: number;
   /** Suggested values not present in the truth. */
   falsePositives: number;
-  /** Suggested values whose check digit fails (IBAN, SIRET, NIR). */
+  /** Suggested values flagged as probably misread: failing check digit (IBAN, SIRET, NIR, Bitcoin) or OCR confusion. */
   checksumFlagged: number;
-  /** Wrong values that the check digit did NOT catch. */
+  /** Wrong values that nothing flagged although the kind carries a check digit. */
   checksumMissed: number;
   /** Sum of per-item character error rates, see bestSubstringDistance. */
   cerSum: number;
@@ -92,15 +92,18 @@ export function scoreSuggestions(items: TruthItem[], text: string, dictionary: N
     score.expected = expected.length;
     const remaining = [...expected];
     for (const s of got) {
-      const at = remaining.indexOf(key(text.slice(s.start, s.end)));
+      const raw = text.slice(s.start, s.end);
+      // A Bitcoin address read with an OCR confusion is suggested as the corrected value.
+      const read = s.suspect && kind === 'btc' ? `bc1${raw.slice(3).replace(/O/g, '0')}` : raw;
+      const at = remaining.indexOf(key(read));
       if (at >= 0) {
         remaining.splice(at, 1);
         score.found++;
       } else {
         score.falsePositives++;
-        if (s.checksumOk === true) score.checksumMissed++;
+        if (s.checksumOk === true && !s.suspect) score.checksumMissed++;
       }
-      if (s.checksumOk === false) score.checksumFlagged++;
+      if (s.checksumOk === false || s.suspect) score.checksumFlagged++;
     }
     for (const i of items.filter((x) => x.kind === kind)) {
       const needle = compact(i.value);

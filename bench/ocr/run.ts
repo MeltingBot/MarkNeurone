@@ -6,7 +6,10 @@
 // Usage:
 //   tsx run.ts --input out/corpus [--truth out/corpus/truth.json]
 //              [--models fast,best] [--modes brut,pretraite] [--pages 2]
-//              [--filter cumul] [--out out/report]
+//              [--filter cumul] [--out out/report] [--dump]
+//
+// --dump writes the text of every page (text layer or OCR) to <out>/text/,
+// to see what the OCR actually read where a suggestion is missed.
 //
 // Everything runs locally: models are read from ./models, nothing is downloaded.
 
@@ -56,6 +59,7 @@ const { values } = parseArgs({
     pages: { type: 'string' },
     filter: { type: 'string' },
     out: { type: 'string', default: 'out/report' },
+    dump: { type: 'boolean', default: false },
   },
 });
 
@@ -104,7 +108,16 @@ async function makeWorker(model: string): Promise<Worker> {
   return createWorker('fra', OEM.LSTM_ONLY, { langPath, gzip: false, cacheMethod: 'none' });
 }
 
+function dump(result: PageResult, text: string): void {
+  if (!values.dump) return;
+  const dir = join(values.out!, 'text');
+  mkdirSync(dir, { recursive: true });
+  const tag = result.mode === 'couche-texte' ? 'texte' : `${result.model}-${result.mode}`;
+  writeFileSync(join(dir, `${basename(result.file, '.pdf')}-p${result.page}-${tag}.txt`), text);
+}
+
 function score(result: PageResult, text: string, pageTruth: PageTruth | undefined, dictionary: NamedElement[]): void {
+  dump(result, text);
   if (!pageTruth?.items) return;
   result.cer = pageCer(pageTruth.text, text);
   result.suggestions = scoreSuggestions(pageTruth.items, text, dictionary);
@@ -226,7 +239,7 @@ function markdown(results: PageResult[]): string {
   };
 
   lines.push('## Synthèse par variante', '');
-  lines.push('| Variante | Modèle | Mode | Pages | OCR ms/page | Prétrait. ms/page | Confiance | CER page | Suggestions trouvées | Fausses suggestions | Clés invalides signalées | Erreurs non signalées par la clé |');
+  lines.push('| Variante | Modèle | Mode | Pages | OCR ms/page | Prétrait. ms/page | Confiance | CER page | Suggestions trouvées | Fausses suggestions | Signalées comme mal lues | Erreurs non signalées |');
   lines.push('|' + ' --- |'.repeat(12));
   for (const [key, rs] of sorted) {
     const [variant, model, mode] = key.split('|');
