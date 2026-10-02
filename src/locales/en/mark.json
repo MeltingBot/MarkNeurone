@@ -168,8 +168,8 @@
   "marker_none": "No passages",
   "settings_title": "MarkNeurone settings",
   "settings_tags": "Proposed tags",
-  "settings_aliases": "Properties read as aliases",
-  "settings_alias_placeholder": "Property key",
+  "settings_aliases": "Nickname properties",
+  "settings_alias_placeholder": "Property name",
   "settings_suggestions": "Suggestions",
   "settings_ocr": "OCR",
   "settings_drop_color": "Remove coloured ink (stamps) before recognition",
@@ -177,5 +177,6 @@
   "settings_save": "Save",
   "settings_move_up": "Move up",
   "settings_remove": "Remove",
-  "settings_error": "Settings could not be saved."
+  "settings_error": "Settings could not be saved.",
+  "settings_aliases_hint": "The value of these properties is looked for in documents as another name of the element."
 }
