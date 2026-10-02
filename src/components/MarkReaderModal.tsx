@@ -15,13 +15,14 @@ import { isMapPickerOpen } from '../services/mapPicker.ts';
 interface Props {
   dossierId: string;
   assetId: string;
+  focus: { annotationId: string; target: object } | null;
   minimized: boolean;
   onMinimize: () => void;
   onRestore: () => void;
   onClose: () => void;
 }
 
-export function MarkReaderModal({ dossierId, assetId, minimized, onMinimize, onRestore, onClose }: Props) {
+export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimize, onRestore, onClose }: Props) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -102,7 +103,7 @@ export function MarkReaderModal({ dossierId, assetId, minimized, onMinimize, onR
           h('button', { onClick: onClose, title: t('reader_close'), className: headerButton }, h(X, { size: 16 })),
         ),
       ),
-      h(PdfViewer, { dossierId, asset, onMinimize }),
+      h(PdfViewer, { dossierId, asset, focus, onMinimize }),
     ),
   );
 

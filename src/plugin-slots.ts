@@ -6,6 +6,7 @@
 import { getHostAPI } from './hostAPI.ts';
 import { PLUGIN_ID, I18N_NS, MN_PLUGIN_VERSION } from './constants.ts';
 import { MarkReaderModal } from './components/MarkReaderModal.tsx';
+import { MarkerPanel } from './components/MarkerPanel.tsx';
 import { openReader, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
 import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
@@ -67,6 +68,8 @@ export async function registerSlots(): Promise<void> {
       ? React.createElement(MarkReaderModal, {
           dossierId: target.dossierId,
           assetId: target.assetId,
+          // A new target object each time: the same passage can be shown again.
+          focus: target.annotationId ? { annotationId: target.annotationId, target } : null,
           minimized,
           onMinimize,
           onRestore,
@@ -95,6 +98,16 @@ export async function registerSlots(): Promise<void> {
         api.toast.error(t('import_error'));
       }
     },
+  });
+
+  // ─── panel:right ─────────────────────────────────────────
+  // "Marqueur" tab: passages of the selected element in every document.
+  api.registerPlugin('panel:right', {
+    id: 'mark-neurone-marker',
+    get label() { return t('marker_tab'); },
+    icon: 'Highlighter',
+    pluginId: PLUGIN_ID,
+    component: MarkerPanel,
   });
 
   // ─── contextMenu:element ─────────────────────────────────

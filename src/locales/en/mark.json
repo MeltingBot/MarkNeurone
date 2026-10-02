@@ -162,5 +162,8 @@
   "misread_suspect": "Characters probably misread: check the value against the document.",
   "zone_read": "Frame a passage",
   "zone_error": "Reading the area failed.",
-  "reread_selection": "Read the selection again"
+  "reread_selection": "Read the selection again",
+  "marker_tab": "Marker",
+  "marker_select": "Select an element.",
+  "marker_none": "No passages"
 }

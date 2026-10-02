@@ -51,6 +51,10 @@ Les suggestions sont masquées à la première ouverture de chaque document, pou
 
 La partie droite du lecteur présente l'élément sélectionné avec la même organisation que le panneau de ZeroNeurone : libellé et tags, propriétés, événements, localisation, liens, et liste des passages du document qui s'y rapportent.
 
+### Onglet « Marqueur »
+
+Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les passages de l'élément ou du lien sélectionné sur le canvas, dans tous les documents du dossier. Un clic ouvre le document sur le passage.
+
 ### Autres fonctions
 
 - Recherche dans l'ensemble du document, y compris dans le texte reconnu par OCR.
@@ -127,7 +131,6 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 Version 0.1.0, en développement. Fonctions prévues pour terminer la première version :
 
-- accès aux passages depuis le panneau de ZeroNeurone ;
 - réglage du profil (tags, raccourcis, alias).
 
 ## Licence

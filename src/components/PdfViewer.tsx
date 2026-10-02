@@ -435,6 +435,8 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
 interface ViewerProps {
   dossierId: string;
   asset: DocumentAsset;
+  /** Passage to scroll to and select, e.g. clicked in ZN's side panel. */
+  focus?: { annotationId: string; target: object } | null;
   /** Hides the reader, to look at the canvas. */
   onMinimize: () => void;
 }
@@ -480,7 +482,7 @@ function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
 
-export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
+export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -1019,6 +1021,18 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     const offset = first ? pdfQuadToViewport(first, scaleTransform(sizes[a.page - 1].transform, scale)).top : 0;
     root.scrollTo({ top: Math.max(0, top + offset - root.clientHeight / 3), behavior: 'smooth' });
   };
+
+  // A passage asked from outside (ZN's side panel): shown once the document,
+  // its annotations and, for a text document, the laid out sheet are ready.
+  const focusDone = React.useRef<object | null>(null);
+  React.useEffect(() => {
+    if (!focus || focusDone.current === focus.target || !root || !sizes.length) return;
+    const a = placed.find((x) => x.id === focus.annotationId);
+    if (!a || (textDoc && !a.quads.length)) return;
+    focusDone.current = focus.target;
+    selectHighlight(a, false);
+    gotoAnnotation(a);
+  });
 
   // L links the two selected elements; Escape clears a multiple selection.
   // Capture phase on document: runs before the reader's own Escape handling.
