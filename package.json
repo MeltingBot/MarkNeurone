@@ -30,7 +30,7 @@
     "vite": "^7.2.4",
     "vitest": "^4.0.18"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "jszip": "^3.10.1",
     "pdfjs-dist": "6.2.108",

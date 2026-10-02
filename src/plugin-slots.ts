@@ -33,7 +33,7 @@ export async function registerSlots(): Promise<void> {
     description: t('card_description'),
     icon: 'Highlighter',
     version: MN_PLUGIN_VERSION,
-    license: 'proprietary',
+    license: 'MIT',
     features: [],
     actions: [],
   }, PLUGIN_ID);
