@@ -53,7 +53,7 @@ La partie droite du lecteur présente l'élément sélectionné avec la même or
 
 ### Onglet « Marqueur »
 
-Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les passages de l'élément ou du lien sélectionné sur le canvas, dans tous les documents du dossier, un document par section repliable. Les passages identiques n'occupent qu'une ligne, suivie de leurs numéros de page. Un clic ouvre le document sur le passage.
+Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les passages de l'élément sélectionné sur le canvas (ou, pour un lien sélectionné, ceux du lien), dans tous les documents du dossier, un document par section repliable. Les passages identiques n'occupent qu'une ligne, suivie de leurs numéros de page. Un clic ouvre le document sur le passage.
 
 ### Réglages
 
