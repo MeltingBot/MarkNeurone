@@ -12,6 +12,7 @@ import { getSettings, saveSettings } from '../services/settingsStore.ts';
 import { setTagColor } from '../services/graphWriter.ts';
 import type { ZnTagSet } from '../services/znTypes.ts';
 import { ColorDot } from './ColorDot.tsx';
+import { TagSetPicker } from './TagSetPicker.tsx';
 import * as S from './znStyles.ts';
 
 const KINDS: SuggestionKind[] = ['phone', 'plate', 'iban', 'siret', 'nir', 'email', 'url', 'ipv4', 'ipv6', 'btc', 'eth', 'amount', 'date'];
@@ -25,7 +26,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
-  const { X, Plus, ChevronUp } = api.icons;
+  const { X, ChevronUp } = api.icons;
 
   const [draft, setDraft] = React.useState<Settings>(() => structuredClone(getSettings()));
   /** Colors changed in this window, written to ZN's TagSets on save. */
@@ -117,17 +118,28 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               // The shortcut is in the tooltip, not in a column.
               h('div', { key: i, className: 'flex items-center gap-2', title: shown[i] ? `Alt+${shown[i].key}` : undefined },
                 h(ColorDot, { color: colorOf(g.tag), size: 10, onChoose: (c: string | null) => setColors({ ...colors, [g.tag]: c }) }),
-                h('input', { className: INPUT, value: g.tag, 'aria-label': t('field_tags'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTag(i, e.target.value) }),
+                h('div', { className: 'flex-1 min-w-0' },
+                  h(TagSetPicker, {
+                    value: g.tag,
+                    tagSets,
+                    colorOf,
+                    hideDot: true,
+                    exclude: profile.grid.filter((_, j) => j !== i).map((x) => x.tag),
+                    onChange: (name: string | null) => name && setTag(i, name),
+                  })),
                 h('button', { type: 'button', disabled: i === 0, onClick: () => moveUp(i), title: t('settings_move_up'), className: `${S.ICON_BUTTON} disabled:opacity-30` },
                   h(ChevronUp, { size: 14 })),
                 h('button', { type: 'button', onClick: () => setProfile({ grid: profile.grid.filter((_, j) => j !== i) }), title: t('settings_remove'), className: S.ICON_BUTTON_DANGER },
                   h(X, { size: 14 }))))),
           profile.grid.length < MAX_GRID
-            ? h('button', {
-                type: 'button',
-                onClick: () => setProfile({ grid: [...profile.grid, { tag: '', key: '' }] }),
-                className: 'inline-flex items-center gap-1 px-2 py-0.5 text-xs text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary rounded border border-dashed border-border-default',
-              }, h(Plus, { size: 12 }), t('tag_add'))
+            ? h(TagSetPicker, {
+                value: null,
+                tagSets,
+                colorOf,
+                addButton: true,
+                exclude: profile.grid.map((x) => x.tag),
+                onChange: (name: string | null) => name && setProfile({ grid: [...profile.grid, { tag: name, key: '' }] }),
+              })
             : null),
 
         section('recognition', h('div', { className: 'space-y-5' },
@@ -157,12 +169,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             h('span', { className: S.SMALL_LABEL }, t('field_key')),
             KINDS.flatMap((kind) => [
               h('span', { key: `${kind}-l`, className: 'text-xs text-text-secondary' }, t(`suggestion_kind_${kind}`)),
-              h('input', {
+              h(TagSetPicker, {
                 key: `${kind}-t`,
-                className: INPUT,
-                value: profile.suggestionTags[kind] ?? '',
-                'aria-label': `${t(`suggestion_kind_${kind}`)} : ${t('field_tags')}`,
-                onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setProfile({ suggestionTags: { ...profile.suggestionTags, [kind]: e.target.value } }),
+                value: profile.suggestionTags[kind] ?? null,
+                tagSets,
+                colorOf,
+                allowNone: true,
+                onChange: (name: string | null) => setProfile({ suggestionTags: { ...profile.suggestionTags, [kind]: name ?? '' } }),
               }),
               h('input', {
                 key: `${kind}-k`,

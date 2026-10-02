@@ -178,5 +178,6 @@
   "settings_tab_tags": "Tags",
   "settings_tab_recognition": "Recognition",
   "settings_aliases": "Nickname properties",
-  "settings_col_tag": "Tag"
+  "settings_col_tag": "Tag",
+  "settings_no_tag": "None"
 }

@@ -40,6 +40,9 @@ export const DEFAULT_PROFILE: ReadingProfile = {
     email: 'Email',
     plate: 'Véhicule',
     siret: 'Entreprise',
+    url: 'Site web',
+    btc: 'Wallet crypto',
+    eth: 'Wallet crypto',
   },
   suggestionKeys: {
     phone: 'Téléphone',

@@ -178,5 +178,6 @@
   "settings_tab_tags": "Tags",
   "settings_tab_recognition": "Reconnaissance",
   "settings_aliases": "Propriétés de surnom",
-  "settings_col_tag": "Tag"
+  "settings_col_tag": "Tag",
+  "settings_no_tag": "Aucun"
 }
