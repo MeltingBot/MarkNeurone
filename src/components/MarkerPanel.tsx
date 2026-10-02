@@ -62,6 +62,7 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
   }, [hashes, assets, selectedElements, selectedLinks, version]);
 
   const icons: Record<string, ReactTypes.ElementType> = { element: Highlighter, property: Tag, event: Calendar, location: MapPin, link: Link2 };
+  const open = (asset: DocumentAsset, a: Annotation) => openReader({ dossierId, assetId: asset.id, annotationId: a.id });
 
   if (!selectedElements.size && !selectedLinks.size) {
     return h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_select'));
@@ -69,22 +70,50 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
   if (!groups.length) {
     return h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_none'));
   }
+  // With many documents, sections start closed.
+  const startOpen = groups.length <= 3;
   return h('div', null,
     groups.map(({ asset, items }) =>
-      h('div', { key: asset.id, className: S.SECTION },
-        h('div', { className: 'flex items-center gap-2 px-4 py-2.5' },
-          h('span', { className: S.SECTION_TITLE, style: { textTransform: 'none', letterSpacing: 'normal' }, title: asset.filename }, asset.filename),
-          h('span', { className: S.SECTION_BADGE }, items.length)),
-        h('div', { className: 'px-2 pb-2 space-y-0.5' },
-          items.map((a) =>
-            h('button', {
-              key: a.id,
-              type: 'button',
-              onClick: () => openReader({ dossierId, assetId: asset.id, annotationId: a.id }),
-              className: 'w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-bg-secondary',
-            },
-            h(icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
-            h('span', { className: 'flex-1 min-w-0' },
-              h('span', { className: 'block text-xs text-text-primary truncate' }, a.text || '…'),
-              h('span', { className: S.HINT }, [isPdf(asset) ? `p.${a.page}` : '', a.kind === 'property' ? a.propertyKey : ''].filter(Boolean).join(' · ') || null))))))));
+      h(DocSection, { key: asset.id, title: asset.filename, count: items.length, startOpen },
+        rowsOf(items).map((row) => {
+          const first = row.items[0];
+          const meta = first.kind === 'property' ? first.propertyKey : '';
+          return h('div', { key: row.key, className: 'flex items-start gap-2 px-2 py-1 rounded hover:bg-bg-secondary' },
+            h(icons[first.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0 mt-0.5' }),
+            h('div', { className: 'flex-1 min-w-0' },
+              h('button', { type: 'button', onClick: () => open(asset, first), className: 'block w-full text-left text-xs text-text-primary truncate hover:text-accent' },
+                first.text || '…'),
+              // One link per occurrence: its page for a PDF, its rank otherwise.
+              h('div', { className: 'flex flex-wrap items-center gap-x-1 text-[10px] text-text-tertiary' },
+                meta ? h('span', null, `${meta} ·`) : null,
+                isPdf(asset) ? h('span', null, 'p.') : null,
+                row.items.map((a, i) =>
+                  h('button', { key: a.id, type: 'button', onClick: () => open(asset, a), className: 'hover:text-accent hover:underline' },
+                    isPdf(asset) ? String(a.page) : String(i + 1))))));
+        }))));
+}
+
+/** Identical passages (same kind, text and property key) share one row. */
+function rowsOf(items: Annotation[]): { key: string; items: Annotation[] }[] {
+  const rows = new Map<string, Annotation[]>();
+  for (const a of items) {
+    const key = `${a.kind}|${a.text.trim().toLowerCase()}|${a.propertyKey ?? ''}`;
+    rows.set(key, [...(rows.get(key) ?? []), a]);
+  }
+  return [...rows].map(([key, list]) => ({ key, items: list }));
+}
+
+/** A document, folded like the sections of ZN's panel. */
+function DocSection(p: { title: string; count: number; startOpen: boolean; children?: ReactTypes.ReactNode }) {
+  const api = getHostAPI();
+  const React = api.React as typeof ReactTypes;
+  const h = React.createElement;
+  const [isOpen, setOpen] = React.useState(p.startOpen);
+  const { ChevronDown } = api.icons;
+  return h('div', { className: S.SECTION },
+    h('button', { type: 'button', onClick: () => setOpen(!isOpen), className: S.SECTION_HEADER },
+      h(ChevronDown, { size: 14, className: 'text-text-tertiary transition-transform duration-200', style: isOpen ? undefined : { transform: 'rotate(-90deg)' } }),
+      h('span', { className: `${S.SECTION_TITLE} truncate`, style: { textTransform: 'none', letterSpacing: 'normal' }, title: p.title }, p.title),
+      h('span', { className: S.SECTION_BADGE }, p.count)),
+    isOpen ? h('div', { className: 'px-2 pb-2 space-y-0.5' }, p.children) : null);
 }
