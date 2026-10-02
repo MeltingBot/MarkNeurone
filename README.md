@@ -59,7 +59,7 @@ Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les pass
 
 La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la page d'accueil de ZeroNeurone, ouvre les réglages. Ils valent pour tous les dossiers :
 
-- les tags proposés à la création d'un élément, leur ordre, qui donne les raccourcis Alt+1 à Alt+9, et leur couleur, qui est celle du tag dans ZeroNeurone ;
+- les tags proposés à la création d'un élément, choisis parmi ceux du gestionnaire de tags de ZeroNeurone, leur ordre, qui donne les raccourcis Alt+1 à Alt+9, et leur couleur, qui est celle du tag dans ZeroNeurone ;
 - les propriétés de surnom : leur valeur est cherchée dans les documents comme un autre nom de l'élément (par défaut « Alias » ; par exemple « Le Grand » pour Jules TERRIER) ;
 - le tag et la clé de propriété proposés pour chaque type de suggestion ;
 - le retrait de l'encre de couleur avant la reconnaissance du texte.
