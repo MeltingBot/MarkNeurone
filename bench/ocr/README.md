@@ -10,6 +10,7 @@ npm run gen                      # corpus fictif dans out/corpus (+ truth.json)
 npm run bench                    # rapport dans out/report/report.md et report.json
 npm run bench -- --models fast,best_int --filter photocopie --pages 1
 npm run bench -- --input data/   # pièces fournies, sans vérité terrain : temps et confiance seulement
+npm run bench -- --dump          # écrit aussi le texte de chaque page dans out/report/text/
 npm test                         # tests du cœur du plugin et des métriques du banc
 ```
 
@@ -32,23 +33,29 @@ Empreintes dans `models/SHA256SUMS`. Le modèle tessdata_best en virgule flottan
 
 ## Suggestions après OCR (2 octobre 2026, 2 PV de 2 pages, modèle `fast`)
 
-54 suggestions attendues par variante.
+62 suggestions attendues par variante, dont 14 numéros de téléphone écrits de façons différentes : séparés par des espaces, des points ou des tirets, collés, avec `+33` ou `0033`, et des numéros belges, suisses, espagnols et britanniques.
 
 | Variante | Sans prétraitement | Avec prétraitement |
 | --- | --- | --- |
-| PDF texte (sans OCR) | 54/54 | |
-| Propre | 52/54 | 48/54, 1 fausse |
-| Biais | 48/54 | 51/54 |
-| Bruit | 46/54 | 48/54, 1 fausse |
-| Photocopie | 41/54, 2 fausses | 51/54 |
-| Tampon | 46/54, 1 fausse | 41/54, 2 fausses |
+| PDF texte (sans OCR) | 62/62 | |
+| Propre | 60/62 | 59/62, 2 fausses |
+| Biais | 50/62, 2 fausses | 59/62 |
+| Bruit | 48/62, 7 fausses | 58/62, 1 fausse |
+| Photocopie | 47/62, 2 fausses | 59/62 |
+| Tampon | 53/62, 1 fausse | 52/62, 4 fausses |
+
+Une suggestion fausse est le plus souvent une valeur mal lue mais encore reconnue par le motif. Aucune valeur fausse d'un type à clé de contrôle (IBAN, SIRET, NIR, Bitcoin) n'est passée pour valide.
 
 - **Les règles de détection sont correctes** : sur le PDF texte, toutes les suggestions sont trouvées et aucune n'est fausse. Les écarts viennent de l'OCR.
-- **Noms connus** : 22/22 avec prétraitement, sauf sous un tampon (19/22). Le prétraitement corrige la photocopie (17/22 sans).
-- **Identifiants à clé** (IBAN, SIRET, NIR) : bien lus hors tampon. Aucune valeur erronée n'est passée pour valide ; une valeur mal lue n'est généralement plus reconnue du tout.
-- **Adresses Bitcoin et Ethereum** : 0 à 1 sur 2 dans toutes les variantes image. Une seule erreur sur 40 caractères sans mot suffit à les perdre. Ces valeurs doivent être vérifiées sur l'image.
-- **Adresses IP** : sensibles au bruit et au tampon (une IPv4 sur deux perdue, IPv6 mal lues mais encore reconnues, donc fausses).
-- **Le prétraitement n'est pas toujours favorable** : il améliore nettement la photocopie, le biais et le bruit, mais fait perdre quelques suggestions sur la page propre (52 à 48) et sous un tampon (46 à 41). À confirmer sur un corpus plus large avant de le rendre débrayable par page.
+- **Téléphones** : 14/14 avec prétraitement, sauf sous un tampon, quel que soit le format. Un numéro coupé en fin de ligne après son indicatif (« +41 » puis « 74 647 39 38 ») est reconnu.
+- **Noms connus** : 21 ou 22 sur 22 avec prétraitement. Le prétraitement corrige la photocopie (17/22 sans).
+- **Identifiants à clé** (IBAN, SIRET, NIR) : bien lus hors tampon. Une valeur mal lue n'est généralement plus reconnue du tout.
+- **Adresses Bitcoin** : l'OCR lit presque toujours « bc1 » comme « bcl », et parfois « 0 » comme « O ». Ces confusions sont tolérées et l'adresse est signalée comme probablement mal lue ; la somme de contrôle bech32 dit si la valeur corrigée est juste. Il reste 0 à 1 adresse sur 2 retrouvée exactement, car l'OCR fait souvent une autre erreur sur ces 42 caractères sans mot. L'adresse est alors suggérée avec un avertissement, ou perdue si un caractère devient une ponctuation.
+- **Adresses Ethereum** : 0 à 1 sur 2. Une erreur sur 40 caractères hexadécimaux (« 5 » lu « s ») suffit à les perdre.
+- **Adresses IP** : sensibles au bruit et au tampon.
+- **Le prétraitement** améliore nettement le biais, le bruit et la photocopie, et n'apporte rien sur la page propre ni sous un tampon.
+
+Pour voir ce que l'OCR a lu à l'endroit d'une suggestion manquée : `npm run bench -- --dump` écrit le texte de chaque page dans `out/report/text/`.
 
 ## Reconnaissance (1er octobre 2026, 2 PV de 2 pages, Node 24, tesseract.js 7.0.0)
 

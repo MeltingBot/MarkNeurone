@@ -79,3 +79,38 @@ export function nirValid(value: string): boolean {
   const expected = 97 - Number(BigInt(body) % 97n);
   return key === expected;
 }
+
+// ─── Bech32 (Bitcoin segwit addresses, BIP 173 and BIP 350) ──
+
+export const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const BECH32M_CONST = 0x2bc830a3;
+
+function polymod(values: number[]): number {
+  const gen = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const v of values) {
+    const top = chk >>> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let i = 0; i < 5; i++) if ((top >>> i) & 1) chk ^= gen[i];
+  }
+  return chk >>> 0;
+}
+
+const hrpExpand = (hrp: string) => [...[...hrp].map((c) => c.charCodeAt(0) >> 5), 0, ...[...hrp].map((c) => c.charCodeAt(0) & 31)];
+
+/** Valid bech32 or bech32m string (checksum over the human-readable part and the data). */
+export function bech32Valid(address: string): boolean {
+  const a = address.toLowerCase();
+  const sep = a.lastIndexOf('1');
+  if (sep < 1 || sep + 7 > a.length) return false;
+  const data = [...a.slice(sep + 1)].map((c) => BECH32_CHARSET.indexOf(c));
+  if (data.some((d) => d < 0)) return false;
+  const check = polymod([...hrpExpand(a.slice(0, sep)), ...data]);
+  return check === 1 || check === BECH32M_CONST;
+}
+
+/** The six checksum characters for a human-readable part and 5-bit data (bech32, version 0). */
+export function bech32Checksum(hrp: string, data: number[]): string {
+  const mod = polymod([...hrpExpand(hrp), ...data, 0, 0, 0, 0, 0, 0]) ^ 1;
+  return [0, 1, 2, 3, 4, 5].map((p) => BECH32_CHARSET[(mod >>> (5 * (5 - p))) & 31]).join('');
+}

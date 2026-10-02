@@ -159,5 +159,6 @@
   "suggestion_kind_eth": "Ethereum address",
   "suggestion_kind_amount": "Amount",
   "suggestion_kind_date": "Date",
-  "checksum_invalid": "Invalid check digits: probable misreading."
+  "checksum_invalid": "Invalid check digits: probable misreading.",
+  "misread_suspect": "Characters probably misread: check the value against the document."
 }

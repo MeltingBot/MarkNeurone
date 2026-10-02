@@ -23,6 +23,7 @@ export interface Suggestion {
   source: 'pattern' | 'dictionary';
   kind: SuggestionKind;
   checksumOk?: boolean;
+  suspect?: boolean;
   /** Dictionary: elements whose name matches (several when homonyms). */
   elementIds?: string[];
   match?: MatchKind;
@@ -150,6 +151,7 @@ export function buildSuggestions(pages: string[], elements: NamedElement[], anno
         source: 'pattern',
         kind: p.kind,
         ...(p.checksumOk !== undefined ? { checksumOk: p.checksumOk } : {}),
+        ...(p.suspect ? { suspect: true } : {}),
       });
     }
   });

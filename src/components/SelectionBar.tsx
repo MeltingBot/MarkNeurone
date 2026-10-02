@@ -84,6 +84,12 @@ export function SelectionBar({ passage, onChoose, onCancel, title, onReject }: P
     className: 'fixed z-50 flex items-center gap-0.5 p-0.5 outline-none bg-bg-primary border border-border-default rounded shadow-lg sketchy-border-soft',
     style,
   },
+  // What the suggestion was recognized as: the type, or the known element.
+  title
+    ? h(React.Fragment, null,
+        h('span', { className: 'pl-1.5 pr-1 text-[11px] text-text-tertiary truncate', style: { maxWidth: 160 } }, title),
+        h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }))
+    : null,
   button('element', `${t('gesture_element')} (E)`, icons.Highlighter, () => onChoose('element')),
   button('property', `${t('gesture_property')} (P)`, icons.Tag, () => onChoose('property')),
   button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),

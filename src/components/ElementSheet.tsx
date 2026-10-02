@@ -361,11 +361,14 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
 
 const NO_TAGS: string[] = [];
 
-/** A check digit that fails in the passage: probable misreading (OCR or typing). */
+/** A check digit that fails, or characters typical of OCR confusions: probable misreading. */
 function ChecksumWarning(p: { env: Env; passage: Passage }) {
   const { h } = host();
-  const invalid = p.passage.suggestion?.checksumOk === false || extractPatterns(p.passage.text).some((m) => m.checksumOk === false);
-  return invalid ? h('p', { className: 'text-[10px] text-warning' }, p.env.t('checksum_invalid')) : null;
+  const found = extractPatterns(p.passage.text);
+  const invalid = p.passage.suggestion?.checksumOk === false || found.some((m) => m.checksumOk === false);
+  const suspect = p.passage.suggestion?.suspect || found.some((m) => m.suspect);
+  if (!invalid && !suspect) return null;
+  return h('p', { className: 'text-[10px] text-warning' }, p.env.t(invalid ? 'checksum_invalid' : 'misread_suspect'));
 }
 
 function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string) => void; onCancel: () => void }) {

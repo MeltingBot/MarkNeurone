@@ -1177,7 +1177,12 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     return {
       ...passage,
       origin: s.source,
-      suggestion: { kind: s.kind, ...(s.checksumOk !== undefined ? { checksumOk: s.checksumOk } : {}), ...(s.elementIds ? { elementIds: s.elementIds } : {}) },
+      suggestion: {
+        kind: s.kind,
+        ...(s.checksumOk !== undefined ? { checksumOk: s.checksumOk } : {}),
+        ...(s.suspect ? { suspect: true } : {}),
+        ...(s.elementIds ? { elementIds: s.elementIds } : {}),
+      },
       ...(ocr ? { ocr: { rawText: passage.text, confidence: rangeConfidence(ocr, s.start, s.end) ?? ocr.confidence } } : {}),
     };
   };
