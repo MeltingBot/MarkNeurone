@@ -889,7 +889,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
         ...(range ? { textRange: range } : {}),
         ...(text ? { context: text } : {}),
         ocr: { rawText: text, confidence: read.confidence },
-        preview: { image, lines: read.lines.map((l) => l.w.map((w) => ({ t: w.t, c: w.c }))) },
+        preview: { image, lines: read.lines.map((l) => l.w.map((w) => ({ t: w.t, c: w.c }))), framed: true },
         clientBox: client,
       });
     } catch (err) {

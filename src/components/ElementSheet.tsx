@@ -365,26 +365,22 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
 const NO_TAGS: string[] = [];
 
 /**
- * Image of a scanned passage above what the OCR read, doubtful words marked,
- * to correct the reading in the form's fields.
+ * Image of a scanned passage, to correct the reading in the form's fields.
+ * Shown only when it helps: a word read with low confidence, or a framed
+ * passage (handwriting, stamp), where the image is the only reference.
  */
 function OcrPreview(p: { passage: Passage }) {
   const { h } = host();
   const preview = p.passage.preview;
   if (!preview) return null;
-  return h('div', { className: 'space-y-1' },
-    h('img', { src: preview.image, alt: '', className: 'w-full rounded border border-border-default bg-white', style: { maxHeight: 140, objectFit: 'contain', objectPosition: 'left' } }),
-    preview.lines.length
-      ? h('p', { className: 'text-xs text-text-secondary', style: { whiteSpace: 'pre-wrap' } },
-          preview.lines.map((line, i) =>
-            h('span', { key: i, className: 'block' },
-              line.map((w, j) =>
-                h('span', {
-                  key: j,
-                  className: w.c < LOW_CONFIDENCE ? 'text-warning underline decoration-dotted' : undefined,
-                  title: w.c < LOW_CONFIDENCE ? `${w.c} %` : undefined,
-                }, (j ? ' ' : '') + w.t)))))
-      : null);
+  const doubtful = preview.lines.some((line) => line.some((w) => w.c < LOW_CONFIDENCE));
+  if (!doubtful && !preview.framed) return null;
+  return h('img', {
+    src: preview.image,
+    alt: '',
+    className: 'w-full rounded border border-border-default bg-white',
+    style: { maxHeight: 140, objectFit: 'contain', objectPosition: 'left' },
+  });
 }
 
 /** Identifies a passage for form keys: its text offsets, or its box for an OCR zone. */
