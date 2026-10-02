@@ -17,7 +17,8 @@ Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'auditi
 ### Formats pris en charge
 
 - **PDF avec couche texte**, affichés avec PDF.js.
-- **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document.
+- **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document. Sur une page numérisée, le formulaire affiche l'image du passage au-dessus du texte reconnu, avec les mots peu sûrs soulignés, pour corriger la lecture avant de valider. Le texte lu par l'OCR reste enregistré à côté du texte validé.
+- **Lecture d'une zone.** Le bouton « Lire une zone » (touche Z) permet d'encadrer une partie de la page à la souris : la zone est reconnue à haute résolution et traitée comme une sélection. Elle sert lorsque l'OCR de la page a mal lu un passage, et pour saisir un passage manuscrit lorsque l'OCR ne lit rien.
 - **DOCX, ODT, TXT et Markdown.** Le texte est affiché sur une page continue avec ses titres, paragraphes, listes et tableaux. La mise en page d'origine n'est pas reproduite.
 
 ### Création d'objets dans le graphe
@@ -70,6 +71,7 @@ Le lecteur peut être réduit pour revenir au canvas, puis rouvert à la même p
 | Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire de création d'élément |
 | Ctrl+clic | Sélectionner plusieurs passages surlignés |
 | L | Créer un lien entre les deux éléments sélectionnés |
+| Z | Lire une zone encadrée à la souris |
 | Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |
 | Entrée, Maj+Entrée | Résultat de recherche suivant, précédent |
@@ -123,7 +125,6 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 Version 0.1.0, en développement. Fonctions prévues pour terminer la première version :
 
-- OCR d'une zone sélectionnée, avec correction du texte reconnu ;
 - accès aux passages depuis le panneau de ZeroNeurone ;
 - réglage du profil (tags, raccourcis, alias).
 

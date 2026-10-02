@@ -10,6 +10,7 @@ import coreSource from 'tesseract.js-core/tesseract-core-simd-lstm.wasm.js?raw';
 import modelDataUrl from '../../assets/models/fra_fast.traineddata?inline';
 import PrepWorker from './ocrPrep.worker.ts?worker&inline';
 import type { RawLine } from '../core/ocrLayout.ts';
+import type { PreprocessOptions } from '../core/image/preprocess.ts';
 
 export { OCR_MODEL_ID } from './ocrModel.ts';
 /** A page that takes longer is abandoned, so that it cannot block the queue. */
@@ -80,7 +81,7 @@ export interface PreparedImage {
 }
 
 /** Denoise, deskew and binarize in a dedicated worker. */
-export function preprocessImage(source: HTMLCanvasElement): Promise<PreparedImage> {
+export function preprocessImage(source: HTMLCanvasElement, options?: Partial<PreprocessOptions>): Promise<PreparedImage> {
   const ctx = source.getContext('2d')!;
   const { data, width, height } = ctx.getImageData(0, 0, source.width, source.height);
   return new Promise((resolve, reject) => {
@@ -97,7 +98,7 @@ export function preprocessImage(source: HTMLCanvasElement): Promise<PreparedImag
       worker.terminate();
       reject(err);
     };
-    worker.postMessage({ rgba: data, width, height }, [data.buffer]);
+    worker.postMessage({ rgba: data, width, height, options }, [data.buffer]);
   });
 }
 

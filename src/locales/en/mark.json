@@ -160,5 +160,7 @@
   "suggestion_kind_amount": "Amount",
   "suggestion_kind_date": "Date",
   "checksum_invalid": "Invalid check digits: probable misreading.",
-  "misread_suspect": "Characters probably misread: check the value against the document."
+  "misread_suspect": "Characters probably misread: check the value against the document.",
+  "zone_read": "Read an area (Z)",
+  "zone_error": "Reading the area failed."
 }

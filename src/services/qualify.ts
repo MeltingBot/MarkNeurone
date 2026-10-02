@@ -28,7 +28,7 @@ function draft(ctx: DocumentContext, passage: Passage, kind: AnnotationKind): An
     quads: passage.quads,
     text: passage.text,
     ...(passage.context ? { context: passage.context } : {}),
-    textRange: passage.textRange,
+    ...(passage.textRange ? { textRange: passage.textRange } : {}),
     ...(isPdf(ctx.asset) ? {} : { extractor: TEXT_EXTRACTOR_ID }),
     ...(passage.ocr ? { ocr: { ...passage.ocr, corrected: false } } : {}),
     kind,
