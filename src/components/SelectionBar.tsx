@@ -15,11 +15,14 @@ interface Props {
   passage: Passage;
   onChoose: (gesture: Gesture) => void;
   onCancel: () => void;
+  /** Suggestion clicked: what it is, and how to dismiss it. */
+  title?: string;
+  onReject?: () => void;
 }
 
 const KEYS: Record<string, Gesture> = { e: 'element', p: 'property', v: 'event', g: 'location' };
 
-export function SelectionBar({ passage, onChoose, onCancel }: Props) {
+export function SelectionBar({ passage, onChoose, onCancel, title, onReject }: Props) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -42,6 +45,11 @@ export function SelectionBar({ passage, onChoose, onCancel }: Props) {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (onReject && (e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault();
+      onReject();
+      return;
+    }
     const gesture = KEYS[e.key.toLowerCase()];
     if (gesture) {
       // The sheet's first field takes focus during this keystroke.
@@ -51,7 +59,7 @@ export function SelectionBar({ passage, onChoose, onCancel }: Props) {
   };
 
   const box = passage.clientBox;
-  const width = 400;
+  const width = onReject ? 520 : 400;
   const left = Math.max(8, Math.min(box.left, window.innerWidth - width - 8));
   const below = window.innerHeight - box.bottom > 60;
   const style: ReactTypes.CSSProperties = below ? { left, top: box.bottom + 6 } : { left, bottom: window.innerHeight - box.top + 6 };
@@ -75,8 +83,16 @@ export function SelectionBar({ passage, onChoose, onCancel }: Props) {
     className: 'fixed z-50 flex items-center gap-1 p-1 outline-none bg-bg-primary border border-border-default rounded shadow-lg sketchy-border-soft',
     style: { ...style, width },
   },
+  title ? h('span', { className: 'px-2 text-xs text-text-secondary truncate', style: { maxWidth: 140 } }, title) : null,
   button('element', 'E'),
   button('property', 'P'),
   button('event', 'V'),
-  button('location', 'G'));
+  button('location', 'G'),
+  onReject
+    ? h('button', {
+        type: 'button',
+        onClick: onReject,
+        className: 'inline-flex items-center gap-1.5 px-2 py-1 text-xs text-text-secondary rounded hover:bg-bg-secondary hover:text-text-primary',
+      }, t('suggestion_reject'), h('kbd', { className: 'text-[10px] text-text-tertiary font-mono' }, t('key_delete')))
+    : null);
 }

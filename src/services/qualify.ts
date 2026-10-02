@@ -33,9 +33,14 @@ function draft(ctx: DocumentContext, passage: Passage, kind: AnnotationKind): An
     ...(passage.ocr ? { ocr: { ...passage.ocr, corrected: false } } : {}),
     kind,
     status: 'validated',
-    origin: 'manual',
+    origin: passage.origin ?? 'manual',
     createdAt: new Date().toISOString(),
   };
+}
+
+/** The user dismissed a suggestion: it is not shown again on this passage. */
+export async function rejectSuggestion(ctx: DocumentContext, passage: Passage): Promise<void> {
+  await saveAnnotation(ctx.dossierId, { ...draft(ctx, passage, 'suggestion'), status: 'rejected' });
 }
 
 const anchorOf = (ctx: DocumentContext, a: Annotation) => anchorLabel(ctx.asset.filename, isPdf(ctx.asset) ? a.page : null, a.id);

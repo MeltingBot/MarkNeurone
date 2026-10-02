@@ -20,6 +20,12 @@ Première version, en cours de développement.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, tags et couleurs de tags compris.
 - Localisation avec le sélecteur de carte de ZeroNeurone.
 
+**Suggestions**
+- Repérage des noms des éléments du dossier (casse, accents, ordre inversé, initiale) et des motifs : téléphones, plaques, IBAN, SIRET, NIR, e-mails, URL, adresses IP, adresses Bitcoin et Ethereum, montants, dates.
+- Traitement une par une (création, propriété, événement, localisation, ou Ignorer), avec tag et clé de propriété proposés selon le type.
+- Signalement des clés de contrôle invalides.
+- Suggestions masquées à la première ouverture d'un document, choix conservé par document.
+
 **Traçabilité**
 - Référence au passage d'origine enregistrée dans la source des éléments, des liens et des événements.
 - Prise en compte des fusions et suppressions d'éléments : les annotations sans élément sont conservées et peuvent être rattachées.

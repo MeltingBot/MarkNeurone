@@ -45,6 +45,8 @@ export function reconcile(annotations: Annotation[], graph: LiveGraph): Reconcil
   let changed = 0;
   const moved: Record<string, string> = {};
   const out = annotations.map((a) => {
+    // A rejected suggestion has no graph object to follow.
+    if (a.kind === 'suggestion') return a;
     const token = shortId(a.id);
     let next: Annotation = a;
 

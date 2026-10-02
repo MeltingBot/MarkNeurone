@@ -81,6 +81,8 @@ export function rewire(annotations: Annotation[], graph: ImportedGraph): Annotat
     const token = shortId(a.id);
     const { orphan: _orphan, ...base } = a;
     const out: Annotation = { ...base, documentId: assetByHash.get(a.documentHash) ?? a.documentId };
+    // A rejected suggestion has no graph object to find.
+    if (a.kind === 'suggestion') return out;
 
     if (a.kind === 'link') {
       const link = linkByToken.get(token);

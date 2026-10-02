@@ -56,6 +56,12 @@ describe('rewire', () => {
     assets: [{ id: 'new-asset', hash: HASH }],
   };
 
+  it('keeps a rejected suggestion without flagging it orphan', () => {
+    const [s] = rewire([ann(LOST, 'suggestion', { status: 'rejected', origin: 'dictionary' })], graph);
+    expect(s.orphan).toBeUndefined();
+    expect(s).toMatchObject({ kind: 'suggestion', status: 'rejected', documentId: 'new-asset' });
+  });
+
   it('points elements, properties and documents at their new ids', () => {
     const [el, prop] = rewire([ann(ELEMENT, 'element'), ann(PROPERTY, 'property', { propertyKey: 'Téléphone' })], graph);
     expect(el).toMatchObject({ targetId: 'new-el', documentId: 'new-asset' });

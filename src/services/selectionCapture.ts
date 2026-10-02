@@ -4,7 +4,8 @@
 // page number, one rectangle per line in PDF space, text offsets in the
 // page text and the sentence around it.
 
-import type { Quad } from '../core/model.ts';
+import type { AnnotationOrigin, Quad } from '../core/model.ts';
+import type { SuggestionKind } from '../core/suggestions.ts';
 import {
   applyTransform,
   invertTransform,
@@ -36,6 +37,9 @@ export interface Passage {
   referenceYear?: number;
   /** Set on scanned pages: what the OCR read, and how sure it was. */
   ocr?: { rawText: string; confidence: number };
+  /** Set when the passage comes from a pre-highlighting suggestion. */
+  origin?: AnnotationOrigin;
+  suggestion?: { kind: SuggestionKind; checksumOk?: boolean; elementIds?: string[] };
   /** Bounding box of the selection in client coordinates, to place the form. */
   clientBox: { left: number; top: number; right: number; bottom: number };
 }
