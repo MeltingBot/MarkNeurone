@@ -65,6 +65,8 @@ function layout(ctx: SKRSContext2D, paras: string[], font: string, scale: number
     }
     y += lineHeight * 1.6;
   });
+  // The renderer does not break pages: text below the margin would be lost and the truth wrong.
+  if (y - lineHeight * 1.6 > (A4_PT.h - 50) * scale) throw new Error('Page trop longue pour le format A4');
   return drawn;
 }
 
