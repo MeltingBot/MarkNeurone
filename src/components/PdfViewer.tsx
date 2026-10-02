@@ -23,7 +23,7 @@ import {
   type PageInfo,
   type Passage,
 } from '../services/selectionCapture.ts';
-import { betweenRange } from '../core/sentences.ts';
+import { betweenRange, trimPunctuation } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
 import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
 import { loadOcr, saveOcrPage } from '../services/ocrStore.ts';
@@ -39,7 +39,7 @@ import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
 import { deleteAnnotation, reattachToElement, rejectSuggestion } from '../services/qualify.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
-import { normalizeName, type NamedElement } from '../core/dictionary.ts';
+import type { NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
 import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
@@ -831,17 +831,14 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const nameOf = (id: string) => elements.find((el) => el.id === id)?.label ?? '';
 
   /** Two highlights of distinct elements selected with Ctrl+click, in click order. */
-  /** The selection comes from "identical passages": not a pair to link (homonyms). */
-  const [sameSelection, setSameSelection] = React.useState(false);
   const linkPair = React.useMemo(() => {
-    if (sameSelection) return null;
     const picked = selectedIds
       .map((id) => annotations.find((a) => a.id === id))
       .filter((a): a is Annotation => !!a && !!elementOf(a) && elements.some((el) => el.id === elementOf(a)));
     const first = picked[0];
     const last = [...picked].reverse().find((a) => elementOf(a) !== (first && elementOf(first)));
     return first && last ? { from: first, to: last } : null;
-  }, [selectedIds, annotations, elements, sameSelection]);
+  }, [selectedIds, annotations, elements]);
 
   const openLinkDraft = (from: Annotation, to: Annotation) => {
     setPending(null);
@@ -851,7 +848,6 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   /** Click on a highlight: select it (Ctrl/Cmd adds to the selection) and show its sheet. */
   const selectHighlight = (hit: Annotation, additive: boolean) => {
-    setSameSelection(false);
     if (additive) {
       setSelectedIds((ids) => (ids.includes(hit.id) ? ids.filter((id) => id !== hit.id) : [...ids, hit.id]));
       return;
@@ -1017,15 +1013,16 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     window.getSelection()?.removeAllRanges();
   }, []);
 
-  /**
-   * Selects every highlight of the document with the same text and kind as
-   * this one (case, accents and punctuation aside), whatever element it was
-   * attached to: homonyms and duplicates show side by side.
-   */
+  /** Shows every occurrence of a highlight's text in the document. */
   const selectSameText = (hit: Annotation) => {
-    const text = normalizeName(hit.text);
-    setSelectedIds(placed.filter((a) => a.kind === hit.kind && a.status !== 'rejected' && normalizeName(a.text) === text).map((a) => a.id));
-    setSameSelection(true);
+    // Every occurrence, converted or not, through the search: framed, counted
+    // and browsable, starting from the clicked one.
+    const query = trimPunctuation(hit.text);
+    const found = findInPages(effectiveTexts.map((p) => p.text), query);
+    const here = found.findIndex((f) => f.page === hit.page && hit.textRange && f.start < hit.textRange[1] && f.end > hit.textRange[0]);
+    setSearchOpen(true);
+    setQuery(query);
+    setHitIndex(Math.max(0, here));
   };
 
   /** Scrolls the document to a passage and marks it. */
