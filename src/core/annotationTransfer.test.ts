@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest';
+import type { Annotation } from './model.ts';
+import { anchorLabel } from './anchors.ts';
+import { buildExport, mergeAnnotations, parseExport, rewire, EXPORT_FORMAT } from './annotationTransfer.ts';
+
+const HASH = 'e770f9de2b679d8cc843daa088acf5b8554845b61c79a94bdabae164613401d1';
+
+const ann = (id: string, kind: Annotation['kind'], extra: Partial<Annotation> = {}): Annotation => ({
+  id,
+  documentId: 'old-asset',
+  documentHash: HASH,
+  page: 1,
+  quads: [[70, 730, 300, 742]],
+  text: id,
+  kind,
+  status: 'validated',
+  origin: 'manual',
+  targetId: 'old-target',
+  createdAt: '2026-10-01T00:00:00.000Z',
+  ...extra,
+});
+
+// UUID-like ids: the anchor token uses their first 8 hex digits.
+const ELEMENT = '11111111-0000-4000-8000-000000000000';
+const PROPERTY = '22222222-0000-4000-8000-000000000000';
+const EVENT = '33333333-0000-4000-8000-000000000000';
+const LINK = '44444444-0000-4000-8000-000000000000';
+const LOST = '55555555-0000-4000-8000-000000000000';
+
+describe('buildExport / parseExport', () => {
+  it('round-trips and skips empty documents', () => {
+    const file = buildExport([{ hash: HASH, annotations: [ann(ELEMENT, 'element')] }, { hash: 'empty', annotations: [] }], 'T');
+    expect(file?.documents).toHaveLength(1);
+    expect(parseExport(JSON.parse(JSON.stringify(file)))?.documents[0].annotations[0].id).toBe(ELEMENT);
+  });
+
+  it('returns null when there is nothing to export', () => {
+    expect(buildExport([{ hash: HASH, annotations: [] }])).toBeNull();
+  });
+
+  it('refuses a foreign or newer file and drops malformed annotations', () => {
+    expect(parseExport({ format: 'other', version: 1, documents: [] })).toBeNull();
+    expect(parseExport({ format: EXPORT_FORMAT, version: 99, documents: [] })).toBeNull();
+    const parsed = parseExport({ format: EXPORT_FORMAT, version: 1, documents: [{ hash: HASH, annotations: [{ id: 'x' }, ann(ELEMENT, 'element')] }] });
+    expect(parsed?.documents[0].annotations.map((a) => a.id)).toEqual([ELEMENT]);
+  });
+});
+
+describe('rewire', () => {
+  const graph = {
+    elements: [
+      { id: 'new-el', source: `Note ; ${anchorLabel('pv.pdf', 1, ELEMENT)} ; ${anchorLabel('pv.pdf', 1, PROPERTY)} ; ${anchorLabel('pv.pdf', 1, EVENT)}`, events: [{ id: 'new-ev', source: anchorLabel('pv.pdf', 1, EVENT) }] },
+      { id: 'other-el', source: anchorLabel('pv.pdf', 1, EVENT), events: [{ id: 'other-ev', source: anchorLabel('pv.pdf', 1, EVENT) }] },
+    ],
+    links: [{ id: 'new-link', source: anchorLabel('pv.pdf', 1, LINK), fromId: 'new-el', toId: 'other-el' }],
+    assets: [{ id: 'new-asset', hash: HASH }],
+  };
+
+  it('points elements, properties and documents at their new ids', () => {
+    const [el, prop] = rewire([ann(ELEMENT, 'element'), ann(PROPERTY, 'property', { propertyKey: 'Téléphone' })], graph);
+    expect(el).toMatchObject({ targetId: 'new-el', documentId: 'new-asset' });
+    expect(prop).toMatchObject({ targetId: 'new-el', propertyKey: 'Téléphone' });
+    expect(el.orphan).toBeUndefined();
+  });
+
+  it('finds every copy of an event and its new event ids', () => {
+    const [ev] = rewire([ann(EVENT, 'event', { eventIds: { a: 'x', b: 'y' } })], graph);
+    expect(ev.eventIds).toEqual({ 'new-el': 'new-ev', 'other-el': 'other-ev' });
+    expect(ev.targetId).toBe('new-el');
+  });
+
+  it('rewires a link and its ends', () => {
+    const [link] = rewire([ann(LINK, 'link', { linkEnds: ['a', 'b'] })], graph);
+    expect(link).toMatchObject({ targetId: 'new-link', linkEnds: ['new-el', 'other-el'] });
+  });
+
+  it('keeps an annotation whose object was not imported, flagged orphan', () => {
+    const [lost] = rewire([ann(LOST, 'element')], graph);
+    expect(lost.orphan).toBe(true);
+    expect(lost.text).toBe(LOST);
+  });
+});
+
+describe('mergeAnnotations', () => {
+  it('does not duplicate an annotation already present', () => {
+    const a = ann(ELEMENT, 'element');
+    expect(mergeAnnotations([a], [a, ann(PROPERTY, 'property')]).map((x) => x.id)).toEqual([ELEMENT, PROPERTY]);
+  });
+});

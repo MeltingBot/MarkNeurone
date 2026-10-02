@@ -1,0 +1,8 @@
+/* MarkNeurone styles: imports ZN's base CSS and adds source scanning */
+@import "zeroneurone-app/src/index.css";
+
+/* Tailwind v4 excludes node_modules from auto-detection.
+   Since ZN is a workspace symlink in node_modules, we must
+   explicitly tell Tailwind to scan ZN's source and ours. */
+@source "../../zeroneurone/src";
+@source "./";
