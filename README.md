@@ -1,111 +1,121 @@
 # MarkNeurone
 
-Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zeroneurone). Il ouvre un document dans ZeroNeurone, permet d'en surligner des passages et de les transformer en éléments, propriétés, événements, localisations et liens du graphe, avec un retour vers la source.
+Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zeroneurone). MarkNeurone affiche un document (PDF, DOCX, ODT, TXT, Markdown) dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé conserve une référence vers le passage d'origine.
 
-Il reprend la pratique de prétraitement des procès-verbaux par surlignage des analystes criminels : chaque objet du graphe garde la trace du passage qui l'a fait naître.
+Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'audition, que les analystes traitent habituellement par surlignage avant de construire le graphe.
 
 ## Principes
 
-- **Local.** Aucun document, aucun texte reconnu et aucune annotation ne quitte le poste. Pas d'appel réseau, pas de télémétrie, pas d'OCR distant : le moteur et le modèle de reconnaissance sont inclus dans le plugin.
-- **L'utilisateur décide.** Rien n'entre dans le graphe sans un geste explicite, et il n'existe pas de validation en masse.
-- **Pas de rattachement automatique.** Un passage n'est jamais rattaché seul à un élément existant : les éléments proches sont proposés, la création reste l'action par défaut. Une fusion abusive d'homonymes est l'erreur la plus grave que le plugin puisse commettre.
-- **Pas d'ontologie imposée.** Les tags proposés viennent d'un profil de configuration et restent modifiables.
-- **Traçabilité.** Chaque objet créé garde son origine et une ancre vers le passage source, y compris après une fusion d'éléments ou un export.
+- **Traitement local.** Les documents, le texte reconnu par OCR et les annotations restent sur le poste. Le plugin n'effectue aucun appel réseau : le moteur OCR et le modèle de langue française sont inclus dans le plugin.
+- **Validation par l'utilisateur.** Aucun objet n'est ajouté au graphe sans action explicite de l'utilisateur. Il n'existe pas de validation groupée.
+- **Pas de rattachement automatique.** Lorsqu'un élément du graphe porte un nom proche du passage sélectionné, il est proposé, mais l'action par défaut reste la création d'un nouvel élément. Le rattachement à un élément existant est toujours un choix de l'utilisateur, afin d'éviter la fusion d'homonymes.
+- **Pas d'ontologie imposée.** Les tags proposés par défaut proviennent d'un profil de configuration et peuvent être remplacés.
+- **Traçabilité.** Chaque objet créé indique son origine et pointe vers le passage source, y compris après une fusion d'éléments ou un export du dossier.
 
 ## Fonctionnalités
 
-**Documents**
-- PDF avec couche texte, affichés avec PDF.js.
-- PDF numérisés : reconnaissance du texte (OCR) en arrière-plan, page par page, avec Tesseract et un modèle français embarqué. Le résultat est mis en cache avec le dossier.
-- DOCX, ODT, TXT et Markdown, affichés comme une feuille de texte continue (titres, paragraphes, listes, tableaux).
+### Formats pris en charge
 
-**Gestes de qualification**, sur un passage sélectionné :
+- **PDF avec couche texte**, affichés avec PDF.js.
+- **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document.
+- **DOCX, ODT, TXT et Markdown.** Le texte est affiché sur une page continue avec ses titres, paragraphes, listes et tableaux. La mise en page d'origine n'est pas reproduite.
 
-| Touche | Geste | Résultat dans ZeroNeurone |
+### Création d'objets dans le graphe
+
+Après sélection d'un passage, une touche (ou le menu du clic droit) indique ce qu'il représente :
+
+| Touche | Type | Effet dans ZeroNeurone |
 |---|---|---|
-| E | Élément | Nouvel élément, ou rattachement à un élément existant choisi par l'utilisateur |
-| P | Propriété | Propriété ajoutée à l'élément actif |
-| V | Événement | Événement daté (date et heure lues dans la phrase) sur un ou plusieurs éléments |
-| G | Localisation | Coordonnées de l'élément, avec le sélecteur de carte de ZeroNeurone |
+| E | Élément | Crée un élément, ou rattache le passage à un élément existant choisi dans la liste des éléments proches |
+| P | Propriété | Ajoute une propriété à l'élément affiché |
+| V | Événement | Ajoute un événement daté à un ou plusieurs éléments. La date et l'heure sont lues dans la phrase lorsqu'elles y figurent. |
+| G | Localisation | Renseigne les coordonnées de l'élément avec le sélecteur de carte de ZeroNeurone |
 
-Les mêmes gestes sont accessibles par clic droit sur la sélection.
+Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en appuyant sur L. Lorsque les deux passages appartiennent à la même phrase, le texte qui les sépare est proposé comme libellé du lien.
 
-**Liens** : Ctrl+clic sur deux surlignages, puis L. Le libellé proposé est le texte situé entre les deux passages lorsqu'ils sont dans la même phrase.
+### Fiche de l'élément
 
-**Fiche de l'élément** à droite du document, sur le modèle du panneau de ZeroNeurone : identité et tags, propriétés, événements, localisation, liens et passages du document.
+La partie droite du lecteur présente l'élément sélectionné avec la même organisation que le panneau de ZeroNeurone : libellé et tags, propriétés, événements, localisation, liens, et liste des passages du document qui s'y rapportent.
 
-**Autres**
-- Recherche dans tout le document, texte reconnu par OCR compris (Ctrl+F).
-- Annotations incluses dans l'export ZIP de ZeroNeurone (`annotations.json`) et rattachées à l'import.
-- Suivi des fusions et suppressions d'éléments : une annotation dont l'élément a disparu devient orpheline et peut être rattachée à nouveau.
+### Autres fonctions
 
-## Raccourcis
-
-| Touche | Action |
-|---|---|
-| E, P, V, G | Qualifier le passage sélectionné |
-| Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire d'élément |
-| Ctrl+clic | Ajouter un surlignage à la sélection |
-| L | Lier les deux éléments sélectionnés |
-| Ctrl+F | Rechercher dans le document |
-| Entrée, Maj+Entrée | Résultat suivant, précédent |
-| Échap | Fermer la liste ou le formulaire en cours, puis réduire le lecteur |
+- Recherche dans l'ensemble du document, y compris dans le texte reconnu par OCR.
+- Les annotations sont incluses dans l'export ZIP de ZeroNeurone (`annotations.json`) et reliées aux éléments lors de l'import.
+- Lorsqu'un élément est fusionné, ses annotations suivent l'élément résultant. Lorsqu'il est supprimé, elles sont conservées et peuvent être rattachées à un autre élément.
 
 ## Utilisation
 
-1. Déposer un document sur le canvas de ZeroNeurone : il est rattaché à un élément.
-2. Clic droit sur cet élément, puis « Lire dans MarkNeurone ».
-3. Sélectionner un passage et choisir un geste.
+1. Ajouter le document au dossier en le déposant sur le canvas de ZeroNeurone.
+2. Faire un clic droit sur l'élément qui porte le document, puis choisir « Lire dans MarkNeurone ».
+3. Sélectionner un passage, puis appuyer sur E, P, V ou G.
 
-Le lecteur peut être réduit pour revenir au canvas sans perdre la position de lecture.
+Le lecteur peut être réduit pour revenir au canvas, puis rouvert à la même position.
+
+### Raccourcis clavier
+
+| Touche | Action |
+|---|---|
+| E, P, V, G | Créer un élément, une propriété, un événement ou une localisation à partir de la sélection |
+| Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire de création d'élément |
+| Ctrl+clic | Sélectionner plusieurs passages surlignés |
+| L | Créer un lien entre les deux éléments sélectionnés |
+| Ctrl+F | Rechercher dans le document |
+| Entrée, Maj+Entrée | Résultat de recherche suivant, précédent |
+| Échap | Fermer la liste ou le formulaire ouvert, puis réduire le lecteur |
 
 ## Développement
 
-Le plugin fait partie du monorepo `neurone` (npm workspaces) et s'exécute à côté de ZeroNeurone.
+MarkNeurone est un workspace du monorepo `neurone` et se lance avec ZeroNeurone.
 
 ```bash
 npm install            # à la racine du monorepo
-npm run dev            # ZeroNeurone + MarkNeurone, port 5179
+npm run dev            # ZeroNeurone avec MarkNeurone, port 5179
 npm run typecheck
-npm run test           # vitest
-npm run build:plugin   # bundle dist-plugin/markneurone.js
+npm run test           # tests unitaires (Vitest)
+npm run build:plugin   # génère dist-plugin/markneurone.js
 ```
 
-Le sélecteur de carte de ZeroNeurone est utilisé lorsque la version de ZeroNeurone expose `ui.openGeoPicker`. Sinon, le lecteur se réduit et ouvre le panneau de l'élément.
+Le sélecteur de carte n'est disponible que si la version de ZeroNeurone expose `ui.openGeoPicker`. Avec une version antérieure, le lecteur se réduit et ouvre la fiche de l'élément dans le panneau de ZeroNeurone.
 
-### Organisation
+### Structure du code
 
 ```
 src/
-  core/          logique pure et testée : modèle, ancres, géométrie, phrases, dates,
-                 identifiants et clés de contrôle, dictionnaire, recherche, OCR, documents texte
-  services/      accès à ZeroNeurone (graphWriter.ts est le seul point d'écriture),
+  core/          logique sans dépendance à l'interface, couverte par les tests : modèle de données,
+                 références aux passages, géométrie, découpage en phrases, dates, identifiants
+                 et clés de contrôle, recherche d'éléments proches, OCR, documents texte
+  services/      accès à ZeroNeurone (graphWriter.ts concentre toutes les écritures dans le graphe),
                  PDF.js, OCR, stockage des annotations, export et import
   components/    lecteur, fiche de l'élément, menus
-  profiles/      profil par défaut (tags, raccourcis, clés d'alias)
-  locales/       textes FR et EN
-bench/ocr/       banc d'essai OCR autonome
-docs/api-zn.md   capacités de l'API de plugins de ZeroNeurone et contournements
+  profiles/      profil par défaut : tags, raccourcis, propriétés utilisées comme alias
+  locales/       traductions FR et EN
+bench/ocr/       banc d'essai de l'OCR
+docs/api-zn.md   fonctions de l'API de plugins de ZeroNeurone utilisées, limites et solutions retenues
 ```
 
 ### Banc d'essai OCR
 
-`bench/ocr/` mesure le temps, la confiance et le taux d'erreur sur les identifiants (téléphones, plaques, IBAN, SIRET) à partir de PV fictifs dégradés. Voir [`bench/ocr/README.md`](bench/ocr/README.md).
+Le dossier `bench/ocr/` contient un outil autonome qui mesure, pour un ensemble de PDF numérisés, le temps de traitement par page, la confiance moyenne et le taux d'erreur sur les identifiants (téléphones, plaques, IBAN, SIRET). Voir [`bench/ocr/README.md`](bench/ocr/README.md).
 
 ### Données de test
 
-Le dépôt ne contient aucune pièce réelle. Les PV de test sont générés à partir de textes fictifs. Les fichiers déposés dans `bench/ocr/data/` restent hors du dépôt.
+Le dépôt ne contient que des documents fictifs : les procès-verbaux de test sont générés par le banc à partir de textes inventés, puis dégradés (inclinaison, bruit, tampons, photocopie). Pour mesurer l'OCR sur d'autres documents, placez-les dans `bench/ocr/data/`. Ce dossier est exclu de git.
 
 ## Documentation
 
 - [`note-plugin-lecture-pdf-zn.md`](note-plugin-lecture-pdf-zn.md) : note de cadrage (périmètre, modèle de données, MVP).
 - [`analyse-contradictoire-markneurone.md`](analyse-contradictoire-markneurone.md) : analyse des risques.
-- [`docs/api-zn.md`](docs/api-zn.md) : API de plugins de ZeroNeurone utilisée par MarkNeurone.
+- [`docs/api-zn.md`](docs/api-zn.md) : API de plugins de ZeroNeurone.
 
-## État
+## État du projet
 
-MVP en cours. Restent à faire : le pré-surlignage (motifs et dictionnaire du dossier), l'OCR d'une zone avec correction, le retour au passage depuis le panneau de ZeroNeurone et l'écran de réglages du profil.
+Version 0.1.0, en développement. Fonctions prévues pour terminer la première version :
+
+- pré-surlignage des identifiants et des noms déjà présents dans le dossier, à valider un par un ;
+- OCR d'une zone sélectionnée, avec correction du texte reconnu ;
+- accès aux passages depuis le panneau de ZeroNeurone ;
+- réglage du profil (tags, raccourcis, alias).
 
 ## Licence
 
-[MIT](LICENSE). Composants tiers : [`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
+[MIT](LICENSE). Licences des composants tiers : [`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
