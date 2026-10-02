@@ -160,5 +160,7 @@
   "suggestion_kind_amount": "Montant",
   "suggestion_kind_date": "Date",
   "checksum_invalid": "Clé de contrôle invalide : erreur de lecture probable.",
-  "misread_suspect": "Caractères probablement mal lus : vérifiez la valeur sur le document."
+  "misread_suspect": "Caractères probablement mal lus : vérifiez la valeur sur le document.",
+  "zone_read": "Lire une zone (Z)",
+  "zone_error": "La lecture de la zone a échoué."
 }

@@ -13,7 +13,7 @@ import type { DocumentAsset } from '../services/documentAssets.ts';
 import type { OpenedPdf, PDFDocumentProxy } from '../services/pdfjs.ts';
 import { analyseTextLayer, countTextChars, type TextLayerReport } from '../core/textLayerDetection.ts';
 import type { Annotation, Quad } from '../core/model.ts';
-import { applyTransform, linkArc, pdfQuadToViewport, scaleTransform, type Rect, type Transform } from '../core/geometry.ts';
+import { applyTransform, linkArc, pdfQuadToViewport, scaleTransform, viewportRectToPdf, type Rect, type Transform } from '../core/geometry.ts';
 import {
   annotationAt,
   capturePassage,
@@ -25,7 +25,7 @@ import {
 } from '../services/selectionCapture.ts';
 import { betweenRange } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
-import { buildOcrPage, ocrPageText, rangeConfidence, type OcrPage } from '../core/ocrLayout.ts';
+import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
 import { loadOcr, saveOcrPage } from '../services/ocrStore.ts';
 import { guardTextSelection } from '../services/textSelection.ts';
 import { renderOcrLayer } from '../services/ocrLayer.ts';
@@ -124,6 +124,9 @@ interface PageProps {
   searchHits: { start: number; end: number; current: boolean }[];
   /** Pre-highlighting suggestions on this page, drawn faintly under the text. */
   suggestions: PageSuggestion[];
+  /** Zone reading: a rectangle drawn on the page is sent for OCR. */
+  zoneMode: boolean;
+  onZone: (page: number, rect: Rect, client: Rect) => void;
   /** OCR result of a scanned page: it replaces pdf.js' text layer. */
   ocr: OcrPage | null;
 }
@@ -167,7 +170,7 @@ interface PageSuggestion {
   color: string;
 }
 
-function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, ocr }: PageProps) {
+function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, zoneMode, onZone, ocr }: PageProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -179,6 +182,8 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
   const [textVersion, setTextVersion] = React.useState(0);
   const [searchBoxes, setSearchBoxes] = React.useState<{ rect: Rect; current: boolean }[]>([]);
   const [suggestionBoxes, setSuggestionBoxes] = React.useState<{ key: string; rect: Rect; color: string }[]>([]);
+  /** Rectangle being drawn in zone mode, in page CSS pixels. */
+  const [drawing, setDrawing] = React.useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const scaleRef = React.useRef(scale);
   scaleRef.current = scale;
 
@@ -373,7 +378,56 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
         }))
       : null,
     h('div', { ref: textRef, className: blocks ? 'textLayer mn-flow' : 'textLayer' }),
+    zoneMode ? zoneLayer() : null,
   );
+
+  // Above the text layer while the zone tool is on: drag draws the rectangle.
+  function zoneLayer() {
+    const at = (e: ReactTypes.PointerEvent) => {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const rect = drawing
+      ? { left: Math.min(drawing.x0, drawing.x1), top: Math.min(drawing.y0, drawing.y1), right: Math.max(drawing.x0, drawing.x1), bottom: Math.max(drawing.y0, drawing.y1) }
+      : null;
+    return h('div', {
+      'data-zone-layer': '',
+      style: { position: 'absolute', inset: 0, zIndex: 3, cursor: 'crosshair' },
+      onPointerDown: (e: ReactTypes.PointerEvent) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        const p = at(e);
+        setDrawing({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+      },
+      onPointerMove: (e: ReactTypes.PointerEvent) => {
+        if (!drawing) return;
+        const p = at(e);
+        setDrawing({ ...drawing, x1: p.x, y1: p.y });
+      },
+      onPointerUp: (e: ReactTypes.PointerEvent) => {
+        if (!drawing || !rect) return;
+        setDrawing(null);
+        // A click without drag is not a zone.
+        if (rect.right - rect.left < 6 || rect.bottom - rect.top < 6) return;
+        const origin = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        onZone(pageNumber, rect, { left: origin.left + rect.left, top: origin.top + rect.top, right: origin.left + rect.right, bottom: origin.top + rect.bottom });
+      },
+    },
+    rect
+      ? h('div', {
+          style: {
+            position: 'absolute',
+            left: rect.left,
+            top: rect.top,
+            width: rect.right - rect.left,
+            height: rect.bottom - rect.top,
+            outline: '1px dashed var(--color-accent)',
+            background: 'color-mix(in srgb, var(--color-accent) 8%, transparent)',
+          },
+        })
+      : null);
+  }
 }
 
 // ─── Viewer ──────────────────────────────────────────────────
@@ -392,6 +446,28 @@ const NO_ARCS: LinkArcInfo[] = [];
 const NO_SEARCH_HITS: { start: number; end: number; current: boolean }[] = [];
 const NO_SUGGESTIONS: PageSuggestion[] = [];
 const SUGGESTION_COLOR = 'var(--color-text-tertiary)';
+
+/**
+ * Image of quads (page units) from the page as rendered on screen, with a
+ * small margin, as a PNG data URL. Null when the page has no canvas.
+ */
+function cropPage(root: HTMLElement, page: number, quads: Quad[], size: PageInfo | undefined, scale: number): string | null {
+  const canvas = root.querySelector(`.mn-page[data-page-number="${page}"] canvas`) as HTMLCanvasElement | null;
+  if (!canvas || !size || !quads.length || !canvas.width) return null;
+  const ratio = canvas.width / (size.width * scale);
+  const rects = quads.map((q) => pdfQuadToViewport(q, size.transform));
+  const margin = 4;
+  const left = Math.max(0, (Math.min(...rects.map((r) => r.left)) * scale - margin) * ratio);
+  const top = Math.max(0, (Math.min(...rects.map((r) => r.top)) * scale - margin) * ratio);
+  const right = Math.min(canvas.width, (Math.max(...rects.map((r) => r.right)) * scale + margin) * ratio);
+  const bottom = Math.min(canvas.height, (Math.max(...rects.map((r) => r.bottom)) * scale + margin) * ratio);
+  if (right <= left || bottom <= top) return null;
+  const out = document.createElement('canvas');
+  out.width = Math.round(right - left);
+  out.height = Math.round(bottom - top);
+  out.getContext('2d')!.drawImage(canvas, left, top, right - left, bottom - top, 0, 0, out.width, out.height);
+  return out.toDataURL('image/png');
+}
 
 /** An element that holds a document and is named after its file: not a name to look for in texts. */
 function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string }[]): boolean {
@@ -439,6 +515,10 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   /** Selection waiting for a gesture (E, P, V). */
   const [pending, setPending] = React.useState<Passage | null>(null);
+  /** Zone reading tool: the next rectangle drawn on a page is read by OCR. */
+  const [zoneMode, setZoneMode] = React.useState(false);
+  /** Zone being read, shown on its page until the reading is done. */
+  const [zoneBusy, setZoneBusy] = React.useState<{ page: number; quad: Quad } | null>(null);
   /** Gesture being filled in the sheet. */
   const [draft, setDraft] = React.useState<Draft | null>(null);
   /** Element shown in the sheet; null until the user picks or creates one. */
@@ -640,15 +720,20 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     if (draft) {
       const { page, quads, textRange } = draft.passage;
       const layer = textDoc && root ? (root.querySelector(`.mn-page[data-page-number="${page}"] .textLayer`) as HTMLElement | null) : null;
-      const shown = layer
+      const shown = layer && textRange
         ? rangeBoxes(layer, textRange[0], textRange[1]).map((r): Quad => [r.left / scale, r.top / scale, r.right / scale, r.bottom / scale])
         : quads;
       const list = byPage.get(page) ?? [];
       list.push({ id: 'draft', quads: shown, color: 'var(--color-accent)', kind: draft.gesture, selected: true });
       byPage.set(page, list);
     }
+    if (zoneBusy) {
+      const list = byPage.get(zoneBusy.page) ?? [];
+      list.push({ id: 'zone', quads: [zoneBusy.quad], color: 'var(--color-accent)', kind: 'event', selected: false });
+      byPage.set(zoneBusy.page, list);
+    }
     return byPage;
-  }, [placed, elements, links, selectedIds, tagSetMap, draft, textDoc, root, layoutVersion, scale]);
+  }, [placed, elements, links, selectedIds, tagSetMap, draft, textDoc, root, layoutVersion, scale, zoneBusy]);
 
   // Keep annotations on the graph as it changes (merge, deletion, undo,
   // collaborators). Nothing is rewritten before the dossier is fully loaded.
@@ -769,8 +854,72 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     else if (hit.targetId) showElement(hit.targetId);
   };
 
+  /**
+   * Reads a rectangle drawn on a page: rendered at 300 dpi, cleaned (without
+   * deskew, unreliable on a few words), recognized. The passage keeps what
+   * was read; the form shows the image so that the user corrects it, or
+   * types a handwritten passage the OCR could not read.
+   */
+  const onZone = async (pageNumber: number, rect: Rect, client: Rect) => {
+    const size = sizes[pageNumber - 1];
+    if (!opened || !size) return;
+    setZoneMode(false);
+    const unit = { left: rect.left / scale, top: rect.top / scale, right: rect.right / scale, bottom: rect.bottom / scale };
+    const quad = viewportRectToPdf(unit, size.transform) as Quad;
+    setZoneBusy({ page: pageNumber, quad });
+    try {
+      const engine = await import('../services/ocrEngine.ts');
+      const page = await opened.doc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: OCR_SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round((unit.right - unit.left) * OCR_SCALE));
+      canvas.height = Math.max(1, Math.round((unit.bottom - unit.top) * OCR_SCALE));
+      await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -unit.left * OCR_SCALE, -unit.top * OCR_SCALE] }).promise;
+      const image = canvas.toDataURL('image/png');
+      const prepared = await engine.preprocessImage(canvas, { deskew: false });
+      const lines = await engine.recognize(prepared.canvas);
+      const read = buildOcrPage(lines, { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: 0 });
+      const text = ocrPageText(read).text.trim();
+      const pageOcr = ocrPages[String(pageNumber)];
+      const range = pageOcr ? rangeInBox(pageOcr, [unit.left, unit.top, unit.right, unit.bottom]) : null;
+      setPending({
+        page: pageNumber,
+        quads: [quad],
+        text,
+        ...(range ? { textRange: range } : {}),
+        ...(text ? { context: text } : {}),
+        ocr: { rawText: text, confidence: read.confidence },
+        preview: { image, lines: read.lines.map((l) => l.w.map((w) => ({ t: w.t, c: w.c }))) },
+        clientBox: client,
+      });
+    } catch (err) {
+      console.error('MarkNeurone: zone reading failed', err);
+      api.toast.error(t('zone_error'));
+    } finally {
+      setZoneBusy(null);
+    }
+  };
+
+  /**
+   * On a scanned page, the passage keeps what the machine read and how sure it
+   * was, with the image of the passage to check the reading against.
+   */
+  const withOcrReading = (passage: Passage): Passage => {
+    const ocr = ocrPages[String(passage.page)];
+    if (!ocr || !passage.textRange) return passage;
+    const [start, end] = passage.textRange;
+    const image = root ? cropPage(root, passage.page, passage.quads, sizes[passage.page - 1], scale) : null;
+    return {
+      ...passage,
+      ocr: { rawText: passage.text, confidence: rangeConfidence(ocr, start, end) ?? ocr.confidence },
+      ...(image ? { preview: { image, lines: wordsInRange(ocr, start, end) } } : {}),
+    };
+  };
+
   const onMouseUp = (e: ReactTypes.MouseEvent) => {
     if (e.button !== 0) return;
+    // The end of a zone drag, handled by the zone layer.
+    if (e.target instanceof Element && e.target.closest('[data-zone-layer]')) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, placed);
@@ -789,13 +938,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       api.toast.warning(t('selection_multipage'));
       return;
     }
-    const ocr = ocrPages[String(result.passage.page)];
-    if (ocr) {
-      // Keep what the machine read: the validated text may be corrected later.
-      const [start, end] = result.passage.textRange;
-      result.passage.ocr = { rawText: result.passage.text, confidence: rangeConfidence(ocr, start, end) ?? ocr.confidence };
-    }
-    setPending(result.passage);
+    setPending(withOcrReading(result.passage));
   };
 
   const cancelPending = React.useCallback(() => setPending(null), []);
@@ -838,6 +981,17 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       }
       const el = e.target as HTMLElement | null;
       if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (e.key === 'Escape' && zoneMode) {
+        e.stopImmediatePropagation();
+        setZoneMode(false);
+        return;
+      }
+      if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey && !pending && opened) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        setZoneMode((on) => !on);
+        return;
+      }
       if (e.key === 'Escape' && selectedIds.length > 1) {
         e.stopImmediatePropagation();
         setSelectedIds([]);
@@ -1183,8 +1337,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     if (!root) return null;
     const passage = passageFromOffsets(root, s.page, s.start, s.end, sizes, scale);
     if (!passage) return null;
-    const ocr = ocrPages[String(s.page)];
-    return {
+    return withOcrReading({
       ...passage,
       origin: s.source,
       suggestion: {
@@ -1193,8 +1346,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
         ...(s.suspect ? { suspect: true } : {}),
         ...(s.elementIds ? { elementIds: s.elementIds } : {}),
       },
-      ...(ocr ? { ocr: { rawText: passage.text, confidence: rangeConfidence(ocr, s.start, s.end) ?? ocr.confidence } } : {}),
-    };
+    });
   };
 
   /**
@@ -1328,6 +1480,14 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           h('button', { onClick: () => stepHit(1), disabled: !hits.length, title: t('search_next'), className: toolButton }, h(api.icons.ChevronDown, { size: 14 })),
           h('button', { onClick: closeSearch, title: t('search_close'), className: toolButton }, h(api.icons.X, { size: 14 })))
       : h('button', { onClick: openSearch, disabled: !ready, title: t('search_open'), className: toolButton }, h(api.icons.Search, { size: 14 })),
+    opened
+      ? h('button', {
+          onClick: () => setZoneMode((on) => !on),
+          'aria-pressed': zoneMode,
+          title: t('zone_read'),
+          className: `${toolButton}${zoneMode ? ' bg-bg-tertiary text-accent' : ''}`,
+        }, h(api.icons.ScanText, { size: 14 }))
+      : null,
     h('button', {
       onClick: toggleSuggestions,
       disabled: !ready,
@@ -1433,6 +1593,8 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
               arcs: arcsByPage.get(i + 1) ?? NO_ARCS,
               searchHits: hitsByPage.get(i + 1) ?? NO_SEARCH_HITS,
               suggestions: suggestionsByPage.get(i + 1) ?? NO_SUGGESTIONS,
+              zoneMode,
+              onZone,
               ocr: ocrPages[String(i + 1)] ?? null,
             }))
         : null,

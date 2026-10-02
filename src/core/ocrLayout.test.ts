@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildOcrPage, ocrPageText, rangeConfidence, unrotateBox, unrotatePoint, type RawLine } from './ocrLayout.ts';
+import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, unrotateBox, unrotatePoint, wordsInRange, type OcrPage, type RawLine } from './ocrLayout.ts';
 import { rotate, type GrayImage } from './image/preprocess.ts';
 
 describe('unrotatePoint', () => {
@@ -66,5 +66,27 @@ describe('ocrPageText', () => {
   it('gives the confidence of a passage', () => {
     expect(rangeConfidence(page, 12, 19)).toBe(62);
     expect(rangeConfidence(page, 0, 11)).toBe(93);
+  });
+});
+
+describe('zone helpers', () => {
+  const page: OcrPage = {
+    lines: [
+      { w: [{ t: 'Se', c: 95, b: [10, 10, 20, 20] }, { t: 'présente', c: 92, b: [25, 10, 60, 20] }] },
+      { w: [{ t: 'Odile', c: 60, b: [10, 30, 30, 40] }, { t: 'DELARZE', c: 88, b: [35, 30, 70, 40] }] },
+    ],
+    confidence: 84,
+    skew: 0,
+    at: '',
+  };
+
+  it('lists the words of a range, line by line, with their confidence', () => {
+    // "Se présente\nOdile DELARZE\n": "présente" starts at 3, "Odile" at 12.
+    expect(wordsInRange(page, 5, 17)).toEqual([[{ t: 'présente', c: 92 }], [{ t: 'Odile', c: 60 }]]);
+  });
+
+  it('finds the page text covered by a rectangle', () => {
+    expect(rangeInBox(page, [5, 25, 80, 45])).toEqual([12, 25]);
+    expect(rangeInBox(page, [100, 100, 120, 120])).toBeNull();
   });
 });

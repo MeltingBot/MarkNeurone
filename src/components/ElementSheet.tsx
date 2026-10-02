@@ -13,6 +13,7 @@ import { defaultAttachment, findCandidates, type MatchKind } from '../core/dicti
 import { findDates, toDateInputValue } from '../core/dates.ts';
 import { trimPunctuation } from '../core/sentences.ts';
 import { extractPatterns } from '../core/patterns/patterns.ts';
+import { LOW_CONFIDENCE } from '../core/ocrLayout.ts';
 import { formatCoordinate, parseLatLng } from '../core/geo.ts';
 import { canPickOnMap, pickOnMap } from '../services/mapPicker.ts';
 import { DEFAULT_PROFILE } from '../profiles/default.ts';
@@ -363,6 +364,32 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
 
 const NO_TAGS: string[] = [];
 
+/**
+ * Image of a scanned passage above what the OCR read, doubtful words marked,
+ * to correct the reading in the form's fields.
+ */
+function OcrPreview(p: { passage: Passage }) {
+  const { h } = host();
+  const preview = p.passage.preview;
+  if (!preview) return null;
+  return h('div', { className: 'space-y-1' },
+    h('img', { src: preview.image, alt: '', className: 'w-full rounded border border-border-default bg-white', style: { maxHeight: 140, objectFit: 'contain', objectPosition: 'left' } }),
+    preview.lines.length
+      ? h('p', { className: 'text-xs text-text-secondary', style: { whiteSpace: 'pre-wrap' } },
+          preview.lines.map((line, i) =>
+            h('span', { key: i, className: 'block' },
+              line.map((w, j) =>
+                h('span', {
+                  key: j,
+                  className: w.c < LOW_CONFIDENCE ? 'text-warning underline decoration-dotted' : undefined,
+                  title: w.c < LOW_CONFIDENCE ? `${w.c} %` : undefined,
+                }, (j ? ' ' : '') + w.t)))))
+      : null);
+}
+
+/** Identifies a passage for form keys: its text offsets, or its box for an OCR zone. */
+const passageKey = (p: Passage) => `${p.page}-${(p.textRange ?? p.quads[0] ?? []).join('-')}`;
+
 /** A check digit that fails, or characters typical of OCR confusions: probable misreading. */
 function ChecksumWarning(p: { env: Env; passage: Passage }) {
   const { h } = host();
@@ -430,6 +457,7 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
       }
     },
   },
+  h(OcrPreview, { passage }),
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_label')),
     h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
@@ -588,6 +616,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     },
     onKeyDown: escapeTo(p.onDone),
   },
+  h(OcrPreview, { passage }),
   h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
     h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: element.properties.map((pr) => pr.key), onChange: onKeyChange })),
@@ -657,6 +686,7 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
     },
     onKeyDown: escapeTo(p.onDone),
   },
+  h(OcrPreview, { passage }),
   h('input', { className: S.INPUT_IN_CARD, value: label, autoFocus: true, 'aria-label': env.t('field_event_label'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
   h('div', { className: 'flex items-center gap-2' },
     h('input', { type: 'date', className: S.INPUT_IN_CARD, value: day, 'aria-label': env.t('field_date'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDay(e.target.value) }),
@@ -716,6 +746,7 @@ function LocationDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   }, []);
 
   return h('div', { className: S.CARD, onKeyDown: escapeTo(p.onDone) },
+    h(OcrPreview, { passage: p.passage }),
     h('p', { className: 'text-xs text-text-primary' }, `« ${query} »`),
     canPickOnMap()
       ? h('button', {
@@ -1300,7 +1331,7 @@ export function ElementSheet(props: Props) {
     return container(
       h(Section, { title: t('new_element') },
         h(NewElementForm, {
-          key: draft.passage.textRange.join('-') + draft.passage.page,
+          key: passageKey(draft.passage) + draft.passage.page,
           env,
           passage: draft.passage,
           onCreated: (id: string) => {
@@ -1386,20 +1417,20 @@ export function ElementSheet(props: Props) {
     h(Section, { title: t('section_properties'), badge: element.properties.length },
       h('div', { className: 'space-y-2' },
         draft?.gesture === 'property'
-          ? h(PropertyDraft, { key: `p-${draft.passage.page}-${draft.passage.textRange.join('-')}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
+          ? h(PropertyDraft, { key: `p-${draft.passage.page}-${passageKey(draft.passage)}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
           : null,
         h(PropertyRows, { env, element, onGoto: props.onGoto }))),
     h(Section, { title: t('section_events'), badge: element.events.length },
       h('div', { className: 'space-y-2' },
         draft?.gesture === 'event'
-          ? h(EventDraft, { key: `e-${draft.passage.page}-${draft.passage.textRange.join('-')}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
+          ? h(EventDraft, { key: `e-${draft.passage.page}-${passageKey(draft.passage)}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
           : null,
         h(EventRows, { env, element, onGoto: props.onGoto }))),
     h(Section, { title: t('section_location') },
       h('div', { className: 'space-y-2' },
         h('label', { className: S.LABEL }, t('geo_coordinates')),
         draft?.gesture === 'location'
-          ? h(LocationDraft, { key: `g-${draft.passage.page}-${draft.passage.textRange.join('-')}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
+          ? h(LocationDraft, { key: `g-${draft.passage.page}-${passageKey(draft.passage)}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
           : null,
         h(GeoFields, {
           env,
