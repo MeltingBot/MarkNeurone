@@ -33,11 +33,15 @@ import { renderTextBlocks, TEXT_SHEET_CSS, TEXT_SHEET_WIDTH } from '../services/
 import { blocksText, textFormatOf, type TextBlock } from '../core/textDocument.ts';
 import { getAnnotations, getVersion, loadAnnotations, subscribe, writeDocument } from '../services/annotationStore.ts';
 import { reconcile } from '../core/integrity.ts';
-import type { ZnElement, ZnLink, ZnTagSet } from '../services/znTypes.ts';
+import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../services/znTypes.ts';
 import { SelectionBar, type Gesture } from './SelectionBar.tsx';
 import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
-import { deleteAnnotation, reattachToElement } from '../services/qualify.ts';
+import { deleteAnnotation, reattachToElement, rejectSuggestion } from '../services/qualify.ts';
+import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
+import type { NamedElement } from '../core/dictionary.ts';
+import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
+import { DEFAULT_PROFILE } from '../profiles/default.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
 
@@ -118,6 +122,8 @@ interface PageProps {
   arcs: LinkArcInfo[];
   /** Search results on this page; `current` is the one selected in the bar. */
   searchHits: { start: number; end: number; current: boolean }[];
+  /** Pre-highlighting suggestions on this page, drawn faintly under the text. */
+  suggestions: PageSuggestion[];
   /** OCR result of a scanned page: it replaces pdf.js' text layer. */
   ocr: OcrPage | null;
 }
@@ -154,7 +160,14 @@ function selectedStyle(hl: Highlight): ReactTypes.CSSProperties {
   return hl.selected ? { outline: `2px solid ${hl.color}`, outlineOffset: 1, borderRadius: 2 } : {};
 }
 
-function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, ocr }: PageProps) {
+interface PageSuggestion {
+  key: string;
+  start: number;
+  end: number;
+  color: string;
+}
+
+function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, ocr }: PageProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -165,6 +178,7 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
   /** Bumped when the text layer has been (re)built, to place search boxes. */
   const [textVersion, setTextVersion] = React.useState(0);
   const [searchBoxes, setSearchBoxes] = React.useState<{ rect: Rect; current: boolean }[]>([]);
+  const [suggestionBoxes, setSuggestionBoxes] = React.useState<{ key: string; rect: Rect; color: string }[]>([]);
   const scaleRef = React.useRef(scale);
   scaleRef.current = scale;
 
@@ -266,6 +280,15 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
     setSearchBoxes(searchHits.flatMap((hit) => rangeBoxes(textDiv, hit.start, hit.end).map((rect) => ({ rect, current: hit.current }))));
   }, [searchHits, textVersion, near, scale]);
 
+  React.useEffect(() => {
+    const textDiv = textRef.current;
+    if (!textDiv || !near || !suggestions.length || !textDiv.childNodes.length) {
+      setSuggestionBoxes([]);
+      return;
+    }
+    setSuggestionBoxes(suggestions.flatMap((s) => rangeBoxes(textDiv, s.start, s.end).map((rect, i) => ({ key: `${s.key}-${i}`, rect, color: s.color }))));
+  }, [suggestions, textVersion, near, scale]);
+
   const width = Math.floor(size.width * scale);
   const height = Math.floor(size.height * scale);
   return h(
@@ -296,6 +319,24 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
           });
         });
       })),
+    suggestionBoxes.length
+      ? h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none' } },
+          suggestionBoxes.map((box) =>
+            h('div', {
+              key: box.key,
+              'data-suggestion': '',
+              style: {
+                position: 'absolute',
+                left: box.rect.left - 1,
+                top: box.rect.top - 1,
+                width: box.rect.right - box.rect.left + 2,
+                height: box.rect.bottom - box.rect.top + 2,
+                background: `color-mix(in srgb, ${box.color} 12%, transparent)`,
+                outline: `1px dashed color-mix(in srgb, ${box.color} 70%, transparent)`,
+                borderRadius: 2,
+              },
+            })))
+      : null,
     searchBoxes.length
       ? h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none' } },
           searchBoxes.map((box, i) =>
@@ -349,6 +390,8 @@ type Zoom = number | 'auto' | 'fit';
 const NO_HIGHLIGHTS: Highlight[] = [];
 const NO_ARCS: LinkArcInfo[] = [];
 const NO_SEARCH_HITS: { start: number; end: number; current: boolean }[] = [];
+const NO_SUGGESTIONS: PageSuggestion[] = [];
+const SUGGESTION_COLOR = 'var(--color-text-tertiary)';
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
 
@@ -722,7 +765,13 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, placed);
-      if (hit) selectHighlight(hit, e.ctrlKey || e.metaKey);
+      if (hit) {
+        selectHighlight(hit, e.ctrlKey || e.metaKey);
+        return;
+      }
+      const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
+      const passage = suggestion ? suggestionPassage(suggestion) : null;
+      if (passage) setPending(passage);
       return;
     }
     const result = capturePassage(selection, sizes, scale);
@@ -919,6 +968,24 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       });
       return;
     }
+    const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
+    const suggested = suggestion ? suggestionPassage(suggestion) : null;
+    if (suggested) {
+      setMenu({
+        ...at,
+        header: suggestionTitle(suggested),
+        sections: [
+          [
+            { id: 'element', label: t('gesture_element'), icon: Highlighter, shortcut: 'E', action: () => applyGesture('element', suggested) },
+            { id: 'property', label: t('gesture_property'), icon: Tag, shortcut: 'P', action: () => applyGesture('property', suggested) },
+            { id: 'event', label: t('gesture_event'), icon: Calendar, shortcut: 'V', action: () => applyGesture('event', suggested) },
+            { id: 'location', label: t('gesture_location'), icon: api.icons.MapPin, shortcut: 'G', action: () => applyGesture('location', suggested) },
+          ],
+          [{ id: 'reject', label: t('suggestion_reject'), icon: api.icons.X, action: () => reject(suggested) }],
+        ],
+      });
+      return;
+    }
     setMenu({
       ...at,
       sections: [[
@@ -1024,6 +1091,113 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     [pageTexts, ocrPages],
   );
 
+  // ─── Pre-highlighting ────────────────────────────────────
+
+  // Off when a document is first read, then as the user leaves it.
+  const [suggestionsOn, setSuggestionsOn] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    setSuggestionsOn(false);
+    loadViewPrefs(dossierId, asset.hash)
+      .then((prefs) => {
+        if (!cancelled) setSuggestionsOn(prefs.suggestions);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load reader preferences', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, asset.hash]);
+  const toggleSuggestions = () => {
+    const next = !suggestionsOn;
+    setSuggestionsOn(next);
+    saveViewPrefs(dossierId, asset.hash, { suggestions: next }).catch((err: unknown) =>
+      console.error('MarkNeurone: cannot save reader preferences', err));
+  };
+
+  /** Names the dictionary looks for: labels, and values of the profile's alias properties. */
+  const named = React.useMemo<NamedElement[]>(
+    () =>
+      elements
+        .filter((el) => isGraphElement(el) && el.label?.trim())
+        .map((el) => ({
+          id: el.id,
+          label: el.label,
+          aliases: el.properties
+            .filter((pr) => typeof pr.value === 'string' && DEFAULT_PROFILE.aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()))
+            .map((pr) => pr.value as string),
+        })),
+    [elements],
+  );
+
+  const suggestions = React.useMemo<Suggestion[]>(
+    () => (suggestionsOn ? buildSuggestions(effectiveTexts.map((p) => p.text), named, annotations) : []),
+    [suggestionsOn, effectiveTexts, named, annotations],
+  );
+
+  const suggestionsByPage = React.useMemo(() => {
+    const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
+    const tagColorOf = (elementId: string) => {
+      const tag = elements.find((el) => el.id === elementId)?.tags[0];
+      return tag ? tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null : null;
+    };
+    const byPage = new Map<number, PageSuggestion[]>();
+    for (const s of suggestions) {
+      // A known name takes its element's tag color; homonyms of different colors stay neutral.
+      const colors = new Set((s.elementIds ?? []).map(tagColorOf));
+      const color = colors.size === 1 ? [...colors][0] ?? SUGGESTION_COLOR : SUGGESTION_COLOR;
+      const list = byPage.get(s.page) ?? [];
+      list.push({ key: s.key, start: s.start, end: s.end, color });
+      byPage.set(s.page, list);
+    }
+    return byPage;
+  }, [suggestions, elements, tagSetMap]);
+
+  /** Suggestion under a click, measured on the rendered text layer. */
+  const suggestionAt = (target: EventTarget | null, x: number, y: number): Suggestion | null => {
+    const pageEl = target instanceof Element ? (target.closest('.mn-page') as HTMLElement | null) : null;
+    const layer = pageEl?.querySelector('.textLayer') as HTMLElement | null;
+    if (!pageEl || !layer || !suggestions.length) return null;
+    const page = Number(pageEl.dataset.pageNumber);
+    const origin = layer.getBoundingClientRect();
+    const px = x - origin.left;
+    const py = y - origin.top;
+    return (
+      suggestions.find(
+        (s) => s.page === page && rangeBoxes(layer, s.start, s.end).some((r) => px >= r.left - 1 && px <= r.right + 1 && py >= r.top - 1 && py <= r.bottom + 1),
+      ) ?? null
+    );
+  };
+
+  /** The suggested passage, ready for the same choices as a manual selection. */
+  const suggestionPassage = (s: Suggestion): Passage | null => {
+    if (!root) return null;
+    const passage = passageFromOffsets(root, s.page, s.start, s.end, sizes, scale);
+    if (!passage) return null;
+    const ocr = ocrPages[String(s.page)];
+    return {
+      ...passage,
+      origin: s.source,
+      suggestion: { kind: s.kind, ...(s.checksumOk !== undefined ? { checksumOk: s.checksumOk } : {}), ...(s.elementIds ? { elementIds: s.elementIds } : {}) },
+      ...(ocr ? { ocr: { rawText: passage.text, confidence: rangeConfidence(ocr, s.start, s.end) ?? ocr.confidence } } : {}),
+    };
+  };
+
+  const suggestionTitle = (p: Passage): string | undefined => {
+    const s = p.suggestion;
+    if (!s) return undefined;
+    if (s.kind !== 'name') return t(`suggestion_kind_${s.kind}`);
+    const ids = s.elementIds ?? [];
+    return ids.length > 1 ? t('suggestion_homonyms', { count: ids.length }) : t('suggestion_known', { name: nameOf(ids[0] ?? '') });
+  };
+
+  const reject = (p: Passage) => {
+    setPending(null);
+    rejectSuggestion({ dossierId, asset }, p).catch((err: unknown) => {
+      console.error('MarkNeurone: cannot dismiss suggestion', err);
+      api.toast.error(t('write_error'));
+    });
+  };
+
   // ─── Search ──────────────────────────────────────────────
 
   const hits = React.useMemo<SearchHit[]>(
@@ -1126,6 +1300,13 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           h('button', { onClick: () => stepHit(1), disabled: !hits.length, title: t('search_next'), className: toolButton }, h(api.icons.ChevronDown, { size: 14 })),
           h('button', { onClick: closeSearch, title: t('search_close'), className: toolButton }, h(api.icons.X, { size: 14 })))
       : h('button', { onClick: openSearch, disabled: !ready, title: t('search_open'), className: toolButton }, h(api.icons.Search, { size: 14 })),
+    h('button', {
+      onClick: toggleSuggestions,
+      disabled: !ready,
+      'aria-pressed': suggestionsOn,
+      title: t(suggestionsOn ? 'suggestions_hide' : 'suggestions_show'),
+      className: `${toolButton}${suggestionsOn ? ' bg-bg-tertiary text-accent' : ''}`,
+    }, h(api.icons.ScanSearch, { size: 14 })),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', { onClick: () => stepZoom(-1), disabled: !ready, title: t('viewer_zoom_out'), className: toolButton }, h(ZoomOut, { size: 14 })),
       h('span', { className: 'text-center', style: { minWidth: 40 } }, `${percent} %`),
@@ -1223,6 +1404,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
               highlights: highlightsByPage.get(i + 1) ?? NO_HIGHLIGHTS,
               arcs: arcsByPage.get(i + 1) ?? NO_ARCS,
               searchHits: hitsByPage.get(i + 1) ?? NO_SEARCH_HITS,
+              suggestions: suggestionsByPage.get(i + 1) ?? NO_SUGGESTIONS,
               ocr: ocrPages[String(i + 1)] ?? null,
             }))
         : null,
@@ -1251,7 +1433,13 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       onPickOnMap: pickOnMap,
     }),
     pending
-      ? h(SelectionBar, { passage: pending, onChoose: chooseGesture, onCancel: cancelPending })
+      ? h(SelectionBar, {
+          passage: pending,
+          onChoose: chooseGesture,
+          onCancel: cancelPending,
+          title: suggestionTitle(pending),
+          onReject: pending.suggestion ? () => reject(pending) : undefined,
+        })
       : null,
     menu ? h(ReaderContextMenu, { ...menu, onClose: () => setMenu(null) }) : null,
   );

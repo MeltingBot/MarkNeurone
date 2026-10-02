@@ -33,6 +33,17 @@ Après sélection d'un passage, une touche (ou le menu du clic droit) indique ce
 
 Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en appuyant sur L. Lorsque les deux passages appartiennent à la même phrase, le texte qui les sépare est proposé comme libellé du lien.
 
+### Suggestions
+
+Le bouton « Afficher les suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
+
+- les noms des éléments déjà présents dans le dossier (libellés et propriétés « Alias »), dans la couleur de leur tag, y compris en ordre inversé ou avec une initiale pour le prénom ;
+- les téléphones, plaques d'immatriculation, IBAN, SIRET, NIR, adresses e-mail, URL, adresses IP, adresses Bitcoin et Ethereum, montants en euros et dates.
+
+Un clic sur une suggestion propose les mêmes choix qu'une sélection (E, P, V, G), avec le tag ou la clé de propriété correspondant au type détecté, ou permet de l'ignorer (Suppr). Chaque suggestion se traite séparément : il n'existe pas de validation groupée. Les objets créés de cette façon gardent l'indication de leur origine (motif ou dictionnaire). Lorsque la clé de contrôle d'un IBAN, d'un SIRET ou d'un NIR est fausse, le formulaire signale une erreur de lecture probable.
+
+Les suggestions sont masquées à la première ouverture de chaque document, pour une première lecture sans orientation. Le choix est ensuite conservé par document.
+
 ### Fiche de l'élément
 
 La partie droite du lecteur présente l'élément sélectionné avec la même organisation que le panneau de ZeroNeurone : libellé et tags, propriétés, événements, localisation, liens, et liste des passages du document qui s'y rapportent.
@@ -59,6 +70,7 @@ Le lecteur peut être réduit pour revenir au canvas, puis rouvert à la même p
 | Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire de création d'élément |
 | Ctrl+clic | Sélectionner plusieurs passages surlignés |
 | L | Créer un lien entre les deux éléments sélectionnés |
+| Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |
 | Entrée, Maj+Entrée | Résultat de recherche suivant, précédent |
 | Échap | Fermer la liste ou le formulaire ouvert, puis réduire le lecteur |
@@ -111,7 +123,6 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 Version 0.1.0, en développement. Fonctions prévues pour terminer la première version :
 
-- pré-surlignage des identifiants et des noms déjà présents dans le dossier, à valider un par un ;
 - OCR d'une zone sélectionnée, avec correction du texte reconnu ;
 - accès aux passages depuis le panneau de ZeroNeurone ;
 - réglage du profil (tags, raccourcis, alias).

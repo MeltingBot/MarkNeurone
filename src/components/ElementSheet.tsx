@@ -12,6 +12,7 @@ import type { Annotation } from '../core/model.ts';
 import { defaultAttachment, findCandidates, type MatchKind } from '../core/dictionary.ts';
 import { findDates, toDateInputValue } from '../core/dates.ts';
 import { trimPunctuation } from '../core/sentences.ts';
+import { extractPatterns } from '../core/patterns/patterns.ts';
 import { formatCoordinate, parseLatLng } from '../core/geo.ts';
 import { canPickOnMap, pickOnMap } from '../services/mapPicker.ts';
 import { DEFAULT_PROFILE } from '../profiles/default.ts';
@@ -360,11 +361,21 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
 
 const NO_TAGS: string[] = [];
 
+/** A check digit that fails in the passage: probable misreading (OCR or typing). */
+function ChecksumWarning(p: { env: Env; passage: Passage }) {
+  const { h } = host();
+  const invalid = p.passage.suggestion?.checksumOk === false || extractPatterns(p.passage.text).some((m) => m.checksumOk === false);
+  return invalid ? h('p', { className: 'text-[10px] text-warning' }, p.env.t('checksum_invalid')) : null;
+}
+
 function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string) => void; onCancel: () => void }) {
   const { React, h } = host();
   const { env, passage } = p;
   const [label, setLabel] = React.useState(trimPunctuation(passage.text));
-  const [tags, setTags] = React.useState<string[]>([]);
+  const [tags, setTags] = React.useState<string[]>(() => {
+    const tag = passage.suggestion && DEFAULT_PROFILE.suggestionTags[passage.suggestion.kind];
+    return tag ? [tag] : [];
+  });
   const [busy, setBusy] = React.useState(false);
 
   const candidates = React.useMemo(() => {
@@ -416,7 +427,8 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
   },
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_label')),
-    h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) })),
+    h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
+    h(ChecksumWarning, { env, passage })),
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_tags')),
     h(TagsEditor, { env, tags, onChange: setTags })),
@@ -539,7 +551,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     for (const el of env.elements) for (const pr of el.properties) if (!keys.has(pr.key)) keys.set(pr.key, pr.type ?? 'text');
     return keys;
   }, [element, env.elements, env.tagSets]);
-  const [key, setKey] = React.useState('');
+  const [key, setKey] = React.useState((passage.suggestion && DEFAULT_PROFILE.suggestionKeys[passage.suggestion.kind]) ?? '');
   const [type, setType] = React.useState<ZnPropertyType>(guessType(trimPunctuation(passage.text)));
   const [value, setValue] = React.useState(() => {
     if (guessType(passage.text) !== 'date') return trimPunctuation(passage.text);
@@ -575,7 +587,8 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   h('div', { className: 'flex gap-2' },
     h('div', { className: 'space-y-1 flex-1' },
       h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
-      h('input', { type: type === 'date' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) })),
+      h('input', { type: type === 'date' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) }),
+      h(ChecksumWarning, { env, passage })),
     h('div', { className: 'space-y-1', style: { width: 96 } },
       h('label', { className: S.SMALL_LABEL }, env.t('field_type')),
       h('select', { className: S.INPUT_IN_CARD, value: type, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as ZnPropertyType) },
