@@ -108,4 +108,4 @@ MVP en cours. Restent à faire : le pré-surlignage (motifs et dictionnaire du d
 
 ## Licence
 
-Licence à définir. Composants tiers : [`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
+[MIT](LICENSE). Composants tiers : [`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
