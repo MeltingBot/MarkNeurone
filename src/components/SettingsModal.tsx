@@ -32,7 +32,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [colors, setColors] = React.useState<Record<string, string | null>>({});
   const [aliasInput, setAliasInput] = React.useState('');
   const [busy, setBusy] = React.useState(false);
-  const [tab, setTab] = React.useState<'tags' | 'aliases' | 'suggestions' | 'ocr'>('tags');
+  const [tab, setTab] = React.useState<'tags' | 'recognition'>('tags');
   const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
   const colorOf = (tag: string) =>
     tag in colors ? colors[tag] : tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null;
@@ -73,10 +73,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   // Tabs as in ZN's modals (StorageModal).
   const tabs = [
     { id: 'tags' as const, label: t('settings_tab_tags'), icon: api.icons.Tag },
-    { id: 'aliases' as const, label: t('settings_tab_aliases'), icon: api.icons.UserRound, hint: t('settings_aliases_hint') },
-    { id: 'suggestions' as const, label: t('settings_tab_suggestions'), icon: api.icons.Sparkles },
-    { id: 'ocr' as const, label: t('settings_tab_ocr'), icon: api.icons.ScanText },
+    { id: 'recognition' as const, label: t('settings_tab_recognition'), icon: api.icons.ScanSearch },
   ];
+  /** A labelled block of the recognition tab, labelled like ZN's fields. */
+  const block = (label: string, hint: string | null, content: ReactTypes.ReactNode) =>
+    h('div', { className: 'space-y-1.5' }, h('label', { className: S.LABEL, title: hint ?? undefined }, label), content);
 
   return h('div', {
     className: 'fixed inset-0 z-50 flex items-center justify-center',
@@ -100,12 +101,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         h('button', { type: 'button', onClick: onClose, title: t('reader_close'), className: S.ICON_BUTTON }, h(X, { size: 16 }))),
 
       h('div', { className: 'flex border-b border-border-default px-4' },
-        tabs.map(({ id, label, icon: Icon, hint }) =>
+        tabs.map(({ id, label, icon: Icon }) =>
           h('button', {
             key: id,
             type: 'button',
             onClick: () => setTab(id),
-            title: hint,
             className: `flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
               tab === id ? 'border-accent text-accent' : 'border-transparent text-text-tertiary hover:text-text-secondary'}`,
           }, h(Icon, { size: 13 }), label))),
@@ -130,8 +130,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               }, h(Plus, { size: 12 }), t('tag_add'))
             : null),
 
-        section('aliases', 
-          h('div', { className: 'flex flex-wrap items-center gap-1.5' },
+        section('recognition', h('div', { className: 'space-y-5' },
+          block(t('settings_aliases'), t('settings_aliases_hint'), h('div', { className: 'flex flex-wrap items-center gap-1.5' },
             profile.aliasKeys.map((k) =>
               h('span', { key: k, className: S.TAG_CHIP }, k,
                 h('button', { type: 'button', onClick: () => setProfile({ aliasKeys: profile.aliasKeys.filter((x) => x !== k) }), className: 'hover:text-error focus:outline-none', 'aria-label': t('settings_remove') },
@@ -151,10 +151,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               onBlur: addAlias,
             }))),
 
-        section('suggestions', 
           h('div', { className: 'grid gap-x-2 gap-y-1 items-center', style: { gridTemplateColumns: '120px 1fr 1fr' } },
             h('span', null),
-            h('span', { className: S.SMALL_LABEL }, t('field_tags')),
+            h('span', { className: S.SMALL_LABEL }, t('settings_col_tag')),
             h('span', { className: S.SMALL_LABEL }, t('field_key')),
             KINDS.flatMap((kind) => [
               h('span', { key: `${kind}-l`, className: 'text-xs text-text-secondary' }, t(`suggestion_kind_${kind}`)),
@@ -172,16 +171,15 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 'aria-label': `${t(`suggestion_kind_${kind}`)} : ${t('field_key')}`,
                 onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setProfile({ suggestionKeys: { ...profile.suggestionKeys, [kind]: e.target.value } }),
               }),
-            ]))),
+            ])),
 
-        section('ocr', 
           h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
             h('input', {
               type: 'checkbox',
               checked: draft.ocr.dropColor,
               onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDraft({ ...draft, ocr: { ...draft.ocr, dropColor: e.target.checked } }),
             }),
-            t('settings_drop_color')))),
+            t('settings_drop_color'))))),
 
       h('div', { className: 'flex items-center gap-2 px-4 py-3 border-t border-border-default bg-bg-secondary' },
         h('button', { type: 'button', onClick: () => setDraft(structuredClone(normalizeSettings(DEFAULT_SETTINGS))), className: `${S.BUTTON_GHOST_SMALL} mr-auto` }, t('settings_defaults')),
