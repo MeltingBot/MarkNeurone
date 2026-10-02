@@ -1019,6 +1019,11 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
   const onContextMenu = (e: ReactTypes.MouseEvent) => {
     e.preventDefault();
     setPending(null);
+    // Right-click leaves the zone tool, as Escape does.
+    if (zoneMode) {
+      setZoneMode(false);
+      return;
+    }
     const at = { x: e.clientX, y: e.clientY };
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed) {
@@ -1151,11 +1156,14 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     }
     setMenu({
       ...at,
-      sections: [[
+      sections: [
+        ...(opened ? [[{ id: 'zone', label: t('zone_read'), icon: api.icons.SquareDashed, shortcut: 'Z', action: () => setZoneMode(true) }]] : []),
+        [
         { id: 'zoom-in', label: t('viewer_zoom_in'), icon: ZoomIn, action: () => stepZoom(1) },
         { id: 'zoom-out', label: t('viewer_zoom_out'), icon: ZoomOut, action: () => stepZoom(-1) },
         { id: 'fit', label: t('viewer_fit_width'), icon: MoveHorizontal, action: () => setZoom('fit') },
-      ]],
+        ],
+      ],
     });
   };
 
@@ -1480,21 +1488,14 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           h('button', { onClick: () => stepHit(1), disabled: !hits.length, title: t('search_next'), className: toolButton }, h(api.icons.ChevronDown, { size: 14 })),
           h('button', { onClick: closeSearch, title: t('search_close'), className: toolButton }, h(api.icons.X, { size: 14 })))
       : h('button', { onClick: openSearch, disabled: !ready, title: t('search_open'), className: toolButton }, h(api.icons.Search, { size: 14 })),
-    opened
-      ? h('button', {
-          onClick: () => setZoneMode((on) => !on),
-          'aria-pressed': zoneMode,
-          title: t('zone_read'),
-          className: `${toolButton}${zoneMode ? ' bg-bg-tertiary text-accent' : ''}`,
-        }, h(api.icons.ScanText, { size: 14 }))
-      : null,
     h('button', {
       onClick: toggleSuggestions,
       disabled: !ready,
       'aria-pressed': suggestionsOn,
       title: t(suggestionsOn ? 'suggestions_hide' : 'suggestions_show'),
-      className: `${toolButton}${suggestionsOn ? ' bg-bg-tertiary text-accent' : ''}`,
-    }, h(api.icons.ScanSearch, { size: 14 })),
+      className: `flex items-center gap-1 px-2 h-7 text-xs rounded border disabled:opacity-50 ${
+        suggestionsOn ? 'bg-bg-tertiary text-accent border-accent/40' : 'text-text-secondary border-border-default hover:bg-bg-tertiary'}`,
+    }, h(api.icons.Sparkles, { size: 14 }), t('suggestions_label')),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', { onClick: () => stepZoom(-1), disabled: !ready, title: t('viewer_zoom_out'), className: toolButton }, h(ZoomOut, { size: 14 })),
       h('span', { className: 'text-center', style: { minWidth: 40 } }, `${percent} %`),

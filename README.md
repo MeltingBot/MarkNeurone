@@ -18,7 +18,7 @@ Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'auditi
 
 - **PDF avec couche texte**, affichés avec PDF.js.
 - **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document. Sur une page numérisée, le formulaire affiche l'image du passage au-dessus du texte reconnu, avec les mots peu sûrs soulignés, pour corriger la lecture avant de valider. Le texte lu par l'OCR reste enregistré à côté du texte validé.
-- **Lecture d'une zone.** Le bouton « Lire une zone » (touche Z) permet d'encadrer une partie de la page à la souris : la zone est reconnue à haute résolution et traitée comme une sélection. Elle sert lorsque l'OCR de la page a mal lu un passage, et pour saisir un passage manuscrit lorsque l'OCR ne lit rien.
+- **Passage encadré.** Lorsque la sélection de texte ne convient pas (passage mal lu, sous un tampon, manuscrit), « Encadrer un passage » dans le menu du clic droit (touche Z) permet de l'entourer à la souris. Le passage est relu à haute résolution et traité comme une sélection ; si rien n'est lu, le texte se saisit dans le formulaire.
 - **DOCX, ODT, TXT et Markdown.** Le texte est affiché sur une page continue avec ses titres, paragraphes, listes et tableaux. La mise en page d'origine n'est pas reproduite.
 
 ### Création d'objets dans le graphe
@@ -36,7 +36,7 @@ Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en 
 
 ### Suggestions
 
-Le bouton « Afficher les suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
+Le bouton « Suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
 
 - les noms des éléments déjà présents dans le dossier (libellés et propriétés « Alias »), dans la couleur de leur tag, y compris en ordre inversé ou avec une initiale pour le prénom ;
 - les téléphones, plaques d'immatriculation, IBAN, SIRET, NIR, adresses e-mail, URL, adresses IP, adresses Bitcoin et Ethereum, montants en euros et dates.
@@ -71,7 +71,7 @@ Le lecteur peut être réduit pour revenir au canvas, puis rouvert à la même p
 | Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire de création d'élément |
 | Ctrl+clic | Sélectionner plusieurs passages surlignés |
 | L | Créer un lien entre les deux éléments sélectionnés |
-| Z | Lire une zone encadrée à la souris |
+| Z | Encadrer un passage à la souris |
 | Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |
 | Entrée, Maj+Entrée | Résultat de recherche suivant, précédent |
