@@ -6,7 +6,7 @@
     "gen": "tsx gen/generate.ts",
     "bench": "tsx run.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --root ../.. src/core bench"
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.10",

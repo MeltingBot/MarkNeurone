@@ -1,6 +1,8 @@
 // Accuracy metrics for the OCR bench.
 
-import { extractIdentifiers, type IdentifierKind } from '../../src/core/patterns/identifiers.ts';
+import { buildSuggestions } from '../../src/core/suggestions.ts';
+import type { NamedElement } from '../../src/core/dictionary.ts';
+import { TRUTH_KINDS, type TruthItem, type TruthKind } from './gen/fiction.ts';
 
 export function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
@@ -56,54 +58,61 @@ export function pageCer(truth: string, ocr: string): number {
 
 export interface KindScore {
   expected: number;
-  /** Identifiers extracted by the regex with exactly the expected value. */
+  /** Expected texts suggested with exactly the expected value. */
   found: number;
-  /** Extracted values not present in the truth. */
+  /** Suggested values not present in the truth. */
   falsePositives: number;
-  /** Extracted values whose check digit fails (only IBAN and SIRET carry one). */
+  /** Suggested values whose check digit fails (IBAN, SIRET, NIR). */
   checksumFlagged: number;
-  /** Wrong values that the checksum did NOT catch. */
+  /** Wrong values that the check digit did NOT catch. */
   checksumMissed: number;
-  /** Sum of per-identifier character error rates, see bestSubstringDistance. */
+  /** Sum of per-item character error rates, see bestSubstringDistance. */
   cerSum: number;
 }
-
-export type IdentifierTruth = Record<'phones' | 'plates' | 'ibans' | 'sirets', string[]>;
-
-const TRUTH_KEY: Record<IdentifierKind, keyof IdentifierTruth> = {
-  phone: 'phones',
-  plate: 'plates',
-  iban: 'ibans',
-  siret: 'sirets',
-};
 
 export function emptyScore(): KindScore {
   return { expected: 0, found: 0, falsePositives: 0, checksumFlagged: 0, checksumMissed: 0, cerSum: 0 };
 }
 
-export function scoreIdentifiers(truth: IdentifierTruth, ocrText: string): Record<IdentifierKind, KindScore> {
-  const extracted = extractIdentifiers(ocrText);
-  const haystack = compact(ocrText);
-  const result = {} as Record<IdentifierKind, KindScore>;
-  for (const kind of Object.keys(TRUTH_KEY) as IdentifierKind[]) {
-    const expected = truth[TRUTH_KEY[kind]] ?? [];
-    const got = extracted.filter((m) => m.kind === kind);
-    const gotValues = new Set(got.map((m) => m.value));
-    const expectedSet = new Set(expected);
+/** Comparison key: accents, case, spaces and punctuation do not count. */
+const key = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}@€]/gu, '').toUpperCase();
+
+/**
+ * Scores the plugin's suggestions on a page text against the expected ones,
+ * kind by kind. The dictionary holds the names the dossier would know.
+ */
+export function scoreSuggestions(items: TruthItem[], text: string, dictionary: NamedElement[]): Record<TruthKind, KindScore> {
+  const suggested = buildSuggestions([text], dictionary, []);
+  const haystack = compact(text);
+  const result = {} as Record<TruthKind, KindScore>;
+  for (const kind of TRUTH_KINDS) {
+    const expected = items.filter((i) => i.kind === kind).map((i) => key(i.value));
+    const got = suggested.filter((s) => s.kind === kind);
     const score = emptyScore();
     score.expected = expected.length;
-    score.found = expected.filter((v) => gotValues.has(v)).length;
-    for (const m of got) {
-      const wrong = !expectedSet.has(m.value);
-      if (wrong) score.falsePositives++;
-      if (m.checksumOk === false) score.checksumFlagged++;
-      if (wrong && m.checksumOk === true) score.checksumMissed++;
+    const remaining = [...expected];
+    for (const s of got) {
+      const at = remaining.indexOf(key(text.slice(s.start, s.end)));
+      if (at >= 0) {
+        remaining.splice(at, 1);
+        score.found++;
+      } else {
+        score.falsePositives++;
+        if (s.checksumOk === true) score.checksumMissed++;
+      }
+      if (s.checksumOk === false) score.checksumFlagged++;
     }
-    for (const v of expected) {
-      const needle = compact(v);
+    for (const i of items.filter((x) => x.kind === kind)) {
+      const needle = compact(i.value);
       score.cerSum += bestSubstringDistance(needle, haystack) / needle.length;
     }
     result[kind] = score;
   }
   return result;
+}
+
+/** Dictionary of a report: every name it mentions, as the graph would hold it. */
+export function dictionaryOf(items: TruthItem[]): NamedElement[] {
+  const names = [...new Set(items.filter((i) => i.kind === 'name').map((i) => i.canonical ?? i.value))];
+  return names.map((label, i) => ({ id: `n${i}`, label, aliases: [] }));
 }

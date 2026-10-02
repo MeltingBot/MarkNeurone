@@ -59,40 +59,38 @@ export function SelectionBar({ passage, onChoose, onCancel, title, onReject }: P
   };
 
   const box = passage.clientBox;
-  const width = onReject ? 520 : 400;
-  const left = Math.max(8, Math.min(box.left, window.innerWidth - width - 8));
-  const below = window.innerHeight - box.bottom > 60;
-  const style: ReactTypes.CSSProperties = below ? { left, top: box.bottom + 6 } : { left, bottom: window.innerHeight - box.top + 6 };
+  const icons = api.icons;
+  const style: ReactTypes.CSSProperties = window.innerHeight - box.bottom > 48
+    ? { left: Math.max(8, box.left), top: box.bottom + 6 }
+    : { left: Math.max(8, box.left), bottom: window.innerHeight - box.top + 6 };
 
-  const button = (gesture: Gesture, letter: string) =>
+  // Icons only, as in ZN's toolbars: the action and its key are in the tooltip.
+  const button = (key: string, label: string, Icon: ReactTypes.ElementType, onClick: () => void) =>
     h('button', {
-      key: gesture,
+      key,
       type: 'button',
-      onClick: () => onChoose(gesture),
-      className: 'flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1 text-xs text-text-primary rounded hover:bg-bg-secondary',
-    },
-    t(`gesture_${gesture}`),
-    h('kbd', { className: 'text-[10px] text-text-tertiary font-mono' }, letter));
+      onClick,
+      title: label,
+      'aria-label': label,
+      className: 'p-1.5 rounded text-text-secondary hover:bg-bg-secondary hover:text-text-primary',
+    }, h(Icon, { size: 14 }));
 
   return h('div', {
     ref,
     role: 'toolbar',
-    'aria-label': t('qualify_title'),
+    'aria-label': title ? `${t('qualify_title')} : ${title}` : t('qualify_title'),
     tabIndex: -1,
     onKeyDown,
-    className: 'fixed z-50 flex items-center gap-1 p-1 outline-none bg-bg-primary border border-border-default rounded shadow-lg sketchy-border-soft',
-    style: { ...style, width },
+    className: 'fixed z-50 flex items-center gap-0.5 p-0.5 outline-none bg-bg-primary border border-border-default rounded shadow-lg sketchy-border-soft',
+    style,
   },
-  title ? h('span', { className: 'px-2 text-xs text-text-secondary truncate', style: { maxWidth: 140 } }, title) : null,
-  button('element', 'E'),
-  button('property', 'P'),
-  button('event', 'V'),
-  button('location', 'G'),
+  button('element', `${t('gesture_element')} (E)`, icons.Highlighter, () => onChoose('element')),
+  button('property', `${t('gesture_property')} (P)`, icons.Tag, () => onChoose('property')),
+  button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),
+  button('location', `${t('gesture_location')} (G)`, icons.MapPin, () => onChoose('location')),
   onReject
-    ? h('button', {
-        type: 'button',
-        onClick: onReject,
-        className: 'inline-flex items-center gap-1.5 px-2 py-1 text-xs text-text-secondary rounded hover:bg-bg-secondary hover:text-text-primary',
-      }, t('suggestion_reject'), h('kbd', { className: 'text-[10px] text-text-tertiary font-mono' }, t('key_delete')))
+    ? h(React.Fragment, null,
+        h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }),
+        button('reject', `${t('suggestion_reject')} (${t('key_delete')})`, icons.X, onReject))
     : null);
 }

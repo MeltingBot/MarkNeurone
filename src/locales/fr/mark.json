@@ -72,7 +72,6 @@
   "sheet_title": "Fiche de l'élément",
   "unnamed": "Sans nom",
   "element_missing": "Cet élément n'existe plus dans le graphe.",
-  "sheet_empty": "Sélectionnez un passage, puis E, P, V ou G.",
   "field_link_ends": "Sens du lien",
   "swap_direction": "Inverser le sens",
   "field_link_label": "Libellé du lien",

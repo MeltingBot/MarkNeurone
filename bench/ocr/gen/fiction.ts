@@ -28,11 +28,21 @@ const VEHICLES = ['Peugeot 308 grise', 'Renault Clio blanche', 'Citroën Berling
 
 const PLATE_LETTERS = 'ABCDEFGHJKLMNPQRSTVWXYZ';
 
+export type TruthKind =
+  | 'phone' | 'plate' | 'iban' | 'siret' | 'nir' | 'email' | 'url' | 'ipv4' | 'ipv6' | 'btc' | 'eth' | 'amount' | 'date' | 'name';
+
+export const TRUTH_KINDS: TruthKind[] = ['name', 'phone', 'plate', 'iban', 'siret', 'nir', 'email', 'url', 'ipv4', 'ipv6', 'btc', 'eth', 'amount', 'date'];
+
+/** One expected suggestion: the text exactly as written in the report. */
+export interface TruthItem {
+  kind: TruthKind;
+  value: string;
+  /** Names: the element label the dictionary knows (the text may be reversed or use an initial). */
+  canonical?: string;
+}
+
 export interface PageTruth {
-  phones: string[];
-  plates: string[];
-  ibans: string[];
-  sirets: string[];
+  items: TruthItem[];
   /** Full page text, line breaks included, for character error rate. */
   text: string;
 }
@@ -86,77 +96,130 @@ export function iban(rng: Rng): { raw: string; value: string } {
   return { raw: value.match(/.{1,4}/g)!.join(' '), value };
 }
 
+export function nir(rng: Rng): string {
+  const body = String(1 + Math.floor(rng() * 2)) + digits(rng, 2) + String(1 + Math.floor(rng() * 9)).padStart(2, '0') + digits(rng, 8);
+  const key = String(97 - Number(BigInt(body) % 97n)).padStart(2, '0');
+  return `${body[0]} ${body.slice(1, 3)} ${body.slice(3, 5)} ${body.slice(5, 7)} ${body.slice(7, 10)} ${body.slice(10, 13)} ${key}`;
+}
+
+const HEX = '0123456789abcdef';
+const BECH32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const chars = (rng: Rng, set: string, n: number) => Array.from({ length: n }, () => set[Math.floor(rng() * set.length)]).join('');
+
+export const ipv4 = (rng: Rng) => [10 + Math.floor(rng() * 200), Math.floor(rng() * 256), Math.floor(rng() * 256), 1 + Math.floor(rng() * 254)].join('.');
+export const ipv6 = (rng: Rng) => `2001:db8:${chars(rng, HEX, 4)}::${chars(rng, HEX, 3)}:${chars(rng, HEX, 4)}`;
+/** Syntax of a bech32 address; the checksum is not computed (the plugin does not verify it). */
+export const btc = (rng: Rng) => `bc1q${chars(rng, BECH32, 38)}`;
+export const eth = (rng: Rng) => `0x${chars(rng, HEX, 40)}`;
+export function amount(rng: Rng): string {
+  const euros = 50 + Math.floor(rng() * 9000);
+  const text = euros >= 1000 ? `${Math.floor(euros / 1000)} ${String(euros % 1000).padStart(3, '0')}` : String(euros);
+  return `${text} ${pick(rng, ['€', 'euros'])}`;
+}
+
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
+const ALIASES = ['Le Grand', 'Bébert', 'Le Comptable', 'Tonton'];
+
 /**
- * Builds the paragraphs of a fictional hearing report together with the
- * identifiers it contains. Paragraphs are wrapped into lines by the renderer.
+ * Builds the paragraphs of a fictional hearing report together with every
+ * suggestion it should give: identifiers, amounts, dates and the names the
+ * dossier would know (people, places, companies). Paragraphs are wrapped into
+ * lines by the renderer. Every kind appears at least once over the report.
  */
 export function buildReport(rng: Rng, pageCount: number): { pages: string[][]; truth: Omit<PageTruth, 'text'>[] } {
   const pages: string[][] = [];
   const truth: Omit<PageTruth, 'text'>[] = [];
-  const person = () => `${pick(rng, FIRST)} ${pick(rng, LAST)}`;
-  const witness = person();
+  let items: TruthItem[] = [];
+  const add = (kind: TruthKind, value: string, canonical?: string) => {
+    items.push({ kind, value, ...(canonical ? { canonical } : {}) });
+    return value;
+  };
+  /** A person as written in a statement: usually "First LAST", sometimes reversed or with an initial. */
+  const person = (canonical = `${pick(rng, FIRST)} ${pick(rng, LAST)}`) => {
+    const [first, last] = canonical.split(' ');
+    const r = rng();
+    const written = r < 0.7 ? canonical : r < 0.85 ? `${last} ${first}` : `${first[0]}. ${last}`;
+    return add('name', written, canonical);
+  };
+  const city = () => add('name', pick(rng, CITIES));
+  const company = () => add('name', pick(rng, COMPANIES));
+  const witness = `${pick(rng, FIRST)} ${pick(rng, LAST)}`;
   const day = 1 + Math.floor(rng() * 28);
   const month = pick(rng, MONTHS);
 
+  const blocks: (() => string)[] = [
+    () => {
+      const pl = add('plate', plate(rng));
+      return `"Le soir des faits, j'ai vu une ${pick(rng, VEHICLES)} immatriculée ${pl} stationner devant le dépôt. ` +
+        `Le conducteur, que je connais sous le nom de ${person()}, est resté une vingtaine de minutes avant de repartir vers ${city()}."`;
+    },
+    () => {
+      const name = company();
+      const sr = siret(rng);
+      const ib = iban(rng);
+      add('siret', sr.raw);
+      add('iban', ib.raw);
+      return `"Les paiements passaient par la société ${name}, SIRET ${sr.raw}. Les virements étaient faits sur le compte ${ib.raw}, je l'ai lu sur une facture."`;
+    },
+    () => {
+      const who = person();
+      const a = add('phone', phone(rng).raw);
+      const c = add('phone', phone(rng).raw);
+      return `"${who} m'appelait toujours depuis le ${a}. Une fois, il a utilisé un autre numéro, le ${c}, en me disant que son téléphone habituel était en réparation."`;
+    },
+    () => {
+      const who = person();
+      const alias = add('name', pick(rng, ALIASES));
+      const mail = add('email', `${who.split(' ').pop()!.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z]/g, '')}.${digits(rng, 2)}@exemple.test`);
+      const link = add('url', `https://exemple.test/annonce/${digits(rng, 6)}`);
+      return `"${who}, que tout le monde appelle ${alias}, m'écrivait à l'adresse ${mail}. Il m'a envoyé le lien ${link} pour voir le matériel."`;
+    },
+    () => {
+      const a = add('ipv4', ipv4(rng));
+      const b = add('ipv6', ipv6(rng));
+      return `"Je sais qu'il se connectait depuis l'adresse ${a}, et parfois depuis l'adresse ${b}, c'est ce que m'a montré mon neveu."`;
+    },
+    () => {
+      const b = add('btc', btc(rng));
+      const e = add('eth', eth(rng));
+      return `"Il voulait être payé en Bitcoin sur l'adresse ${b} ou en Ether sur ${e}."`;
+    },
+    () => {
+      const date = add('date', `${String(1 + Math.floor(rng() * 28)).padStart(2, '0')}/${String(1 + Math.floor(rng() * 12)).padStart(2, '0')}/2025`);
+      const sum = add('amount', amount(rng));
+      const who = person();
+      const n = add('nir', nir(rng));
+      return `"Le ${date}, j'ai remis la somme de ${sum} à ${who}, dont le numéro de sécurité sociale ${n} figurait sur une attestation."`;
+    },
+  ];
+  // Shuffled, then spread over the pages, so that each kind appears.
+  for (let i = blocks.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+  }
+  const perPage = Math.ceil(blocks.length / pageCount);
+
   for (let p = 0; p < pageCount; p++) {
-    const t = { phones: [] as string[], plates: [] as string[], ibans: [] as string[], sirets: [] as string[] };
+    items = [];
     const paras: string[] = [];
     if (p === 0) {
       paras.push('PROCÈS-VERBAL D\'AUDITION DE TÉMOIN');
       paras.push(`Procédure fictive n° ${digits(rng, 5)}/${digits(rng, 4)} - Document de test généré, sans valeur.`);
-      paras.push(
-        `Le ${day} ${month} deux mille vingt-cinq, à ${8 + Math.floor(rng() * 10)} heures ${10 + Math.floor(rng() * 49)}, ` +
-          `nous, officier de police judiciaire de la brigade fictive de ${pick(rng, CITIES)}, entendons la personne ci-après dénommée.`,
-      );
-      const ph = phone(rng);
-      t.phones.push(ph.value);
-      paras.push(
-        `Se présente ${witness}, demeurant ${1 + Math.floor(rng() * 120)} ${pick(rng, STREETS)} à ${pick(rng, CITIES)}, ` +
-          `joignable au ${ph.raw}, qui déclare :`,
-      );
+      const date = add('date', `${day} ${month} deux mille vingt-cinq, à ${8 + Math.floor(rng() * 10)} heures ${10 + Math.floor(rng() * 49)}`);
+      paras.push(`Le ${date}, nous, officier de police judiciaire de la brigade fictive de ${city()}, entendons la personne ci-après dénommée.`);
+      const name = add('name', witness, witness);
+      const street = `${1 + Math.floor(rng() * 120)} ${pick(rng, STREETS)}`;
+      const place = city();
+      const ph = add('phone', phone(rng).raw);
+      paras.push(`Se présente ${name}, demeurant ${street} à ${place}, joignable au ${ph}, qui déclare :`);
     } else {
-      paras.push(`Suite de l'audition de ${witness}.`);
+      paras.push(`Suite de l'audition de ${add('name', witness, witness)}.`);
     }
-
-    const blocks = 3 + Math.floor(rng() * 2);
-    for (let b = 0; b < blocks; b++) {
-      const kind = Math.floor(rng() * 4);
-      if (kind === 0) {
-        const pl = plate(rng);
-        t.plates.push(pl);
-        paras.push(
-          `"Le soir des faits, j'ai vu une ${pick(rng, VEHICLES)} immatriculée ${pl} stationner devant le dépôt. ` +
-            `Le conducteur, que je connais sous le nom de ${person()}, est resté une vingtaine de minutes avant de repartir vers ${pick(rng, CITIES)}."`,
-        );
-      } else if (kind === 1) {
-        const ib = iban(rng);
-        const sr = siret(rng);
-        t.ibans.push(ib.value);
-        t.sirets.push(sr.value);
-        paras.push(
-          `"Les paiements passaient par la société ${pick(rng, COMPANIES)}, SIRET ${sr.raw}. ` +
-            `Les virements étaient faits sur le compte ${ib.raw}, je l'ai lu sur une facture."`,
-        );
-      } else if (kind === 2) {
-        const a = phone(rng);
-        const c = phone(rng);
-        t.phones.push(a.value, c.value);
-        paras.push(
-          `"${person()} m'appelait toujours depuis le ${a.raw}. Une fois, il a utilisé un autre numéro, le ${c.raw}, ` +
-            `en me disant que son téléphone habituel était en réparation."`,
-        );
-      } else {
-        paras.push(
-          `"Je ne sais rien de plus sur ce point. Je précise que je n'ai jamais travaillé pour cette entreprise ` +
-            `et que je n'ai reçu aucune somme d'argent de la part de ${person()}."`,
-        );
-      }
-    }
+    for (const block of blocks.slice(p * perPage, (p + 1) * perPage)) paras.push(block());
     paras.push(p === pageCount - 1 ? 'Lecture faite par elle-même, persiste et signe avec nous.' : '(suite page suivante)');
     pages.push(paras);
-    truth.push(t);
+    truth.push({ items });
   }
   return { pages, truth };
 }

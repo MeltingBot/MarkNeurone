@@ -1347,7 +1347,7 @@ export function ElementSheet(props: Props) {
             },
             h('option', { value: '' }, t('choose_element')),
             elements.map((el) => h('option', { key: el.id, value: el.id }, el.label)))))
-      : h('div', { className: 'p-4 text-xs text-text-tertiary' }, t(elementId ? 'element_missing' : 'sheet_empty'));
+      : elementId ? h('div', { className: 'p-4 text-xs text-text-tertiary' }, t('element_missing')) : null;
     return container(picker);
   }
 
