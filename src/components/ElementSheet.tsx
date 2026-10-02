@@ -987,7 +987,7 @@ function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | nu
         className: `flex items-center gap-2 px-2 py-1 rounded ${a.id === p.selectedId ? 'bg-accent/10 border border-accent/20' : 'hover:bg-bg-secondary'}`,
       },
       h(icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
-      h('button', { type: 'button', onClick: () => p.onGoto(a), className: 'flex-1 min-w-0 text-left', title: a.context ?? a.text },
+      h('button', { type: 'button', onClick: () => p.onGoto(a), className: 'flex-1 min-w-0 text-left' },
         h('span', { className: 'block text-xs text-text-primary truncate' }, a.text),
         h('span', { className: S.HINT }, [isPdf(env.ctx.asset) ? `p.${a.page}` : '', a.kind === 'property' ? a.propertyKey : ''].filter(Boolean).join(' · ') || null)),
       h('button', {
