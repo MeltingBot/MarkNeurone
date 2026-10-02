@@ -67,8 +67,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   // Shortcuts follow the order of the rows, as normalizeSettings will store them.
   const shown = normalizeSettings(draft).profile.grid;
 
-  const section = (title: string, ...children: ReactTypes.ReactNode[]) =>
-    h('div', { className: 'space-y-2' }, h('h3', { className: SECTION_TITLE }, title), ...children);
+  const section = (title: string, hint: string | null, ...children: ReactTypes.ReactNode[]) =>
+    h('div', { className: 'space-y-2' }, h('h3', { className: SECTION_TITLE, title: hint ?? undefined }, title), ...children);
 
   return h('div', {
     className: 'fixed inset-0 z-50 flex items-center justify-center',
@@ -92,11 +92,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         h('button', { type: 'button', onClick: onClose, title: t('reader_close'), className: S.ICON_BUTTON }, h(X, { size: 16 }))),
 
       h('div', { className: 'p-4 overflow-y-auto flex-1 space-y-6' },
-        section(t('settings_tags'),
+        section(t('settings_tags'), null,
           h('div', { className: 'space-y-1' },
             profile.grid.map((g, i) =>
-              h('div', { key: i, className: 'flex items-center gap-2' },
-                h('span', { className: 'text-[10px] text-text-tertiary font-mono shrink-0', style: { width: 40 } }, shown[i] ? `Alt+${shown[i].key}` : ''),
+              // The shortcut is in the tooltip, not in a column.
+              h('div', { key: i, className: 'flex items-center gap-2', title: shown[i] ? `Alt+${shown[i].key}` : undefined },
                 h(ColorDot, { color: colorOf(g.tag), size: 10, onChoose: (c: string | null) => setColors({ ...colors, [g.tag]: c }) }),
                 h('input', { className: INPUT, value: g.tag, 'aria-label': t('field_tags'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTag(i, e.target.value) }),
                 h('button', { type: 'button', disabled: i === 0, onClick: () => moveUp(i), title: t('settings_move_up'), className: `${S.ICON_BUTTON} disabled:opacity-30` },
@@ -111,7 +111,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               }, h(Plus, { size: 12 }), t('tag_add'))
             : null),
 
-        section(t('settings_aliases'),
+        section(t('settings_aliases'), t('settings_aliases_hint'),
           h('div', { className: 'flex flex-wrap items-center gap-1.5' },
             profile.aliasKeys.map((k) =>
               h('span', { key: k, className: S.TAG_CHIP }, k,
@@ -132,7 +132,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               onBlur: addAlias,
             }))),
 
-        section(t('settings_suggestions'),
+        section(t('settings_suggestions'), null,
           h('div', { className: 'grid gap-x-2 gap-y-1 items-center', style: { gridTemplateColumns: '120px 1fr 1fr' } },
             h('span', null),
             h('span', { className: S.SMALL_LABEL }, t('field_tags')),
@@ -155,7 +155,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               }),
             ]))),
 
-        section(t('settings_ocr'),
+        section(t('settings_ocr'), null,
           h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
             h('input', {
               type: 'checkbox',

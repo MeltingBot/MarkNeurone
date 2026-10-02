@@ -288,8 +288,7 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
                         className: `w-full px-2 py-1.5 text-xs text-left hover:bg-bg-secondary flex items-center gap-2 ${i === index ? 'bg-bg-secondary' : ''}`,
                       },
                       h('span', { className: 'inline-block rounded-full shrink-0', style: { width: 8, height: 8, background: tagColor(env.tagSets, tag) ?? 'var(--color-border-strong)' } }),
-                      h('span', { className: 'flex-1' }, tag),
-                      shortcut.has(tag) ? h('span', { className: 'text-[10px] text-text-tertiary' }, `Alt+${shortcut.get(tag)}`) : null,
+                      h('span', { className: 'flex-1', title: shortcut.has(tag) ? `Alt+${shortcut.get(tag)}` : undefined }, tag),
                       tagSetNames.has(tag) ? h(Sparkles, { size: 10, className: 'text-accent shrink-0' }) : null))
                   : h('div', { className: 'px-2 py-1.5 text-xs text-text-tertiary' },
                       value.trim() ? env.t('tag_enter_to_create', { value: value.trim() }) : env.t('tag_type_to_filter')))
