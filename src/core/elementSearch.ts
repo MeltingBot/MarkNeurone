@@ -42,3 +42,29 @@ export function searchElements<T extends SearchableElement>(elements: T[], query
   }
   return [...starts, ...contains, ...byProperty].slice(0, limit);
 }
+
+export interface SearchableEvent {
+  id: string;
+  label: string;
+  date: Date | string;
+  description?: string;
+}
+
+const eventDate = (d: Date | string) => new Date(d).toLocaleDateString('fr-FR');
+
+/**
+ * Events matching every word of the query in their label, date (as
+ * dd/mm/yyyy) or description. `first` ids come first (e.g. events read on
+ * the same page), then the others by date.
+ */
+export function searchEvents<T extends SearchableEvent>(events: T[], query: string, first: Set<string> = new Set()): T[] {
+  const words = normalizeName(query).split(' ').filter(Boolean);
+  const byDate = (a: T, b: T) => new Date(a.date).getTime() - new Date(b.date).getTime();
+  const ordered = [...events.filter((e) => first.has(e.id)).sort(byDate), ...events.filter((e) => !first.has(e.id)).sort(byDate)];
+  if (!words.length) return ordered;
+  return ordered.filter((e) => {
+    // Dates keep their digits together: "01/01/2018" is searched as "01 01 2018".
+    const text = normalizeName(`${e.label} ${eventDate(e.date)} ${e.description ?? ''}`);
+    return words.every((w) => text.includes(w));
+  });
+}

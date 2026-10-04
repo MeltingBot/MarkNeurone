@@ -52,7 +52,7 @@ import {
 } from '../services/znTypes.ts';
 import type { Gesture } from './SelectionBar.tsx';
 import * as S from './znStyles.ts';
-import { ElementPicker } from './ElementPicker.tsx';
+import { ElementPicker, EventPicker } from './ElementPicker.tsx';
 import { ColorDot } from './ColorDot.tsx';
 
 export interface Draft {
@@ -540,22 +540,27 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   });
   const [time, setTime] = React.useState(() => (firstDate?.hasTime ? timeOf(firstDate.date) : ''));
   const [busy, setBusy] = React.useState(false);
-  /** The element itself (null), or one of its events. */
+  /** The element itself, or one of its events (picked by search: there may be many). */
+  const [toEvent, setToEvent] = React.useState(false);
   const [eventId, setEventId] = React.useState<string | null>(null);
-  const events = React.useMemo(() => [...element.events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [element.events]);
-  const onEvent = eventId ? element.events.find((ev) => ev.id === eventId) : undefined;
+  // Events read on the same page come first in the search.
+  const samePage = React.useMemo(
+    () => new Set(env.annotations.filter((a) => a.kind === 'event' && a.page === passage.page && a.eventIds?.[element.id]).map((a) => a.eventIds![element.id])),
+    [env.annotations, passage.page, element.id],
+  );
+  const onEvent = toEvent && eventId ? element.events.find((ev) => ev.id === eventId) : undefined;
 
   const onKeyChange = (next: string) => {
     setKey(next);
     const known = suggested.get(next);
     if (known === 'text' || known === 'number' || known === 'date' || known === 'datetime' || known === 'link') setType(known);
   };
-  const valid = key.trim() && value.trim();
+  const valid = key.trim() && value.trim() && (!toEvent || onEvent);
   const submit = async () => {
     setBusy(true);
     const property = { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type };
     const ok = await env.run(() =>
-      eventId ? qualifyAsEventProperty(env.ctx, passage, element.id, eventId, property) : qualifyAsProperty(env.ctx, passage, element.id, property),
+      onEvent ? qualifyAsEventProperty(env.ctx, passage, element.id, onEvent.id, property) : qualifyAsProperty(env.ctx, passage, element.id, property),
     );
     if (ok) p.onDone();
     else setBusy(false);
@@ -571,17 +576,32 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   },
   h(OcrPreview, { passage }),
   // With events, the property goes to the element or to one of them.
-  events.length
+  element.events.length
     ? h('div', { className: 'space-y-1' },
         h('label', { className: S.SMALL_LABEL }, env.t('property_target')),
-        h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
-          h('input', { type: 'radio', name: 'property-target', checked: eventId === null, onChange: () => setEventId(null) }),
-          h('span', { className: 'truncate' }, env.t('property_target_element', { name: element.label || env.t('unnamed') }))),
-        events.map((ev) =>
-          h('label', { key: ev.id, className: 'flex items-center gap-2 text-xs text-text-primary' },
-            h('input', { type: 'radio', name: 'property-target', checked: eventId === ev.id, onChange: () => setEventId(ev.id) }),
-            h(api.icons.Calendar, { size: 12, className: 'text-text-tertiary shrink-0' }),
-            h('span', { className: 'truncate' }, `${ev.label} · ${new Date(ev.date).toLocaleDateString('fr-FR')}`))))
+        h('div', { className: 'flex rounded border border-border-default overflow-hidden text-xs', role: 'radiogroup', 'aria-label': env.t('property_target') },
+          [false, true].map((ev) =>
+            h('button', {
+              key: String(ev),
+              type: 'button',
+              role: 'radio',
+              'aria-checked': toEvent === ev,
+              onClick: () => setToEvent(ev),
+              className: `flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 ${toEvent === ev ? 'bg-accent/10 text-accent font-medium' : 'bg-bg-primary text-text-secondary hover:bg-bg-secondary'}`,
+            },
+              ev ? h(api.icons.Calendar, { size: 12 }) : null,
+              env.t(ev ? 'property_target_event' : 'property_target_element')))),
+        toEvent
+          ? h(EventPicker, {
+              events: element.events,
+              first: samePage,
+              value: eventId,
+              autoFocus: true,
+              inputClass: S.INPUT_IN_CARD,
+              onChange: setEventId,
+              onEscape: () => setToEvent(false),
+            })
+          : null)
     : null,
   h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
