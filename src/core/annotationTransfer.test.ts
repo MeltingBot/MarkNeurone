@@ -163,3 +163,16 @@ describe('document reference', () => {
     expect(none?.documents[0]).not.toHaveProperty('reference');
   });
 });
+
+describe('rewire: property of an event', () => {
+  const PROP = '66666666-0000-4000-8000-000000000000';
+  it('points at the new id of the event, found by its token', () => {
+    const graph = {
+      elements: [{ id: 'new-el', source: anchorLabel('pv.pdf', 1, PROP), events: [{ id: 'new-ev', source: anchorLabel('pv.pdf', 1, PROP) }] }],
+      links: [],
+      assets: [{ id: 'new-asset', hash: HASH }],
+    };
+    const [p] = rewire([ann(PROP, 'property', { propertyKey: 'Lieu', eventIds: { 'old-el': 'old-ev' } })], graph);
+    expect(p).toMatchObject({ targetId: 'new-el', eventIds: { 'new-el': 'new-ev' } });
+  });
+});

@@ -25,6 +25,8 @@
   "create": "Créer",
   "choose_element": "Choisir un élément...",
   "field_key": "Propriété",
+  "property_target": "Rattacher à",
+  "property_target_element": "L'élément {{name}}",
   "field_value": "Valeur",
   "field_type": "Type",
   "type_text": "Texte",

@@ -76,6 +76,13 @@ export async function qualifyAsProperty(ctx: DocumentContext, passage: Passage, 
   await saveAnnotation(ctx.dossierId, { ...a, targetId: elementId, propertyKey: property.key });
 }
 
+/** Property of one of the element's events; the annotation keeps the event in eventIds. */
+export async function qualifyAsEventProperty(ctx: DocumentContext, passage: Passage, elementId: string, eventId: string, property: ZnProperty): Promise<void> {
+  const a = typeof property.value === 'string' ? withValidatedText(draft(ctx, passage, 'property'), property.value) : draft(ctx, passage, 'property');
+  await graph.addEventProperty(elementId, eventId, property, anchorOf(ctx, a));
+  await saveAnnotation(ctx.dossierId, { ...a, targetId: elementId, propertyKey: property.key, eventIds: { [elementId]: eventId } });
+}
+
 /** Place read in the document (an address), located on the element. */
 export async function qualifyAsLocation(ctx: DocumentContext, passage: Passage, elementId: string, geo: ZnGeo): Promise<void> {
   const a = draft(ctx, passage, 'location');

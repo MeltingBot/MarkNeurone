@@ -168,7 +168,14 @@ export function rewire(annotations: Annotation[], graph: ImportedGraph): Annotat
       return ids.length ? { ...out, targetId: ids[0], eventIds } : { ...orphan, eventIds: {} };
     }
 
-    return elementIds.length ? { ...out, targetId: elementIds[0] } : orphan;
+    if (!elementIds.length) return orphan;
+    // A property of an event: the event's new id, found by the token in its source.
+    if (a.kind === 'property' && a.eventIds) {
+      const el = graph.elements.find((e) => e.id === elementIds[0]);
+      const ev = el?.events?.find((e) => anchorIds(e.source).includes(token));
+      return ev ? { ...out, targetId: elementIds[0], eventIds: { [elementIds[0]]: ev.id } } : { ...out, targetId: elementIds[0] };
+    }
+    return { ...out, targetId: elementIds[0] };
   });
 }
 

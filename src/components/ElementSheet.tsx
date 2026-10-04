@@ -28,6 +28,7 @@ import {
   qualifyAsLink,
   qualifyAsLocation,
   qualifyAsProperty,
+  qualifyAsEventProperty,
   reattachEvent,
   reattachLink,
   reattachToElement,
@@ -519,7 +520,7 @@ function KeySuggestInput(p: {
 }
 
 function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone: () => void }) {
-  const { React, h } = host();
+  const { api, React, h } = host();
   const { env, element, passage } = p;
   const suggested = React.useMemo(() => {
     const keys = new Map<string, ZnPropertyType>();
@@ -539,6 +540,10 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   });
   const [time, setTime] = React.useState(() => (firstDate?.hasTime ? timeOf(firstDate.date) : ''));
   const [busy, setBusy] = React.useState(false);
+  /** The element itself (null), or one of its events. */
+  const [eventId, setEventId] = React.useState<string | null>(null);
+  const events = React.useMemo(() => [...element.events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [element.events]);
+  const onEvent = eventId ? element.events.find((ev) => ev.id === eventId) : undefined;
 
   const onKeyChange = (next: string) => {
     setKey(next);
@@ -548,7 +553,10 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   const valid = key.trim() && value.trim();
   const submit = async () => {
     setBusy(true);
-    const ok = await env.run(() => qualifyAsProperty(env.ctx, passage, element.id, { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type }));
+    const property = { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type };
+    const ok = await env.run(() =>
+      eventId ? qualifyAsEventProperty(env.ctx, passage, element.id, eventId, property) : qualifyAsProperty(env.ctx, passage, element.id, property),
+    );
     if (ok) p.onDone();
     else setBusy(false);
   };
@@ -562,9 +570,22 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     onKeyDown: escapeTo(p.onDone),
   },
   h(OcrPreview, { passage }),
+  // With events, the property goes to the element or to one of them.
+  events.length
+    ? h('div', { className: 'space-y-1' },
+        h('label', { className: S.SMALL_LABEL }, env.t('property_target')),
+        h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
+          h('input', { type: 'radio', name: 'property-target', checked: eventId === null, onChange: () => setEventId(null) }),
+          h('span', { className: 'truncate' }, env.t('property_target_element', { name: element.label || env.t('unnamed') }))),
+        events.map((ev) =>
+          h('label', { key: ev.id, className: 'flex items-center gap-2 text-xs text-text-primary' },
+            h('input', { type: 'radio', name: 'property-target', checked: eventId === ev.id, onChange: () => setEventId(ev.id) }),
+            h(api.icons.Calendar, { size: 12, className: 'text-text-tertiary shrink-0' }),
+            h('span', { className: 'truncate' }, `${ev.label} · ${new Date(ev.date).toLocaleDateString('fr-FR')}`))))
+    : null,
   h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
-    h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: element.properties.map((pr) => pr.key), onChange: onKeyChange })),
+    h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: (onEvent ? onEvent.properties ?? [] : element.properties).map((pr) => pr.key), onChange: onKeyChange })),
   h('div', { className: 'flex gap-2' },
     h('div', { className: 'space-y-1 flex-1' },
       h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
@@ -926,7 +947,7 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
       await graph.updateElement(element.id, { properties });
       // Highlights of a key that no longer exists on the element go too.
       if (!properties.some((pr) => pr.key === key)) {
-        for (const a of env.annotations.filter((x) => x.kind === 'property' && x.targetId === element.id && x.propertyKey === key)) {
+        for (const a of env.annotations.filter((x) => x.kind === 'property' && !x.eventIds && x.targetId === element.id && x.propertyKey === key)) {
           await deleteAnnotation(env.ctx, a);
         }
       }
@@ -936,7 +957,7 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
   return h('div', { className: 'space-y-2' },
     element.properties.map((pr, i) => {
       const type = pr.type ?? 'text';
-      const annotation = env.annotations.find((a) => a.kind === 'property' && a.targetId === element.id && a.propertyKey === pr.key);
+      const annotation = env.annotations.find((a) => a.kind === 'property' && !a.eventIds && a.targetId === element.id && a.propertyKey === pr.key);
       return h('div', { key: `${pr.key}-${i}`, className: 'flex items-start gap-2' },
         h('div', { className: 'flex-1 min-w-0' },
           h('div', { className: 'flex items-center gap-1.5' },
@@ -1028,12 +1049,12 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
               inputClass: S.INPUT_IN_CARD,
               onChange: (geo: ZnGeo | null) => update(ev.id, { geo: geo ?? undefined }),
             }))),
-        open.includes(ev.id) ? h(EventDetails, { env, event: ev, onUpdate: (changes: Partial<ZnElementEvent>) => update(ev.id, changes) }) : null);
+        open.includes(ev.id) ? h(EventDetails, { env, elementId: element.id, event: ev, onGoto: p.onGoto, onUpdate: (changes: Partial<ZnElementEvent>) => update(ev.id, changes) }) : null);
     }));
 }
 
 /** Description and properties of an event, as in ZN's event card. */
-function EventDetails(p: { env: Env; event: ZnElementEvent; onUpdate: (changes: Partial<ZnElementEvent>) => void }) {
+function EventDetails(p: { env: Env; elementId: string; event: ZnElementEvent; onGoto: (a: Annotation) => void; onUpdate: (changes: Partial<ZnElementEvent>) => void }) {
   const { api, React, h } = host();
   const { X } = api.icons;
   const { env, event } = p;
@@ -1050,6 +1071,14 @@ function EventDetails(p: { env: Env; event: ZnElementEvent; onUpdate: (changes: 
   const [value, setValue] = React.useState('');
   const [type, setType] = React.useState<ZnPropertyType>('text');
   const setProperties = (next: ZnProperty[]) => p.onUpdate({ properties: next.length ? next : undefined });
+  const passagesOf = (key: string) => env.annotations.filter((a) => a.kind === 'property' && a.eventIds?.[p.elementId] === event.id && a.propertyKey === key);
+  /** Removes a property; highlights of a key the event no longer has go too. */
+  const remove = (index: number) => {
+    const key = properties[index].key;
+    const next = properties.filter((_, j) => j !== index);
+    setProperties(next);
+    if (!next.some((pr) => pr.key === key)) for (const a of passagesOf(key)) env.run(() => deleteAnnotation(env.ctx, a));
+  };
   const add = () => {
     if (!key.trim() || !value.trim()) return;
     setProperties([...properties, { key: key.trim(), value: parseValue(type, value.trim()), type }]);
@@ -1081,7 +1110,8 @@ function EventDetails(p: { env: Env; event: ZnElementEvent; onUpdate: (changes: 
               ariaLabel: pr.key,
               onCommit: (v: string) => setProperties(properties.map((x, j) => (j === i ? { ...x, value: parseValue(prType, v) } : x))),
             })),
-          h('button', { type: 'button', onClick: () => setProperties(properties.filter((_, j) => j !== i)), title: env.t('delete_property'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 })));
+          h(AnchorButton, { env, annotation: passagesOf(pr.key)[0], onGoto: p.onGoto }),
+          h('button', { type: 'button', onClick: () => remove(i), title: env.t('delete_property'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 })));
       }),
       h('div', { className: 'space-y-1 pt-1' },
         h(KeySuggestInput, {

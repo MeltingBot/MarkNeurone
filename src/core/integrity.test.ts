@@ -117,3 +117,16 @@ describe('reconcile after a deletion and an undo', () => {
     expect(changed).toBe(0);
   });
 });
+
+describe('property of an event', () => {
+  const PROP = 'eeeeeeee-0000-4000-8000-000000000000';
+  it('follows its event when the element is merged into another', () => {
+    const a = ann(PROP, 'property', { targetId: 'B', propertyKey: 'Lieu', eventIds: { B: 'ev1' } });
+    const graph = {
+      elements: [{ id: 'A', source: label(PROP), events: [{ id: 'ev1', source: label(PROP) }] }],
+      links: [],
+    };
+    const { annotations: [next] } = reconcile([a], graph);
+    expect(next).toMatchObject({ targetId: 'A', eventIds: { A: 'ev1' } });
+  });
+});

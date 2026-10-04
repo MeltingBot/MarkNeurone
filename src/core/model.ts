@@ -40,7 +40,7 @@ export interface Annotation {
   linkEnds?: [string, string];
   /** Highlights the link was drawn between [from, to], to show it in the document. */
   linkAnchors?: [string | null, string | null];
-  /** ElementEvent ids per element, for kind 'event'. */
+  /** ElementEvent ids per element, for kind 'event'; for kind 'property', the event the property belongs to. */
   eventIds?: Record<string, string>;
   /** Target no longer exists in the graph; the reading work is kept. */
   orphan?: boolean;

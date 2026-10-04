@@ -21,7 +21,7 @@ Première version, en cours de développement.
 - Éléments existants de nom proche proposés lors de la création, sans rattachement automatique.
 - Recherche de l'élément concerné pour une propriété, un événement, une localisation, les extrémités d'un lien ou le rattachement d'un passage orphelin : libellé et valeurs des propriétés, sans tenir compte de la casse ni des accents. L'élément affiché peut être changé pendant la saisie.
 - Dates et heures lues dans la phrase, y compris écrites en toutes lettres.
-- Événements : description détaillée modifiable à la création (préremplie avec la phrase du passage) et dans la fiche ; propriétés propres à l'événement, comme dans ZeroNeurone.
+- Événements : description détaillée modifiable à la création (préremplie avec la phrase du passage) et dans la fiche ; propriétés propres à l'événement, comme dans ZeroNeurone. Une propriété lue dans un passage peut être rattachée à l'élément ou à l'un de ses événements.
 - Liens entre deux surlignages (Ctrl+clic puis L), libellé proposé à partir du texte qui les sépare.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, tags et couleurs de tags compris.
 - Sans sélection, la fiche liste les éléments surlignés dans le document, dans l'ordre du texte, avec une recherche ; un clic ouvre l'élément et va à son premier passage.

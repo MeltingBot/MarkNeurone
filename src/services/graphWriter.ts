@@ -109,6 +109,17 @@ export async function setLocation(elementId: string, geo: ZnGeo, anchor: string)
 }
 
 /** Adds the same event to each element; returns the event id created on each. */
+/** A property of one of the element's events; the anchor goes on the event and the element. */
+export async function addEventProperty(elementId: string, eventId: string, property: ZnProperty, anchor: string): Promise<void> {
+  const el = getElement(elementId);
+  const ev = el?.events.find((e) => e.id === eventId);
+  if (!el || !ev) throw new Error('event not found');
+  await store().updateElement(elementId, {
+    events: el.events.map((e) => (e.id === eventId ? { ...e, properties: [...(e.properties ?? []), property], source: appendAnchor(e.source, anchor) } : e)),
+    source: appendAnchor(el.source, anchor),
+  });
+}
+
 export async function addEvent(
   elementIds: string[],
   event: Omit<ZnElementEvent, 'id'>,

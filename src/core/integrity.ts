@@ -76,6 +76,13 @@ export function reconcile(annotations: Annotation[], graph: LiveGraph): Reconcil
           ? a
           : { ...a, targetId: target, orphan: undefined }
         : { ...a, orphan: true };
+      // A property of an event: the event moves with its element (merge).
+      if (a.kind === 'property' && a.eventIds && target) {
+        const el = graph.elements.find((e) => e.id === target);
+        const known = Object.values(a.eventIds)[0];
+        const ev = el?.events?.find((e) => e.id === known) ?? el?.events?.find((e) => anchorIds(e.source).includes(token));
+        if (ev && !sameIds({ [target]: ev.id }, a.eventIds)) next = { ...next, eventIds: { [target]: ev.id } };
+      }
     }
 
     if (next.orphan === undefined) delete next.orphan;
@@ -83,7 +90,7 @@ export function reconcile(annotations: Annotation[], graph: LiveGraph): Reconcil
       next.targetId !== a.targetId ||
       !!next.orphan !== !!a.orphan ||
       (a.kind === 'link' && !sameEnds(next.linkEnds, a.linkEnds)) ||
-      (a.kind === 'event' && !sameIds(next.eventIds, a.eventIds));
+      ((a.kind === 'event' || a.kind === 'property') && !sameIds(next.eventIds, a.eventIds));
     if (differs) changed++;
     if (a.kind !== 'link' && a.targetId && next.targetId && next.targetId !== a.targetId && !elementIds.has(a.targetId)) {
       moved[a.targetId] = next.targetId;
