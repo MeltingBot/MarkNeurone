@@ -1051,6 +1051,14 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const gotoAnnotation = (a: Annotation) => {
     setSelectedAnnotationId(a.id);
     if (!root || !sizes[a.page - 1]) return;
+    // The highlight as drawn, when it is: what the user sees is where we go.
+    const drawn = [...root.querySelectorAll<HTMLElement>(`[data-annotation-id="${CSS.escape(a.id)}"]`)];
+    if (drawn.length) {
+      const rootTop = root.getBoundingClientRect().top;
+      const highest = Math.min(...drawn.map((el) => el.getBoundingClientRect().top));
+      root.scrollTo({ top: Math.max(0, root.scrollTop + highest - rootTop - root.clientHeight / 3), behavior: 'smooth' });
+      return;
+    }
     let top = PADDING;
     for (let i = 0; i < a.page - 1; i++) top += Math.floor(sizes[i].height * scale) + PAGE_GAP;
     const first = (placed.find((p) => p.id === a.id) ?? a).quads[0];
