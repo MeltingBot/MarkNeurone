@@ -191,3 +191,43 @@ export function rangeConfidence(page: OcrPage, start: number, end: number): numb
   });
   return count ? Math.round(sum / count) : null;
 }
+
+/** Below this word confidence, the reading is shown as doubtful next to the image. */
+export const LOW_CONFIDENCE = 80;
+
+/** Words shown next to the image of a passage, line by line, with their confidence. */
+export type PreviewLines = { t: string; c: number }[][];
+
+/** Words of the page text overlapping [start, end), line by line. */
+export function wordsInRange(page: OcrPage, start: number, end: number): PreviewLines {
+  const { starts } = ocrPageText(page);
+  const out: PreviewLines = [];
+  let i = 0;
+  for (const line of page.lines) {
+    const picked = line.w.filter((w) => {
+      const from = starts[i++];
+      return from < end && from + w.t.length > start;
+    });
+    if (picked.length) out.push(picked.map((w) => ({ t: w.t, c: w.c })));
+  }
+  return out;
+}
+
+/**
+ * Offsets in the page text of the words whose centre lies in a rectangle
+ * (page units at scale 1), or null when none does.
+ */
+export function rangeInBox(page: OcrPage, box: Box): [number, number] | null {
+  const { starts } = ocrPageText(page);
+  let start = Infinity;
+  let end = -1;
+  page.lines.flatMap((l) => l.w).forEach((w, i) => {
+    const cx = (w.b[0] + w.b[2]) / 2;
+    const cy = (w.b[1] + w.b[3]) / 2;
+    if (cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]) {
+      start = Math.min(start, starts[i]);
+      end = Math.max(end, starts[i] + w.t.length);
+    }
+  });
+  return end < 0 ? null : [start, end];
+}

@@ -6,7 +6,7 @@
 // Usage:
 //   tsx run.ts --input out/corpus [--truth out/corpus/truth.json]
 //              [--models fast,best] [--modes brut,pretraite] [--pages 2]
-//              [--filter cumul] [--out out/report] [--dump]
+//              [--filter cumul] [--out out/report] [--dump] [--drop-color]
 //
 // --dump writes the text of every page (text layer or OCR) to <out>/text/,
 // to see what the OCR actually read where a suggestion is missed.
@@ -60,6 +60,7 @@ const { values } = parseArgs({
     filter: { type: 'string' },
     out: { type: 'string', default: 'out/report' },
     dump: { type: 'boolean', default: false },
+    'drop-color': { type: 'boolean', default: false },
   },
 });
 
@@ -165,7 +166,8 @@ async function main(): Promise<void> {
           const t0 = performance.now();
           const ctx = canvas.getContext('2d');
           const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-          const res = preprocess(rgbaToGray(rgba, canvas.width, canvas.height), DEFAULT_PREPROCESS);
+          // --drop-color: coloured ink (stamps) removed, as the plugin does when re-reading a passage.
+          const res = preprocess(rgbaToGray(rgba, canvas.width, canvas.height, values['drop-color'] ? 'max' : 'luma'), DEFAULT_PREPROCESS);
           const out = createCanvas(res.image.width, res.image.height);
           const octx = out.getContext('2d');
           const imageData = octx.createImageData(res.image.width, res.image.height);
