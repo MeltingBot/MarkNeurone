@@ -41,3 +41,11 @@ export async function saveOcr(dossierId: string, hash: string, doc: OcrDocument)
   await getHostAPI().pluginData.set(dossierId, key(hash), doc);
   await addToIndex(dossierId, hash);
 }
+
+/** Removes a document's OCR results from the dossier. */
+export async function deleteOcr(dossierId: string, hash: string): Promise<void> {
+  const api = getHostAPI();
+  await api.pluginData.remove(dossierId, key(hash));
+  const index = await ocrDocuments(dossierId);
+  if (index.includes(hash)) await api.pluginData.set(dossierId, INDEX_KEY, index.filter((h) => h !== hash));
+}

@@ -12,6 +12,7 @@ import { loadSettings, openSettings, setSettingsOpener } from './services/settin
 import { openReader, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
 import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
+import { onDocumentDeleted } from './services/documentData.ts';
 
 export async function registerSlots(): Promise<void> {
   const api = getHostAPI();
@@ -92,6 +93,20 @@ export async function registerSlots(): Promise<void> {
       settingsOpen ? React.createElement(SettingsModal, { onClose: () => setSettingsOpen(false) }) : null);
   }
   api.registerPlugin('app:global', MarkGlobalOverlay, PLUGIN_ID);
+
+  // ─── Deleted documents ───────────────────────────────────
+  // Their recognized text is deleted with them; annotations are kept, and the
+  // user is told (ZN emits the event after the deletion, never before).
+  api.events.on('asset:deleted', (event) => {
+    if (!event.entityId) return;
+    onDocumentDeleted(event.dossierId, event.entityId)
+      .then((deleted) => {
+        if (deleted && deleted.annotations > 0) {
+          api.toast.warning(t('document_deleted_annotations', { name: deleted.filename, count: deleted.annotations }));
+        }
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot clean up a deleted document', err));
+  });
 
   // ─── export:hooks / import:hooks ─────────────────────────
   // annotations.json travels in the dossier ZIP, next to dossier.json.
