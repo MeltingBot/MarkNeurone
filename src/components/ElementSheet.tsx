@@ -49,6 +49,7 @@ import {
 } from '../services/znTypes.ts';
 import type { Gesture } from './SelectionBar.tsx';
 import * as S from './znStyles.ts';
+import { ElementPicker } from './ElementPicker.tsx';
 import { ColorDot } from './ColorDot.tsx';
 
 export interface Draft {
@@ -1156,16 +1157,10 @@ function LinkSheet(p: {
       }, env.t('delete_link'))));
 }
 
-/** Element picker, as a plain select in ZN's input style. */
-function ElementSelect(p: { elements: ZnElement[]; value: string; onChange: (id: string) => void; t: Env['t'] }) {
+/** Element picker in a card (link ends, orphan reattachment). */
+function ElementSelect(p: { env: Env; value: string; onChange: (id: string) => void }) {
   const { h } = host();
-  return h('select', {
-    className: S.INPUT_IN_CARD,
-    value: p.value,
-    onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => p.onChange(e.target.value),
-  },
-  h('option', { value: '' }, p.t('choose_element')),
-  p.elements.map((el) => h('option', { key: el.id, value: el.id }, el.label || p.t('unnamed'))));
+  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
 }
 
 // ─── Orphans ─────────────────────────────────────────────────
@@ -1247,16 +1242,16 @@ function OrphanSheet(p: {
         ? h('div', { className: 'space-y-1.5' },
             h('label', { className: S.LABEL }, env.t('field_link_ends')),
             h('div', { className: 'flex items-center gap-2' },
-              h('div', { className: 'flex-1 min-w-0' }, h(ElementSelect, { elements: env.elements, value: fromId, onChange: setFromId, t: env.t })),
+              h('div', { className: 'flex-1 min-w-0' }, h(ElementSelect, { env, value: fromId, onChange: setFromId })),
               h(ArrowRight, { size: 14, className: 'text-text-tertiary shrink-0' }),
-              h('div', { className: 'flex-1 min-w-0' }, h(ElementSelect, { elements: env.elements, value: toId, onChange: setToId, t: env.t })),
+              h('div', { className: 'flex-1 min-w-0' }, h(ElementSelect, { env, value: toId, onChange: setToId })),
               h('button', { type: 'button', onClick: () => { setFromId(toId); setToId(fromId); }, title: env.t('swap_direction'), className: S.ICON_BUTTON_ACCENT },
                 h(ArrowLeftRight, { size: 14 }))),
             h('label', { className: S.LABEL }, env.t('field_link_label')),
             h('input', { className: S.INPUT, value: linkLabel, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLinkLabel(e.target.value) }))
         : h('div', { className: 'space-y-1.5' },
             h('label', { className: S.LABEL }, env.t('field_element')),
-            h(ElementSelect, { elements: env.elements, value: elementId, onChange: setElementId, t: env.t }),
+            h(ElementSelect, { env, value: elementId, onChange: setElementId }),
             candidates.length
               ? h('div', { className: 'space-y-1' },
                   h('span', { className: S.HINT }, env.t('candidates_title')),
@@ -1308,7 +1303,9 @@ export function ElementSheet(props: Props) {
   const tagSetMap = api.stores.useTagSetStore((s: { tagSets: Map<string, ZnTagSet> }) => s.tagSets);
   const tagSets: ZnTagSet[] = React.useMemo(() => api.stores.useTagSetStore.getState().getAll(), [tagSetMap]);
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);
-  const [pickedId, setPickedId] = React.useState('');
+  /** Choosing another element for the value being added. */
+  const [changing, setChanging] = React.useState(false);
+  React.useEffect(() => setChanging(false), [elementId, draft]);
 
   const run: Env['run'] = async (write) => {
     try {
@@ -1398,18 +1395,14 @@ export function ElementSheet(props: Props) {
     const picker = draft
       ? h(Section, { title: t('choose_element_title') },
           h('div', { className: 'space-y-2' },
-            h('select', {
-              className: S.INPUT,
-              value: pickedId,
+            h(ElementPicker, {
+              elements,
+              tagSets,
               autoFocus: true,
-              onKeyDown: escapeTo(props.onDraftDone),
-              onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => {
-                setPickedId(e.target.value);
-                if (e.target.value) props.onElementChange(e.target.value);
-              },
-            },
-            h('option', { value: '' }, t('choose_element')),
-            elements.map((el) => h('option', { key: el.id, value: el.id }, el.label)))))
+              inputClass: S.INPUT,
+              onChange: (id: string) => props.onElementChange(id),
+              onEscape: props.onDraftDone,
+            })))
       : elementId ? h('div', { className: 'p-4 text-xs text-text-tertiary' }, t('element_missing')) : null;
     // Nothing to show: no column, the document takes the width.
     return picker ? container(picker) : null;
@@ -1426,8 +1419,27 @@ export function ElementSheet(props: Props) {
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h('span', { className: 'inline-block rounded-full shrink-0', style: { width: 10, height: 10, background: color ?? 'var(--color-border-strong)' } }),
       h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, element.label || t('unnamed')),
+      // While a value is being added, the element it goes to can be changed.
+      draft
+        ? h('button', { type: 'button', onClick: () => setChanging(!changing), className: 'text-xs text-accent hover:underline shrink-0' }, t('change_element'))
+        : null,
       h('button', { type: 'button', onClick: () => props.onReveal(element.id), title: t('reveal_on_canvas'), className: S.ICON_BUTTON_ACCENT },
         h(LocateFixed, { size: 14 }))),
+    changing
+      ? h('div', { className: 'px-4 py-3 border-b border-border-default' },
+          h(ElementPicker, {
+            elements,
+            tagSets,
+            value: element.id,
+            autoFocus: true,
+            inputClass: S.INPUT,
+            onChange: (id: string) => {
+              setChanging(false);
+              props.onElementChange(id);
+            },
+            onEscape: () => setChanging(false),
+          }))
+      : null,
     h(Section, { title: t('section_identity') },
       h('div', { className: 'space-y-4' },
         h('div', { className: 'space-y-1.5' },
