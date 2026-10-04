@@ -1048,8 +1048,13 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   };
 
   /** Scrolls the document to a passage and marks it. */
-  const gotoAnnotation = (a: Annotation) => {
-    setSelectedAnnotationId(a.id);
+  const gotoAnnotation = (annotation: Annotation) => {
+    setSelectedAnnotationId(annotation.id);
+    // A link drawn between two highlights has no passage of its own: go to the first of them.
+    const own = placed.find((x) => x.id === annotation.id) ?? annotation;
+    const a = own.quads.length
+      ? own
+      : (annotation.linkAnchors ?? []).map((id) => placed.find((x) => x.id === id)).find((x): x is Annotation => !!x) ?? annotation;
     if (!root || !sizes[a.page - 1]) return;
     // The highlight as drawn, when it is: what the user sees is where we go.
     const drawn = [...root.querySelectorAll<HTMLElement>(`[data-annotation-id="${CSS.escape(a.id)}"]`)];
