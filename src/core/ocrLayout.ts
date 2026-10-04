@@ -35,6 +35,49 @@ export interface OcrDocument {
   pages: Record<string, OcrPage>;
 }
 
+// ─── Imported OCR results ────────────────────────────────────
+// They come from a dossier archive: rebuilt field by field, a malformed page
+// is dropped (it will simply be recognized again).
+
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+function asWord(v: unknown): OcrWord | null {
+  if (!v || typeof v !== 'object') return null;
+  const x = v as Record<string, unknown>;
+  if (typeof x.t !== 'string' || !finite(x.c) || !Array.isArray(x.b) || x.b.length !== 4 || !x.b.every(finite)) return null;
+  const word: OcrWord = { t: x.t, c: x.c, b: [x.b[0], x.b[1], x.b[2], x.b[3]] };
+  if (Array.isArray(x.s) && x.s.every(finite)) word.s = [...x.s];
+  return word;
+}
+
+function asPage(v: unknown): OcrPage | null {
+  if (!v || typeof v !== 'object') return null;
+  const x = v as Record<string, unknown>;
+  if (!Array.isArray(x.lines) || !finite(x.confidence) || !finite(x.skew) || typeof x.at !== 'string') return null;
+  const lines: OcrLine[] = [];
+  for (const line of x.lines) {
+    if (!line || typeof line !== 'object' || !Array.isArray((line as OcrLine).w)) return null;
+    const words = (line as OcrLine).w.map(asWord);
+    if (words.some((w) => w === null)) return null;
+    lines.push({ w: words as OcrWord[] });
+  }
+  return { lines, confidence: x.confidence, skew: x.skew, at: x.at };
+}
+
+/** OCR results read from an archive, or null when the file is not one. */
+export function sanitizeOcrDocument(json: unknown): OcrDocument | null {
+  if (!json || typeof json !== 'object') return null;
+  const x = json as Record<string, unknown>;
+  if (x.version !== 1 || typeof x.model !== 'string' || !x.pages || typeof x.pages !== 'object' || Array.isArray(x.pages)) return null;
+  const pages: Record<string, OcrPage> = {};
+  for (const [key, value] of Object.entries(x.pages)) {
+    if (!/^[1-9]\d{0,5}$/.test(key)) continue;
+    const page = asPage(value);
+    if (page) pages[key] = page;
+  }
+  return { version: 1, model: x.model, pages };
+}
+
 /** Raw shapes from Tesseract (blocks > paragraphs > lines > words). */
 export interface RawWord {
   text: string;
