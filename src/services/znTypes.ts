@@ -1,6 +1,8 @@
 // Subset of ZN's data model used by the plugin (zeroneurone/src/types/index.ts).
 // Type-only: the plugin never imports ZN types at runtime.
 
+import type { Evaluation } from '../core/evaluation.ts';
+
 export type ZnPropertyType = 'text' | 'number' | 'date' | 'datetime' | 'boolean' | 'choice' | 'geo' | 'country' | 'link';
 
 export interface ZnProperty {
@@ -35,6 +37,10 @@ export interface ZnElement {
   events: ZnElementEvent[];
   position: { x: number; y: number };
   geo?: ZnGeo | null;
+  /** 0 to 100 in steps of 10 (confidence model). */
+  confidence?: number | null;
+  /** Grading (Europol and Admiralty models, ZN 2.59+). */
+  evaluation?: Evaluation | null;
   isGroup?: boolean;
   isAnnotation?: boolean;
 }
@@ -48,6 +54,8 @@ export interface ZnLink {
   label: string;
   direction: ZnLinkDirection;
   source: string;
+  confidence?: number | null;
+  evaluation?: Evaluation | null;
 }
 
 export interface ZnTagSet {

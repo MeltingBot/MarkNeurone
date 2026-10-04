@@ -5,6 +5,7 @@ describe('normalizeSettings', () => {
   it('gives the defaults when nothing is stored', () => {
     expect(normalizeSettings(undefined)).toEqual(normalizeSettings(DEFAULT_SETTINGS));
     expect(normalizeSettings(null).ocr.dropColor).toBe(true);
+    expect(normalizeSettings(null).labels.uppercase).toBe(false);
     expect(normalizeSettings({}).profile.grid[0]).toEqual({ tag: 'Personne', key: '1' });
   });
 
@@ -22,10 +23,12 @@ describe('normalizeSettings', () => {
     const s = normalizeSettings({
       profile: { aliasKeys: ['Surnom', ' ', 'surnom'], suggestionTags: { phone: 'Ligne', iban: '' }, suggestionKeys: { phone: 'Numéro' } },
       ocr: { dropColor: false },
+      labels: { uppercase: true },
     });
     expect(s.profile.aliasKeys).toEqual(['Surnom']);
     expect(s.profile.suggestionTags).toEqual({ phone: 'Ligne' });
     expect(s.profile.suggestionKeys).toEqual({ phone: 'Numéro' });
     expect(s.ocr.dropColor).toBe(false);
+    expect(s.labels.uppercase).toBe(true);
   });
 });
