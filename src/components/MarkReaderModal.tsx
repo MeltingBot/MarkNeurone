@@ -11,6 +11,7 @@ import { I18N_NS } from '../constants.ts';
 import { findAsset } from '../services/documentAssets.ts';
 import { PdfViewer } from './PdfViewer.tsx';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
+import { getReferencesVersion, loadReference, subscribeReferences } from '../services/documentRef.ts';
 
 interface Props {
   dossierId: string;
@@ -33,6 +34,24 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
   const assets = api.stores.useDossierStore((s: { assets: unknown[] }) => s.assets);
   const asset = React.useMemo(() => findAsset(assetId), [assetId, assets]);
 
+  // The document's reference, when given, names it instead of the file.
+  const referencesVersion = React.useSyncExternalStore(subscribeReferences, getReferencesVersion);
+  const [reference, setReference] = React.useState('');
+  const hash = asset?.hash;
+  React.useEffect(() => {
+    let cancelled = false;
+    setReference('');
+    if (!hash) return;
+    loadReference(dossierId, hash)
+      .then((value) => {
+        if (!cancelled) setReference(value);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load the document reference', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, hash, referencesVersion]);
+
   React.useEffect(() => {
     if (minimized) return;
     // Bubble phase on `document`: runs after the modal's own React handlers
@@ -52,6 +71,7 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
   }
 
   const headerButton = 'p-1.5 rounded text-text-secondary hover:bg-bg-secondary';
+  const name = reference || asset.filename;
 
   // The modal stays mounted while minimized so that the document, the zoom
   // and the scroll position survive a trip back to the canvas.
@@ -61,13 +81,13 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
         {
           onClick: onRestore,
           title: t('reader_restore'),
-          'aria-label': `${t('reader_restore')} : ${asset.filename}`,
+          'aria-label': `${t('reader_restore')} : ${name}`,
           className:
             'fixed bottom-4 left-4 z-50 inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium ' +
             'bg-bg-primary text-text-primary border border-border-strong rounded sketchy-border hover:bg-bg-secondary',
         },
         h(Highlighter, { size: 14 }),
-        h('span', { className: 'truncate', style: { maxWidth: 256 } }, asset.filename),
+        h('span', { className: 'truncate', style: { maxWidth: 256 }, title: reference ? asset.filename : undefined }, name),
       )
     : null;
 
@@ -83,7 +103,7 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
       {
         role: 'dialog',
         'aria-modal': true,
-        'aria-label': t('reader_title', { name: asset.filename }),
+        'aria-label': t('reader_title', { name }),
         className: 'flex flex-col bg-bg-primary border border-border-default rounded shadow-lg sketchy-border-soft overflow-hidden',
         style: { width: 'calc(100vw - 48px)', height: 'calc(100vh - 48px)' },
       },
@@ -94,7 +114,7 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
           'div',
           { className: 'flex items-center gap-2 min-w-0' },
           h(Highlighter, { size: 16, className: 'text-text-secondary shrink-0' }),
-          h('h2', { className: 'text-sm font-semibold text-text-primary truncate' }, asset.filename),
+          h('h2', { className: 'text-sm font-semibold text-text-primary truncate', title: reference ? asset.filename : undefined }, name),
         ),
         h(
           'div',

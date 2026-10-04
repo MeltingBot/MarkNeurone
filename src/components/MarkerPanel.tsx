@@ -10,6 +10,7 @@ import { I18N_NS } from '../constants.ts';
 import type { Annotation } from '../core/model.ts';
 import { annotatedDocuments, getAnnotations, getVersion, loadAnnotations, subscribe } from '../services/annotationStore.ts';
 import { absentDocuments, forgetDocument, type AbsentDocument } from '../services/documentData.ts';
+import { getReferencesVersion, loadReference, subscribeReferences } from '../services/documentRef.ts';
 import { concernedElements } from '../services/qualify.ts';
 import { isPdf, type DocumentAsset } from '../services/documentAssets.ts';
 import { openReader } from '../readerLauncher.ts';
@@ -40,12 +41,27 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
     };
   }, [dossierId, version]);
 
+  // References given in the reader name the documents instead of their files.
+  const referencesVersion = React.useSyncExternalStore(subscribeReferences, getReferencesVersion);
+  const [references, setReferences] = React.useState<Map<string, string>>(new Map());
+  React.useEffect(() => {
+    let cancelled = false;
+    Promise.all(hashes.map(async (hash) => [hash, await loadReference(dossierId, hash)] as const))
+      .then((entries) => {
+        if (!cancelled) setReferences(new Map(entries.filter(([, ref]) => ref)));
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load document references', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, hashes, referencesVersion]);
+
   const selectedElements: Set<string> = api.stores.useSelectionStore((s: { selectedElementIds: Set<string> }) => s.selectedElementIds);
   const selectedLinks: Set<string> = api.stores.useSelectionStore((s: { selectedLinkIds: Set<string> }) => s.selectedLinkIds);
   const assets: DocumentAsset[] = api.stores.useDossierStore((s: { assets: DocumentAsset[] }) => s.assets ?? NO_ASSETS);
 
   const groups = React.useMemo(() => {
-    const out: { asset: DocumentAsset; items: Annotation[] }[] = [];
+    const out: { asset: DocumentAsset; name: string; items: Annotation[] }[] = [];
     for (const hash of hashes) {
       const asset = assets.find((a) => a.hash === hash);
       if (!asset) continue;
@@ -58,10 +74,10 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
             : concernedElements(a).some((id) => selectedElements.has(id)),
         )
         .sort((a, b) => a.page - b.page || (a.textRange?.[0] ?? 0) - (b.textRange?.[0] ?? 0));
-      if (items.length) out.push({ asset, items });
+      if (items.length) out.push({ asset, name: references.get(hash) || asset.filename, items });
     }
-    return out.sort((a, b) => a.asset.filename.localeCompare(b.asset.filename, 'fr'));
-  }, [hashes, assets, selectedElements, selectedLinks, version]);
+    return out.sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true }));
+  }, [hashes, assets, references, selectedElements, selectedLinks, version]);
 
   // Highlights kept from deleted documents, until the user deletes them.
   const [absent, setAbsent] = React.useState<AbsentDocument[]>([]);
@@ -90,8 +106,8 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
   // With many documents, sections start closed.
   const startOpen = groups.length <= 3;
   return h('div', null,
-    groups.map(({ asset, items }) =>
-      h(DocSection, { key: asset.id, title: asset.filename, count: items.length, startOpen },
+    groups.map(({ asset, name, items }) =>
+      h(DocSection, { key: asset.id, title: name, tooltip: asset.filename, count: items.length, startOpen },
         rowsOf(items).map((row) => {
           const first = row.items[0];
           const meta = first.kind === 'property' ? first.propertyKey : '';
@@ -151,7 +167,7 @@ function rowsOf(items: Annotation[]): { key: string; items: Annotation[] }[] {
 }
 
 /** A document, folded like the sections of ZN's panel. */
-function DocSection(p: { title: string; count: number; startOpen: boolean; children?: ReactTypes.ReactNode }) {
+function DocSection(p: { title: string; tooltip?: string; count: number; startOpen: boolean; children?: ReactTypes.ReactNode }) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -160,7 +176,7 @@ function DocSection(p: { title: string; count: number; startOpen: boolean; child
   return h('div', { className: S.SECTION },
     h('button', { type: 'button', onClick: () => setOpen(!isOpen), className: S.SECTION_HEADER },
       h(ChevronDown, { size: 14, className: 'text-text-tertiary transition-transform duration-200', style: isOpen ? undefined : { transform: 'rotate(-90deg)' } }),
-      h('span', { className: `${S.SECTION_TITLE} truncate`, style: { textTransform: 'none', letterSpacing: 'normal' }, title: p.title }, p.title),
+      h('span', { className: `${S.SECTION_TITLE} truncate`, style: { textTransform: 'none', letterSpacing: 'normal' }, title: p.tooltip ?? p.title }, p.title),
       h('span', { className: S.SECTION_BADGE }, p.count)),
     isOpen ? h('div', { className: 'px-2 pb-2 space-y-0.5' }, p.children) : null);
 }
