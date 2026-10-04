@@ -35,6 +35,8 @@ import {
   type LinkPlace,
 } from '../services/qualify.ts';
 import { isPdf } from '../services/documentAssets.ts';
+import { documentIndex, type IndexEntry } from '../core/documentIndex.ts';
+import { searchElements } from '../core/elementSearch.ts';
 import { saveAnnotation } from '../services/annotationStore.ts';
 import * as graph from '../services/graphWriter.ts';
 import {
@@ -1163,6 +1165,72 @@ function ElementSelect(p: { env: Env; value: string; onChange: (id: string) => v
   return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
 }
 
+// ─── Elements of the document ────────────────────────────────
+
+/**
+ * With nothing selected: the elements highlighted in this document, in
+ * reading order, with a search. A click shows the element and its first passage.
+ */
+function DocumentElements(p: { env: Env; onPick: (entry: IndexEntry) => void }) {
+  const { React, h } = host();
+  const { env } = p;
+  const [query, setQuery] = React.useState('');
+  const entries = React.useMemo(
+    () =>
+      documentIndex(env.annotations)
+        .map((entry) => ({ entry, element: env.elements.find((el) => el.id === entry.elementId) }))
+        .filter((x): x is { entry: IndexEntry; element: ZnElement } => !!x.element),
+    [env.annotations, env.elements],
+  );
+  // The search keeps reading order; it only filters.
+  const shown = React.useMemo(() => {
+    if (!query.trim()) return entries;
+    const found = new Set(searchElements(entries.map((x) => x.element), query, entries.length).map((hit) => hit.element.id));
+    return entries.filter((x) => found.has(x.element.id));
+  }, [entries, query]);
+  const pdf = isPdf(env.ctx.asset);
+
+  return h(React.Fragment, null,
+    h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
+      h('span', { className: `${S.SECTION_TITLE}` }, env.t('index_title')),
+      h('span', { className: S.SECTION_BADGE }, entries.length)),
+    entries.length
+      ? h('div', { className: 'sticky top-0 z-10 px-4 py-2 bg-bg-primary border-b border-border-default' },
+          h('input', {
+            type: 'search',
+            value: query,
+            placeholder: env.t('picker_placeholder'),
+            'aria-label': env.t('picker_placeholder'),
+            className: S.INPUT,
+            onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value),
+            onKeyDown: (e: ReactTypes.KeyboardEvent) => {
+              if (e.key === 'Escape' && query) {
+                e.stopPropagation();
+                setQuery('');
+              }
+            },
+          }))
+      : null,
+    entries.length
+      ? shown.length
+        ? h('div', { className: 'py-1' },
+            shown.map(({ entry, element }) =>
+              h('button', {
+                key: element.id,
+                type: 'button',
+                onClick: () => p.onPick(entry),
+                className: 'w-full flex items-start gap-2 px-4 py-2 text-left hover:bg-bg-secondary',
+              },
+                h('span', { className: 'inline-block rounded-full shrink-0 mt-1', style: { width: 10, height: 10, background: (element.tags[0] && tagColor(env.tagSets, element.tags[0])) || 'var(--color-border-strong)' } }),
+                h('span', { className: 'min-w-0 flex-1' },
+                  h('span', { className: 'block text-sm text-text-primary truncate' }, element.label || env.t('unnamed')),
+                  h('span', { className: 'flex flex-wrap items-center gap-1 mt-0.5' },
+                    h('span', { className: S.HINT }, [pdf ? `p.${entry.first.page}` : '', env.t('index_passages', { count: entry.count })].filter(Boolean).join(' · ')),
+                    element.tags.slice(0, 2).map((tag) => h('span', { key: tag, className: 'text-[10px] px-1 py-0.5 bg-bg-tertiary rounded text-text-secondary' }, tag)))))))
+        : h('p', { className: 'px-4 py-3 text-xs text-text-tertiary' }, env.t('picker_none'))
+      : h('p', { className: 'px-4 py-3 text-xs text-text-tertiary' }, env.t('index_empty')));
+}
+
 // ─── Orphans ─────────────────────────────────────────────────
 
 /**
@@ -1403,9 +1471,16 @@ export function ElementSheet(props: Props) {
               onChange: (id: string) => props.onElementChange(id),
               onEscape: props.onDraftDone,
             })))
-      : elementId ? h('div', { className: 'p-4 text-xs text-text-tertiary' }, t('element_missing')) : null;
-    // Nothing to show: no column, the document takes the width.
-    return picker ? container(picker) : null;
+      : elementId
+        ? h('div', { className: 'p-4 text-xs text-text-tertiary' }, t('element_missing'))
+        : h(DocumentElements, {
+            env,
+            onPick: (entry: IndexEntry) => {
+              props.onElementChange(entry.elementId);
+              props.onGoto(entry.first);
+            },
+          });
+    return container(picker);
   }
 
   const color = element.tags[0] ? tagColor(tagSets, element.tags[0]) : null;
@@ -1418,6 +1493,10 @@ export function ElementSheet(props: Props) {
   return container(h(React.Fragment, null,
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h('span', { className: 'inline-block rounded-full shrink-0', style: { width: 10, height: 10, background: color ?? 'var(--color-border-strong)' } }),
+      draft
+        ? null
+        : h('button', { type: 'button', onClick: () => props.onElementChange(null), title: t('index_back'), 'aria-label': t('index_back'), className: S.ICON_BUTTON },
+            h(api.icons.ArrowLeft, { size: 14 })),
       h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, element.label || t('unnamed')),
       // While a value is being added, the element it goes to can be changed.
       draft

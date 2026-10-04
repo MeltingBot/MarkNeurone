@@ -529,11 +529,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [zoneBusy, setZoneBusy] = React.useState<{ page: number; quad: Quad } | null>(null);
   /** Gesture being filled in the sheet. */
   const [draft, setDraft] = React.useState<Draft | null>(null);
-  /**
-   * Element shown in the sheet: undefined until the user picks one (the sheet
-   * then shows the latest worked element), null once the user cleared it.
-   */
-  const [activeElementId, setActiveElementId] = React.useState<string | null | undefined>(undefined);
+  /** Element shown in the sheet; with none, the sheet lists the document's elements. */
+  const [activeElementId, setActiveElementId] = React.useState<string | null>(null);
   /** Selected highlights, in click order; Ctrl+click adds one (to link two elements). */
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const selectedAnnotationId = selectedIds.length ? selectedIds[selectedIds.length - 1] : null;
@@ -783,15 +780,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     });
   }, [dossierReady, annotations, elements, links]);
 
-  // After reopening, the active element is the one of the latest annotation.
-  const lastWorkedElementId = React.useMemo(() => {
-    const latest = [...annotations]
-      .filter((a) => a.targetId && a.status === 'validated' && elements.some((el) => el.id === a.targetId))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    return latest?.targetId ?? null;
-  }, [annotations, elements]);
-
-  const sheetElementId = activeElementId === undefined ? lastWorkedElementId : activeElementId;
+  const sheetElementId = activeElementId;
 
   // Links between two highlights of one page are drawn as arcs, for the current selection only.
   const arcsByPage = React.useMemo(() => {

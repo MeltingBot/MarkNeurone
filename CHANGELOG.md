@@ -23,6 +23,7 @@ Première version, en cours de développement.
 - Dates et heures lues dans la phrase, y compris écrites en toutes lettres.
 - Liens entre deux surlignages (Ctrl+clic puis L), libellé proposé à partir du texte qui les sépare.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, tags et couleurs de tags compris.
+- Sans sélection, la fiche liste les éléments surlignés dans le document, dans l'ordre du texte, avec une recherche ; un clic ouvre l'élément et va à son premier passage.
 - Cotation de l'élément ou du lien dans la fiche, selon le modèle d'évaluation du dossier : niveau de confiance, grille Europol ou grille Amirauté / OTAN.
 - Localisation avec le sélecteur de carte de ZeroNeurone.
 
