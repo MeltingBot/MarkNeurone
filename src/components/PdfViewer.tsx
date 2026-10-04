@@ -41,6 +41,8 @@ import { applyRelabel, deleteAnnotation, planRelabel, reattachToElement, rejectS
 import { loadReference, saveReference } from '../services/documentRef.ts';
 import { cleanReference, detectReference } from '../core/reference.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
+import { cooccurrences, elementHighlights, pairKey, verbEnds } from '../core/linkAssist.ts';
+import { loadDismissedPairs, saveDismissedPairs } from '../services/linkAssistStore.ts';
 import type { NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
 import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
@@ -131,6 +133,15 @@ interface PageProps {
   onZone: (page: number, rect: Rect, client: Rect) => void;
   /** OCR result of a scanned page: it replaces pdf.js' text layer. */
   ocr: OcrPage | null;
+  /** Possible links (co-occurrence setting), marked in the left margin. */
+  marks: PageMark[];
+  onMark: (key: string) => void;
+}
+
+interface PageMark {
+  key: string;
+  quads: Quad[];
+  title: string;
 }
 
 /** Text of a page as pdf.js lays it out, with where each text item starts. */
@@ -172,7 +183,7 @@ interface PageSuggestion {
   color: string;
 }
 
-function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, zoneMode, onZone, ocr }: PageProps) {
+function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, zoneMode, onZone, ocr, marks, onMark }: PageProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -380,6 +391,27 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
         }))
       : null,
     h('div', { ref: textRef, className: blocks ? 'textLayer mn-flow' : 'textLayer' }),
+    // Possible links: a thin bar in the left margin over the lines of both passages.
+    marks.length
+      ? h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 } },
+          marks.map((mark, i) => {
+            const transform = scaleTransform(size.transform, scale);
+            const rects = mark.quads.map((q) => pdfQuadToViewport(q, transform));
+            if (!rects.length) return null;
+            const top = Math.min(...rects.map((r) => r.top));
+            const bottom = Math.max(...rects.map((r) => r.bottom));
+            return h('button', {
+              key: mark.key,
+              type: 'button',
+              'data-cooccurrence': '',
+              title: mark.title,
+              'aria-label': mark.title,
+              onClick: () => onMark(mark.key),
+              className: 'absolute rounded-sm bg-accent/40 hover:bg-accent',
+              style: { left: 3 + i * 6, top, width: 3, height: Math.max(bottom - top, 8), pointerEvents: 'auto', cursor: 'pointer' },
+            });
+          }))
+      : null,
     zoneMode ? zoneLayer() : null,
   );
 
@@ -449,6 +481,7 @@ const NO_HIGHLIGHTS: Highlight[] = [];
 const NO_ARCS: LinkArcInfo[] = [];
 const NO_SEARCH_HITS: { start: number; end: number; current: boolean }[] = [];
 const NO_SUGGESTIONS: PageSuggestion[] = [];
+const NO_MARKS: PageMark[] = [];
 const SUGGESTION_COLOR = 'var(--color-text-tertiary)';
 
 /**
@@ -857,6 +890,54 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     return first && last ? { from: first, to: last } : null;
   }, [selectedIds, annotations, elements]);
 
+  /**
+   * Verb mode: the highlighted words of a relation, between the nearest
+   * elements highlighted before and after them in the sentence. Either end
+   * may be missing; the form lets the user set or correct both.
+   */
+  const linkFromWords = (passage: Passage) => {
+    const ends = passage.textRange && passage.sentenceRange
+      ? verbEnds(elementHighlights(placed, passage.page), passage.textRange, passage.sentenceRange)
+      : { from: null, to: null };
+    setPending(null);
+    setDraft(null);
+    setLinkDraft({
+      fromId: ends.from?.elementId ?? '',
+      toId: ends.to?.elementId ?? '',
+      place: { passage },
+      label: trimPunctuation(passage.text),
+      anchorsByElement: Object.fromEntries([ends.from, ends.to].filter((x) => x !== null).map((x) => [x!.elementId, x!.annotation.id])),
+    });
+  };
+
+  // ─── Possible links (co-occurrence, off by default) ───────
+  const [dismissedPairs, setDismissedPairs] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    let cancelled = false;
+    setDismissedPairs(new Set());
+    loadDismissedPairs(dossierId, asset.hash)
+      .then((pairs) => {
+        if (!cancelled) setDismissedPairs(pairs);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load dismissed links', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, asset.hash]);
+  const openPossibleLink = (key: string, page: number) => {
+    const c = possibleLinks.find((x) => x.key === key && x.page === page);
+    if (!c) return;
+    setPending(null);
+    setDraft(null);
+    setLinkDraft({ ...buildLinkDraft(c.from.targetId!, c.from, c.to.targetId!, c.to), dismissKey: key });
+  };
+  const dismissPair = (key: string) => {
+    const next = new Set(dismissedPairs).add(key);
+    setDismissedPairs(next);
+    setLinkDraft(null);
+    saveDismissedPairs(dossierId, asset.hash, next).catch((err: unknown) => console.error('MarkNeurone: cannot save dismissed links', err));
+  };
+
   const openLinkDraft = (from: Annotation, to: Annotation) => {
     setPending(null);
     setDraft(null);
@@ -994,7 +1075,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const onMouseUp = (e: ReactTypes.MouseEvent) => {
     if (e.button !== 0) return;
     // The end of a zone drag, handled by the zone layer.
-    if (e.target instanceof Element && e.target.closest('[data-zone-layer]')) return;
+    if (e.target instanceof Element && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, placed);
@@ -1391,6 +1472,23 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       }),
     [pageTexts, ocrPages],
   );
+
+  const cooccurrenceScope = getSettings().links.cooccurrence;
+  const possibleLinks = React.useMemo(() => {
+    if (cooccurrenceScope === 'off') return [];
+    const linked = new Set(links.map((l) => pairKey(l.fromId, l.toId)));
+    return cooccurrences(effectiveTexts.map((p) => p.text), placed, cooccurrenceScope, linked, dismissedPairs)
+      .filter((c) => elements.some((el) => el.id === c.from.targetId) && elements.some((el) => el.id === c.to.targetId));
+  }, [cooccurrenceScope, effectiveTexts, placed, links, elements, dismissedPairs, settingsVersion]);
+  const marksByPage = React.useMemo(() => {
+    const byPage = new Map<number, PageMark[]>();
+    for (const c of possibleLinks) {
+      const list = byPage.get(c.page) ?? [];
+      list.push({ key: c.key, quads: [...c.from.quads, ...c.to.quads], title: t('cooccurrence_mark', { from: nameOf(c.from.targetId!), to: nameOf(c.to.targetId!) }) });
+      byPage.set(c.page, list);
+    }
+    return byPage;
+  }, [possibleLinks, elements]);
 
   // ─── Pre-highlighting ────────────────────────────────────
 
@@ -1841,6 +1939,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
               arcs: arcsByPage.get(i + 1) ?? NO_ARCS,
               searchHits: hitsByPage.get(i + 1) ?? NO_SEARCH_HITS,
               suggestions: suggestionsByPage.get(i + 1) ?? NO_SUGGESTIONS,
+              marks: marksByPage.get(i + 1) ?? NO_MARKS,
+              onMark: (key: string) => openPossibleLink(key, i + 1),
               zoneMode,
               onZone,
               ocr: ocrPages[String(i + 1)] ?? null,
@@ -1863,6 +1963,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       onElementChange: showElement,
       onDraftDone: draftDone,
       onLinkDone: linkDone,
+      onDismissPair: dismissPair,
       linkId: activeLinkId,
       onOpenLink: showLink,
       orphanId: activeOrphanId,
@@ -1879,6 +1980,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           onReject: pending.suggestion ? () => reject(pending) : undefined,
           // A selection on a scanned page can be read again, more finely.
           onReread: ocrPages[String(pending.page)] && !pending.preview?.framed ? () => rereadSelection(pending) : undefined,
+          onLink: getSettings().links.verb && !pending.suggestion ? () => linkFromWords(pending) : undefined,
         })
       : null,
     menu ? h(ReaderContextMenu, { ...menu, onClose: () => setMenu(null) }) : null,

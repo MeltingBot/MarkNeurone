@@ -32,3 +32,13 @@ describe('normalizeSettings', () => {
     expect(s.labels.uppercase).toBe(true);
   });
 });
+
+describe('link assistance settings', () => {
+  it('are off by default', () => {
+    expect(normalizeSettings(null).links).toEqual({ verb: false, cooccurrence: 'off' });
+  });
+  it('keep valid stored values only', () => {
+    expect(normalizeSettings({ links: { verb: true, cooccurrence: 'paragraph' } }).links).toEqual({ verb: true, cooccurrence: 'paragraph' });
+    expect(normalizeSettings({ links: { verb: 'yes', cooccurrence: 'page' } }).links).toEqual({ verb: false, cooccurrence: 'off' });
+  });
+});

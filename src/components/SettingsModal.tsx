@@ -7,6 +7,7 @@ import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import { DEFAULT_SETTINGS, MAX_GRID, normalizeSettings, type Settings } from '../core/settings.ts';
+import type { CooccurrenceScope } from '../core/settings.ts';
 import type { SuggestionKind } from '../core/suggestions.ts';
 import { getSettings, saveSettings } from '../services/settingsStore.ts';
 import { setTagColor } from '../services/graphWriter.ts';
@@ -33,7 +34,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [colors, setColors] = React.useState<Record<string, string | null>>({});
   const [aliasInput, setAliasInput] = React.useState('');
   const [busy, setBusy] = React.useState(false);
-  const [tab, setTab] = React.useState<'tags' | 'recognition'>('tags');
+  const [tab, setTab] = React.useState<'tags' | 'recognition' | 'links'>('tags');
   const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
   const colorOf = (tag: string) =>
     tag in colors ? colors[tag] : tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null;
@@ -75,7 +76,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const tabs = [
     { id: 'tags' as const, label: t('settings_tab_tags'), icon: api.icons.Tag },
     { id: 'recognition' as const, label: t('settings_tab_recognition'), icon: api.icons.ScanSearch },
+    { id: 'links' as const, label: t('settings_tab_links'), icon: api.icons.Link2 },
   ];
+  const scopes: CooccurrenceScope[] = ['off', 'sentence', 'paragraph'];
   /** A labelled block of the recognition tab, labelled like ZN's fields. */
   const block = (label: string, hint: string | null, content: ReactTypes.ReactNode) =>
     h('div', { className: 'space-y-1.5' }, h('label', { className: S.LABEL, title: hint ?? undefined }, label), content);
@@ -200,7 +203,29 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               checked: draft.ocr.dropColor,
               onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDraft({ ...draft, ocr: { ...draft.ocr, dropColor: e.target.checked } }),
             }),
-            t('settings_drop_color'))))),
+            t('settings_drop_color')))),
+
+        // Both off by default: the analyst turns them on knowingly.
+        section('links', h('div', { className: 'space-y-5' },
+          h('label', { className: 'flex items-start gap-2 text-xs text-text-primary' },
+            h('input', {
+              type: 'checkbox',
+              className: 'mt-0.5',
+              checked: draft.links.verb,
+              onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDraft({ ...draft, links: { ...draft.links, verb: e.target.checked } }),
+            }),
+            t('settings_verb')),
+          block(t('settings_cooccurrence'), null,
+            h('div', { className: 'flex rounded border border-border-default overflow-hidden text-xs', role: 'radiogroup', 'aria-label': t('settings_cooccurrence'), style: { width: 300 } },
+              scopes.map((scope) =>
+                h('button', {
+                  key: scope,
+                  type: 'button',
+                  role: 'radio',
+                  'aria-checked': draft.links.cooccurrence === scope,
+                  onClick: () => setDraft({ ...draft, links: { ...draft.links, cooccurrence: scope } }),
+                  className: `flex-1 px-2 py-1 ${draft.links.cooccurrence === scope ? 'bg-accent/10 text-accent font-medium' : 'bg-bg-primary text-text-secondary hover:bg-bg-secondary'}`,
+                }, t(`settings_cooccurrence_${scope}`)))))))),
 
       h('div', { className: 'flex items-center gap-2 px-4 py-3 border-t border-border-default bg-bg-secondary' },
         h('button', { type: 'button', onClick: () => setDraft(structuredClone(normalizeSettings(DEFAULT_SETTINGS))), className: `${S.BUTTON_GHOST_SMALL} mr-auto` }, t('settings_defaults')),

@@ -17,12 +17,27 @@ export interface Settings {
     /** Offer the passage in capitals as the name of a new element. */
     uppercase: boolean;
   };
+  /** Link assistance, off by default (analysis, sections 3 and 6). */
+  links: {
+    /** Highlighting the words of a relation proposes the nearest elements as its ends. */
+    verb: boolean;
+    /** Marks in the margin for two elements of one sentence or paragraph not linked yet. */
+    cooccurrence: CooccurrenceScope;
+  };
 }
+
+export type CooccurrenceScope = 'off' | 'sentence' | 'paragraph';
+const SCOPES: CooccurrenceScope[] = ['off', 'sentence', 'paragraph'];
 
 /** Alt+1 to Alt+9. */
 export const MAX_GRID = 9;
 
-export const DEFAULT_SETTINGS: Settings = { profile: DEFAULT_PROFILE, ocr: { dropColor: true }, labels: { uppercase: false } };
+export const DEFAULT_SETTINGS: Settings = {
+  profile: DEFAULT_PROFILE,
+  ocr: { dropColor: true },
+  labels: { uppercase: false },
+  links: { verb: false, cooccurrence: 'off' },
+};
 
 const clean = (s: unknown) => (typeof s === 'string' ? s.trim() : '');
 
@@ -50,7 +65,12 @@ function cleanMap(value: unknown, fallback: Record<string, string | undefined>):
  * trimmed and without duplicates, shortcuts given by the order (Alt+1 first).
  */
 export function normalizeSettings(stored: unknown): Settings {
-  const s = (stored && typeof stored === 'object' ? stored : {}) as { profile?: Partial<ReadingProfile>; ocr?: Partial<Settings['ocr']>; labels?: Partial<Settings['labels']> };
+  const s = (stored && typeof stored === 'object' ? stored : {}) as {
+    profile?: Partial<ReadingProfile>;
+    ocr?: Partial<Settings['ocr']>;
+    labels?: Partial<Settings['labels']>;
+    links?: Partial<Record<keyof Settings['links'], unknown>>;
+  };
   const p: Partial<ReadingProfile> = s.profile ?? {};
   const tags = Array.isArray(p.grid) ? uniqueNames(p.grid.map((g: unknown) => (g as { tag?: unknown } | null)?.tag)) : DEFAULT_PROFILE.grid.map((g) => g.tag);
   return {
@@ -64,5 +84,9 @@ export function normalizeSettings(stored: unknown): Settings {
     },
     ocr: { dropColor: typeof s.ocr?.dropColor === 'boolean' ? s.ocr.dropColor : DEFAULT_SETTINGS.ocr.dropColor },
     labels: { uppercase: typeof s.labels?.uppercase === 'boolean' ? s.labels.uppercase : DEFAULT_SETTINGS.labels.uppercase },
+    links: {
+      verb: typeof s.links?.verb === 'boolean' ? s.links.verb : DEFAULT_SETTINGS.links.verb,
+      cooccurrence: SCOPES.includes(s.links?.cooccurrence as CooccurrenceScope) ? (s.links!.cooccurrence as CooccurrenceScope) : DEFAULT_SETTINGS.links.cooccurrence,
+    },
   };
 }

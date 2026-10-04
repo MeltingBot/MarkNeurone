@@ -24,11 +24,13 @@ interface Props {
   onReject?: () => void;
   /** Scanned page: read the selection again at high resolution. */
   onReread?: () => void;
+  /** Verb mode (setting): the words of a relation become a link between the nearest elements. */
+  onLink?: () => void;
 }
 
 const KEYS: Record<string, Gesture> = { e: 'element', p: 'property', v: 'event', g: 'location' };
 
-export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject, onReread }: Props) {
+export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject, onReread, onLink }: Props) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -54,6 +56,11 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
     if (onReject && (e.key === 'Delete' || e.key === 'Backspace')) {
       e.preventDefault();
       onReject();
+      return;
+    }
+    if (onLink && e.key.toLowerCase() === 'l') {
+      e.preventDefault();
+      onLink();
       return;
     }
     const gesture = KEYS[e.key.toLowerCase()];
@@ -104,6 +111,7 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
   button('property', `${t('gesture_property')} (P)`, icons.Tag, () => onChoose('property')),
   button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),
   button('location', `${t('gesture_location')} (G)`, icons.MapPin, () => onChoose('location')),
+  onLink ? button('link', `${t('gesture_link')} (L)`, icons.Link2, onLink) : null,
   onReread
     ? h(React.Fragment, null,
         h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }),

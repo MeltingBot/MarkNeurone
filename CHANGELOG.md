@@ -24,6 +24,8 @@ Première version, en cours de développement.
 - Dates et heures lues dans la phrase, y compris écrites en toutes lettres.
 - Événements : description détaillée modifiable à la création (préremplie avec la phrase du passage) et dans la fiche ; propriétés propres à l'événement, comme dans ZeroNeurone. Une propriété lue dans un passage peut être rattachée à l'élément ou à l'un de ses événements.
 - Liens entre deux surlignages (Ctrl+clic puis L), libellé proposé à partir du texte qui les sépare.
+- Mode verbe, en option (réglages, onglet « Liens ») : surligner les mots d'une relation puis L propose comme extrémités les éléments surlignés les plus proches avant et après dans la phrase ; les extrémités se corrigent dans le formulaire.
+- Liens possibles signalés dans la marge, en option et désactivés par défaut : deux éléments surlignés dans la même phrase ou le même paragraphe et pas encore liés. Un clic ouvre le formulaire de lien prérempli ; « Ne plus proposer » écarte le couple pour ce document.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, tags et couleurs de tags compris.
 - Sans sélection, la fiche liste les éléments surlignés dans le document, dans l'ordre du texte, avec une recherche ; un clic ouvre l'élément et va à son premier passage.
 - Cotation de l'élément ou du lien dans la fiche, selon le modèle d'évaluation du dossier : niveau de confiance, grille Europol ou grille Amirauté / OTAN.

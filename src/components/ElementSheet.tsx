@@ -71,6 +71,8 @@ export interface LinkDraft {
   label: string;
   /** Highlight of each element the link was drawn from, by element id. */
   anchorsByElement?: Record<string, string>;
+  /** Opened from a co-occurrence mark: its pair, which the user may dismiss. */
+  dismissKey?: string;
 }
 
 interface Props {
@@ -83,6 +85,8 @@ interface Props {
   onElementChange: (elementId: string | null) => void;
   onDraftDone: () => void;
   onLinkDone: () => void;
+  /** "Do not offer again" on a link opened from a co-occurrence mark. */
+  onDismissPair: (key: string) => void;
   /** Link shown instead of an element, as ZN's panel does. */
   linkId: string | null;
   /** Orphan highlight being reattached. */
@@ -1309,7 +1313,7 @@ function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | nu
 
 // ─── Links ───────────────────────────────────────────────────
 
-function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => void; onCancel: () => void }) {
+function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => void; onCancel: () => void; onDismiss?: () => void }) {
   const { api, React, h } = host();
   const { ArrowRight, ArrowLeftRight } = api.icons;
   const { env, draft } = p;
@@ -1318,7 +1322,12 @@ function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => v
   const [label, setLabel] = React.useState(draft.label);
   const [busy, setBusy] = React.useState(false);
   const name = (id: string) => env.elements.find((el) => el.id === id)?.label ?? id;
-  const endField = (value: string) => h('span', { className: `${S.TAG_CHIP} truncate`, style: { maxWidth: 130 } }, name(value));
+  /** End being chosen or corrected (verb mode may leave one empty or propose the wrong one). */
+  const [editing, setEditing] = React.useState<'from' | 'to' | null>(null);
+  const endField = (end: 'from' | 'to', value: string) =>
+    value
+      ? h('button', { type: 'button', onClick: () => setEditing(end), title: env.t('change_element'), className: `${S.TAG_CHIP} truncate hover:text-accent`, style: { maxWidth: 130 } }, name(value))
+      : h('button', { type: 'button', onClick: () => setEditing(end), className: 'text-xs text-accent hover:underline' }, env.t('link_choose_end'));
 
   const submit = async () => {
     setBusy(true);
@@ -1338,9 +1347,9 @@ function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => v
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_link_ends')),
     h('div', { className: 'flex items-center gap-2' },
-      endField(fromId),
+      endField('from', fromId),
       h(ArrowRight, { size: 14, className: 'text-text-tertiary shrink-0' }),
-      endField(toId),
+      endField('to', toId),
       h('button', {
         type: 'button',
         onClick: () => {
@@ -1349,13 +1358,30 @@ function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => v
         },
         title: env.t('swap_direction'),
         className: `${S.ICON_BUTTON_ACCENT} ml-auto`,
-      }, h(ArrowLeftRight, { size: 14 })))),
+      }, h(ArrowLeftRight, { size: 14 }))),
+    editing || !fromId || !toId
+      ? h(ElementPicker, {
+          key: editing ?? (fromId ? 'to' : 'from'),
+          elements: env.elements,
+          tagSets: env.tagSets,
+          value: (editing ?? (fromId ? 'to' : 'from')) === 'from' ? fromId : toId,
+          autoFocus: true,
+          inputClass: S.INPUT,
+          onChange: (id: string) => {
+            if ((editing ?? (fromId ? 'to' : 'from')) === 'from') setFromId(id);
+            else setToId(id);
+            setEditing(null);
+          },
+          onEscape: () => setEditing(null),
+        })
+      : null),
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_link_label')),
     h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) })),
   h('div', { className: S.BUTTON_ROW },
+    p.onDismiss ? h('button', { type: 'button', onClick: p.onDismiss, className: `${S.BUTTON_GHOST_SMALL} mr-auto` }, env.t('cooccurrence_dismiss')) : null,
     h('button', { type: 'button', onClick: p.onCancel, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),
-    h('button', { type: 'submit', disabled: busy || fromId === toId, className: S.BUTTON_PRIMARY_SMALL }, env.t('create_link'))));
+    h('button', { type: 'submit', disabled: busy || !fromId || !toId || fromId === toId, className: S.BUTTON_PRIMARY_SMALL }, env.t('create_link'))));
 }
 
 function LinkRows(p: { env: Env; element: ZnElement; onOpenLink: (linkId: string) => void }) {
@@ -1699,6 +1725,7 @@ export function ElementSheet(props: Props) {
             props.onLinkDone();
           },
           onCancel: props.onLinkDone,
+          onDismiss: ld.dismissKey ? () => props.onDismissPair(ld.dismissKey!) : undefined,
         })));
   }
 

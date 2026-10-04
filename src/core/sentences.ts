@@ -82,3 +82,24 @@ export function betweenRange(text: string, a: [number, number], b: [number, numb
   while (end > start && edge.test(text[end - 1])) end--;
   return end > start ? [start, end] : null;
 }
+
+/** Every sentence of a page text, with offsets into it. */
+export function sentenceRanges(text: string): [number, number][] {
+  return sentences(flattenLines(text)).map((s) => [s.start, s.end]);
+}
+
+/**
+ * Paragraphs of a page text: a blank line, or a line ending a sentence, ends
+ * one. Text layers carry no paragraph marks; this is an approximation.
+ */
+export function paragraphRanges(text: string): [number, number][] {
+  const out: [number, number][] = [];
+  let start = 0;
+  for (const m of text.matchAll(/\n\s*\n|[.!?»…]\s*\n/g)) {
+    const end = m.index + m[0].length;
+    if (text.slice(start, end).trim()) out.push([start, end]);
+    start = end;
+  }
+  if (text.slice(start).trim()) out.push([start, text.length]);
+  return out;
+}
