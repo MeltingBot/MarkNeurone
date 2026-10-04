@@ -578,10 +578,6 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setReport(null);
     setError(null);
     setPageTexts([]);
-    setOcrPages({});
-    setOcrLoaded(false);
-    setOcrFailed([]);
-    setOcrCurrent(null);
     (async () => {
       const file = await api.fileService.getAssetFile(asset);
       const data = new Uint8Array(await file.arrayBuffer());
@@ -1267,9 +1263,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   // ─── OCR ─────────────────────────────────────────────────
 
-  // Cached results first: a document is never recognized twice.
+  // Cached results first: a document is never recognized twice. Reset and
+  // reload on every document, including the same file added again (new
+  // asset id, same hash): a reset without reload left the OCR waiting.
   React.useEffect(() => {
     let cancelled = false;
+    setOcrPages({});
+    setOcrLoaded(false);
+    setOcrFailed([]);
+    setOcrCurrent(null);
     loadOcr(dossierId, asset.hash)
       .then((doc) => {
         if (cancelled) return;
@@ -1283,7 +1285,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     return () => {
       cancelled = true;
     };
-  }, [dossierId, asset.hash]);
+  }, [dossierId, asset.id, asset.hash]);
 
   const currentPageRef = React.useRef(currentPage);
   currentPageRef.current = currentPage;
