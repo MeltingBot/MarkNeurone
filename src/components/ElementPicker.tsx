@@ -1,8 +1,8 @@
 // ─── Element picker ──────────────────────────────────────────
 //
 // Search field with a list of matching elements, modelled on ZN's
-// ElementAutocomplete (components/report): colour, label, short id to tell
-// homonyms apart, a property and the first tags. Arrow keys move, Enter
+// ElementAutocomplete (components/report): colour, label, and a property
+// and the first tags to tell homonyms apart. Arrow keys move, Enter
 // picks, Escape closes.
 
 import type * as ReactTypes from 'react';
@@ -76,9 +76,7 @@ export function ElementPicker(p: Props) {
             },
               h('span', { className: 'inline-block rounded-full shrink-0 mt-1', style: { width: 10, height: 10, background: colorOf(element) } }),
               h('span', { className: 'min-w-0 flex-1' },
-                h('span', { className: 'flex items-baseline gap-2' },
-                  h('span', { className: 'text-sm text-text-primary truncate' }, element.label || t('unnamed')),
-                  h('span', { className: 'text-xs text-text-tertiary font-mono shrink-0' }, `#${element.id.slice(-6)}`)),
+                h('span', { className: 'block text-sm text-text-primary truncate' }, element.label || t('unnamed')),
                 subtitle?.value
                   ? h('span', { className: 'block text-xs text-text-secondary truncate mt-0.5' }, `${subtitle.key} : ${subtitle.value}`)
                   : null,
