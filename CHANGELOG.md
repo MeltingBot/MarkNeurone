@@ -39,6 +39,7 @@ Première version, en cours de développement.
 
 **Traçabilité**
 - Référence au passage d'origine enregistrée dans la source des éléments, des liens et des événements.
+- Référence de la pièce (par exemple « PV n° 00347/2026, pièce n° 2 ») saisie dans le lecteur et reprise dans la source à la place du nom du fichier. Le plugin propose celle qu'il lit en tête de première page. Après un changement, il propose de mettre à jour les sources déjà écrites, sans toucher à ce que l'utilisateur y a saisi. La référence est incluse dans l'export.
 - Prise en compte des fusions et suppressions d'éléments : les annotations sans élément sont conservées et peuvent être rattachées.
 - Annotations et texte reconnu inclus dans l'export ZIP de ZeroNeurone et rattachés à l'import.
 - Contrôle des annotations et du texte reconnu à l'import d'une archive : les données mal formées sont écartées, et un fichier de texte reconnu illisible n'empêche plus l'import des annotations.

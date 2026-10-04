@@ -3,6 +3,7 @@
 
 import type { Annotation, Quad } from './model.ts';
 import { anchorIds, shortId } from './anchors.ts';
+import { cleanReference } from './reference.ts';
 
 export const EXPORT_FILE = 'annotations.json';
 export const EXPORT_FORMAT = 'markneurone-annotations';
@@ -12,6 +13,8 @@ export interface DocumentAnnotations {
   /** SHA-256 of the PDF: the only identifier that survives an import. */
   hash: string;
   annotations: Annotation[];
+  /** Reference given by the user, written in the sources instead of the file name. */
+  reference?: string;
 }
 
 export interface AnnotationExport {
@@ -113,7 +116,8 @@ export function parseExport(json: unknown): AnnotationExport | null {
     if (!isString(doc.hash) || !HASH_RE.test(doc.hash) || !Array.isArray(doc.annotations)) continue;
     const hash = doc.hash;
     const annotations = doc.annotations.map((a) => sanitizeAnnotation(a, hash)).filter((a): a is Annotation => a !== null);
-    documents.push({ hash, annotations });
+    const reference = cleanReference(doc.reference);
+    documents.push(reference ? { hash, annotations, reference } : { hash, annotations });
   }
   return { format: EXPORT_FORMAT, version: x.version, exportedAt: String(x.exportedAt ?? ''), documents };
 }

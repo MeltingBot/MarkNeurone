@@ -154,3 +154,12 @@ describe('mergeAnnotations', () => {
     expect(mergeAnnotations([a], [a, ann(PROPERTY, 'property')]).map((x) => x.id)).toEqual([ELEMENT, PROPERTY]);
   });
 });
+
+describe('document reference', () => {
+  it('travels with the document, cleaned', () => {
+    const parsed = parseExport({ format: EXPORT_FORMAT, version: 1, documents: [{ hash: HASH, annotations: [], reference: ' PV n° 347 ; pièce 2 [mn:x' }] });
+    expect(parsed?.documents[0].reference).toBe('PV n° 347 , pièce 2 (mn:x');
+    const none = parseExport({ format: EXPORT_FORMAT, version: 1, documents: [{ hash: HASH, annotations: [], reference: 3 }] });
+    expect(none?.documents[0]).not.toHaveProperty('reference');
+  });
+});

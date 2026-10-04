@@ -37,7 +37,9 @@ import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../s
 import { SelectionBar, type Gesture } from './SelectionBar.tsx';
 import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
-import { deleteAnnotation, reattachToElement, rejectSuggestion } from '../services/qualify.ts';
+import { applyRelabel, deleteAnnotation, planRelabel, reattachToElement, rejectSuggestion, relabelCount, type RelabelPlan } from '../services/qualify.ts';
+import { loadReference, saveReference } from '../services/documentRef.ts';
+import { cleanReference, detectReference } from '../core/reference.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
 import type { NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
@@ -556,6 +558,28 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   // Settings changed in the settings window: profile and OCR option follow.
   const settingsVersion = React.useSyncExternalStore(subscribeSettings, getSettingsVersion);
   const annotations = getAnnotations(dossierId, asset.hash);
+
+  // Reference of the document, written in sources instead of the file name.
+  const [reference, setReference] = React.useState('');
+  const [referenceDraft, setReferenceDraft] = React.useState<string | null>(null);
+  const referenceCancelled = React.useRef(false);
+  /** Sources to rewrite after the reference changed, until the user answers. */
+  const [relabel, setRelabel] = React.useState<RelabelPlan | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    setReference('');
+    setReferenceDraft(null);
+    setRelabel(null);
+    loadReference(dossierId, asset.hash)
+      .then((value) => {
+        if (!cancelled) setReference(value);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load the document reference', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, asset.id, asset.hash]);
+  const docCtx = React.useMemo(() => ({ dossierId, asset, reference }), [dossierId, asset, reference]);
   const elements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);
 
@@ -1139,7 +1163,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
                 label: t('menu_reattach_to', { name: nameOf(shown) }),
                 icon: Link2,
                 action: () => {
-                  reattachToElement({ dossierId, asset }, hit, shown)
+                  reattachToElement(docCtx, hit, shown)
                     .then(() => showElement(shown))
                     .catch((err: unknown) => {
                       console.error('MarkNeurone: reattachment failed', err);
@@ -1159,7 +1183,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
               icon: Trash2,
               danger: true,
               action: () => {
-                deleteAnnotation({ dossierId, asset }, hit).catch((err: unknown) => {
+                deleteAnnotation(docCtx, hit).catch((err: unknown) => {
                   console.error('MarkNeurone: cannot remove highlight', err);
                   api.toast.error(t('write_error'));
                 });
@@ -1208,7 +1232,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
             danger: true,
             title: t('delete_passage'),
             action: () => {
-              deleteAnnotation({ dossierId, asset }, hit).catch((err: unknown) => {
+              deleteAnnotation(docCtx, hit).catch((err: unknown) => {
                 console.error('MarkNeurone: cannot remove highlight', err);
                 api.toast.error(t('write_error'));
               });
@@ -1473,7 +1497,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   const reject = (p: Passage) => {
     setPending(null);
-    rejectSuggestion({ dossierId, asset }, p).catch((err: unknown) => {
+    rejectSuggestion(docCtx, p).catch((err: unknown) => {
       console.error('MarkNeurone: cannot dismiss suggestion', err);
       api.toast.error(t('write_error'));
     });
@@ -1544,12 +1568,95 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   const toolButton = 'p-1.5 rounded text-text-secondary hover:bg-bg-secondary disabled:opacity-40';
 
+  // Proposal read in the first page's header (OCR text once recognized); never applied by itself.
+  const firstPageText = effectiveTexts[0]?.text ?? '';
+  const proposedReference = React.useMemo(() => detectReference(firstPageText), [firstPageText]);
+  const commitReference = (value: string) => {
+    const next = cleanReference(value);
+    setReferenceDraft(null);
+    if (next === reference) return;
+    saveReference(dossierId, asset.hash, next)
+      .then(() => {
+        setReference(next);
+        const plan = planRelabel({ dossierId, asset, reference: next }, annotations);
+        setRelabel(relabelCount(plan) ? plan : null);
+      })
+      .catch((err: unknown) => {
+        console.error('MarkNeurone: cannot save the document reference', err);
+        api.toast.error(t('reference_error'));
+      });
+  };
+  const referenceField = referenceDraft !== null
+    ? h('input', {
+        autoFocus: true,
+        value: referenceDraft,
+        placeholder: asset.filename,
+        'aria-label': t('reference_label'),
+        className: 'px-2 py-1 text-xs bg-bg-primary border border-border-default rounded focus:outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary',
+        style: { width: 240 },
+        onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setReferenceDraft(e.target.value),
+        // Saved on blur only; Enter blurs, Escape blurs without saving.
+        onBlur: () => {
+          if (referenceCancelled.current) setReferenceDraft(null);
+          else commitReference(referenceDraft);
+          referenceCancelled.current = false;
+        },
+        onKeyDown: (e: ReactTypes.KeyboardEvent<HTMLInputElement>) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.currentTarget.blur();
+          } else if (e.key === 'Escape') {
+            e.stopPropagation();
+            referenceCancelled.current = true;
+            e.currentTarget.blur();
+          }
+        },
+      })
+    : h(React.Fragment, null,
+        h('button', {
+          type: 'button',
+          onClick: () => setReferenceDraft(reference),
+          title: t('reference_label'),
+          className: `inline-flex items-center gap-1 px-1.5 py-1 rounded hover:bg-bg-secondary truncate ${reference ? 'text-text-primary' : 'text-text-tertiary'}`,
+          style: { maxWidth: 240 },
+        }, h(api.icons.FileText, { size: 12, className: 'shrink-0' }), h('span', { className: 'truncate' }, reference || asset.filename)),
+        !reference && proposedReference
+          ? h('button', {
+              type: 'button',
+              onClick: () => commitReference(proposedReference),
+              title: t('reference_use'),
+              className: 'text-accent hover:underline truncate',
+              style: { maxWidth: 220 },
+            }, proposedReference)
+          : null);
+
+  // After a change of reference: offer to rewrite the sources already written.
+  const relabelBar = relabel
+    ? h('div', { className: 'flex items-center gap-2 px-4 py-2 border-b border-border-default text-xs text-text-secondary' },
+        h(api.icons.FileText, { size: 14, className: 'text-text-tertiary shrink-0' }),
+        t('reference_relabel', { count: relabelCount(relabel) }),
+        h('button', {
+          type: 'button',
+          className: 'ml-2 text-xs text-accent hover:underline',
+          onClick: () => {
+            const plan = relabel;
+            setRelabel(null);
+            applyRelabel(plan).catch((err: unknown) => {
+              console.error('MarkNeurone: cannot update sources', err);
+              api.toast.error(t('reference_relabel_error'));
+            });
+          },
+        }, t('reference_relabel_action')),
+        h('button', { type: 'button', className: 'ml-2 text-xs text-accent hover:underline', onClick: () => setRelabel(null) }, t('reference_relabel_skip')))
+    : null;
+
   const toolbar = h(
     'div',
     { className: 'flex items-center gap-3 px-4 py-1.5 border-b border-border-default bg-bg-secondary text-xs text-text-secondary' },
     opened
       ? h('span', null, t('viewer_page', { current: currentPage, total: opened.doc.numPages }))
       : textDoc ? null : h('span', null, t('viewer_loading')),
+    referenceField,
     searchOpen
       ? h('div', { className: 'flex items-center gap-1' },
           h(api.icons.Search, { size: 14, className: 'text-text-tertiary shrink-0' }),
@@ -1664,6 +1771,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     'div',
     { className: 'flex flex-col flex-1 min-w-0 min-h-0' },
     toolbar,
+    relabelBar,
     notice
       ? h('div', { className: 'flex items-center gap-2 px-4 py-2 border-b border-border-default text-xs text-text-secondary tabular-nums' },
           noticeWarning
@@ -1712,7 +1820,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     { className: 'flex flex-1 min-h-0' },
     documentColumn,
     h(ElementSheet, {
-      ctx: { dossierId, asset },
+      ctx: docCtx,
       elementId: sheetElementId,
       draft,
       linkDraft,

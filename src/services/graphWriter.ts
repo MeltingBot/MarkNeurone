@@ -138,7 +138,7 @@ export async function createLink(fromId: string, toId: string, label: string, an
   return store().createLink(fromId, toId, { label, direction: 'forward', directed: true, source: anchor });
 }
 
-export async function updateLink(id: string, changes: Partial<Pick<ZnLink, 'label' | 'fromId' | 'toId' | 'confidence' | 'evaluation'>>): Promise<void> {
+export async function updateLink(id: string, changes: Partial<Pick<ZnLink, 'label' | 'fromId' | 'toId' | 'confidence' | 'evaluation' | 'source'>>): Promise<void> {
   if (!getLink(id)) throw new Error('link not found');
   await store().updateLink(id, changes);
 }
@@ -157,7 +157,7 @@ export async function detachLinkAnchor(linkId: string, annotationId: string): Pr
 /** Direct edits from the reader's element sheet. */
 export async function updateElement(
   elementId: string,
-  changes: Partial<Pick<ZnElement, 'label' | 'tags' | 'properties' | 'events' | 'geo' | 'confidence' | 'evaluation'>>,
+  changes: Partial<Pick<ZnElement, 'label' | 'tags' | 'properties' | 'events' | 'geo' | 'confidence' | 'evaluation' | 'source'>>,
 ): Promise<void> {
   if (!getElement(elementId)) throw new Error('element not found');
   await store().updateElement(elementId, changes);
