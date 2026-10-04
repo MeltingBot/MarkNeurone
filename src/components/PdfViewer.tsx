@@ -509,6 +509,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [ocrLoaded, setOcrLoaded] = React.useState(false);
   const [ocrPaused, setOcrPaused] = React.useState(false);
   const [ocrCurrent, setOcrCurrent] = React.useState<number | null>(null);
+  /** Progress of the page being recognized, in percent. */
+  const [ocrPercent, setOcrPercent] = React.useState(0);
   const [ocrFailed, setOcrFailed] = React.useState<number[]>([]);
   // ─── Search ──
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -1297,6 +1299,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     const pageNumber = pending.find((n) => n >= from) ?? pending[0];
     let cancelled = false;
     setOcrCurrent(pageNumber);
+    setOcrPercent(0);
+    // Rendering and preprocessing count for the first 10 %, recognition for the rest.
+    const progress = (fraction: number) => {
+      if (!cancelled) setOcrPercent(Math.round(10 + fraction * 90));
+    };
     (async () => {
       engineUsed.current = true;
       const engine = await import('../services/ocrEngine.ts');
@@ -1309,7 +1316,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       if (cancelled) return;
       const prepared = await engine.preprocessImage(canvas, { dropColor: getSettings().ocr.dropColor });
       if (cancelled) return;
-      const lines = await engine.recognize(prepared.canvas);
+      progress(0);
+      const lines = await engine.recognize(prepared.canvas, progress);
       if (cancelled) return;
       const result = buildOcrPage(lines, { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: prepared.skew });
       await saveOcrPage(dossierId, asset.hash, pageNumber, result);
@@ -1625,7 +1633,18 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     const meanConfidence = recognized.length ? Math.round(recognized.reduce((sum, o) => sum + o.confidence, 0) / recognized.length) : 0;
     if (done < total - ocrFailed.length && !ocrPaused) {
       notice = h(React.Fragment, null,
-        ocrCurrent ? t('ocr_running', { page: ocrCurrent, done, total }) : t('ocr_starting', { done, total }),
+        ocrCurrent ? t('ocr_running', { done, total }) : t('ocr_starting', { done, total }),
+        ocrCurrent
+          ? h('div', {
+              role: 'progressbar',
+              'aria-valuemin': 0,
+              'aria-valuemax': 100,
+              'aria-valuenow': ocrPercent,
+              'aria-label': t('ocr_page_progress', { page: ocrCurrent, percent: ocrPercent }),
+              title: t('ocr_page_progress', { page: ocrCurrent, percent: ocrPercent }),
+              className: 'w-24 h-1.5 rounded bg-bg-tertiary overflow-hidden shrink-0',
+            }, h('div', { className: 'h-full bg-accent', style: { width: `${ocrPercent}%` } }))
+          : null,
         noticeButton(t('ocr_pause'), () => setOcrPaused(true)));
     } else if (ocrPaused && done < total) {
       notice = h(React.Fragment, null, t('ocr_paused', { done, total }), noticeButton(t('ocr_resume'), () => setOcrPaused(false)));
