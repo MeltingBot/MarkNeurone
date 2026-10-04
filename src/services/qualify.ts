@@ -6,17 +6,19 @@
 
 import { getHostAPI } from '../hostAPI.ts';
 import type { Annotation, AnnotationKind } from '../core/model.ts';
-import { anchorLabel } from '../core/anchors.ts';
+import { anchorLabel, relabelAnchor } from '../core/anchors.ts';
 import type { Passage } from './selectionCapture.ts';
 import { isPdf, type DocumentAsset } from './documentAssets.ts';
 import { TEXT_EXTRACTOR_ID } from '../core/textDocument.ts';
 import { removeAnnotation, saveAnnotation } from './annotationStore.ts';
 import * as graph from './graphWriter.ts';
-import type { ZnElementEvent, ZnGeo, ZnProperty } from './znTypes.ts';
+import type { ZnElement, ZnElementEvent, ZnGeo, ZnProperty } from './znTypes.ts';
 
 export interface DocumentContext {
   dossierId: string;
   asset: DocumentAsset;
+  /** Reference given by the user; the file name otherwise. */
+  reference?: string;
 }
 
 function draft(ctx: DocumentContext, passage: Passage, kind: AnnotationKind): Annotation {
@@ -43,7 +45,7 @@ export async function rejectSuggestion(ctx: DocumentContext, passage: Passage): 
   await saveAnnotation(ctx.dossierId, { ...draft(ctx, passage, 'suggestion'), status: 'rejected' });
 }
 
-const anchorOf = (ctx: DocumentContext, a: Annotation) => anchorLabel(ctx.asset.filename, isPdf(ctx.asset) ? a.page : null, a.id);
+const anchorOf = (ctx: DocumentContext, a: Annotation) => anchorLabel(ctx.reference || ctx.asset.filename, isPdf(ctx.asset) ? a.page : null, a.id);
 
 /**
  * On a scanned page the user may correct what the OCR read: the annotation
@@ -189,3 +191,53 @@ export async function reattachLink(ctx: DocumentContext, a: Annotation, fromId: 
   await saveAnnotation(ctx.dossierId, attached(a, { targetId: link.id, linkEnds: [fromId, toId] }));
 }
 
+
+// ─── Reference of the document changed ───────────────────────
+// Offered to the user, never automatic: only the parts of `source` the
+// plugin wrote for this document are rewritten (see relabelAnchor).
+
+export interface RelabelPlan {
+  elements: Map<string, Pick<ZnElement, 'source' | 'events'>>;
+  links: Map<string, string>;
+}
+
+/** Sources that would change if the document's anchors took ctx.reference. */
+export function planRelabel(ctx: DocumentContext, annotations: Annotation[]): RelabelPlan {
+  const plan: RelabelPlan = { elements: new Map(), links: new Map() };
+  for (const a of annotations) {
+    if (a.kind === 'suggestion' || a.orphan || !a.targetId) continue;
+    const label = anchorOf(ctx, a);
+    if (a.kind === 'link') {
+      const current = plan.links.get(a.targetId) ?? graph.getLink(a.targetId)?.source;
+      const next = relabelAnchor(current, a.id, label);
+      if (next !== null) plan.links.set(a.targetId, next);
+      continue;
+    }
+    for (const elementId of anchoredElements(a)) {
+      const el = graph.getElement(elementId);
+      if (!el) continue;
+      const pending = plan.elements.get(elementId) ?? { source: el.source ?? '', events: el.events };
+      const source = relabelAnchor(pending.source, a.id, label);
+      let eventsChanged = false;
+      const events = pending.events.map((ev) => {
+        const next = relabelAnchor(ev.source, a.id, label);
+        if (next === null) return ev;
+        eventsChanged = true;
+        return { ...ev, source: next };
+      });
+      if (source !== null || eventsChanged || plan.elements.has(elementId)) {
+        plan.elements.set(elementId, { source: source ?? pending.source, events });
+      }
+    }
+  }
+  return plan;
+}
+
+export function relabelCount(plan: RelabelPlan): number {
+  return plan.elements.size + plan.links.size;
+}
+
+export async function applyRelabel(plan: RelabelPlan): Promise<void> {
+  for (const [id, changes] of plan.elements) await graph.updateElement(id, changes);
+  for (const [id, source] of plan.links) await graph.updateLink(id, { source });
+}

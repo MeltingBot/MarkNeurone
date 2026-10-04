@@ -15,6 +15,7 @@ import {
 } from '../core/annotationTransfer.ts';
 import { annotatedDocuments, readDocument, writeDocument } from './annotationStore.ts';
 import { loadOcr, ocrDocuments, saveOcr } from './ocrStore.ts';
+import { loadReference, saveReference } from './documentRef.ts';
 import { sanitizeOcrDocument, type OcrDocument } from '../core/ocrLayout.ts';
 
 /** OCR results travel too, so that an imported dossier is not recognized again. */
@@ -29,7 +30,12 @@ export interface ZipLike {
 
 export async function exportAnnotations(zip: ZipLike, dossierId: string): Promise<void> {
   const hashes = await annotatedDocuments(dossierId);
-  const documents = await Promise.all(hashes.map(async (hash) => ({ hash, annotations: await readDocument(dossierId, hash) })));
+  const documents = await Promise.all(
+    hashes.map(async (hash) => {
+      const [annotations, reference] = await Promise.all([readDocument(dossierId, hash), loadReference(dossierId, hash)]);
+      return reference ? { hash, annotations, reference } : { hash, annotations };
+    }),
+  );
   const file = buildExport(documents);
   if (file) zip.file(EXPORT_FILE, JSON.stringify(file, null, 2));
   for (const hash of await ocrDocuments(dossierId)) {
@@ -81,6 +87,8 @@ export async function importAnnotations(zip: ZipLike, dossierId: string): Promis
     added += merged.length - existing.length;
     orphans += imported.filter((a) => a.orphan && !existing.some((e) => e.id === a.id)).length;
     await writeDocument(dossierId, doc.hash, merged);
+    // A reference already given in this dossier is kept.
+    if (doc.reference && !(await loadReference(dossierId, doc.hash))) await saveReference(dossierId, doc.hash, doc.reference);
   }
   return { added, orphans };
 }

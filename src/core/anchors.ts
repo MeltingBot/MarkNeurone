@@ -47,3 +47,21 @@ export function removeAnchor(source: string | undefined | null, annotationId: st
     .join(' ; ')
     .trim();
 }
+
+/**
+ * Replaces the label of one annotation's anchor, e.g. after the document's
+ * reference changed. Only a part the plugin wrote is replaced: a part that
+ * ends with the token. A part the user edited around the token, and every
+ * other part, are left as they are. Null when nothing changes.
+ */
+export function relabelAnchor(source: string | undefined | null, annotationId: string, label: string): string | null {
+  const token = anchorToken(annotationId);
+  let changed = false;
+  const parts = (source ?? '').split(' ; ').map((part) => {
+    const trimmed = part.trim();
+    if (!trimmed.endsWith(` ${token}`) || trimmed === label) return part;
+    changed = true;
+    return label;
+  });
+  return changed ? parts.join(' ; ') : null;
+}
