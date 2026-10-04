@@ -987,6 +987,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
       const passage = suggestion ? suggestionPassage(suggestion) : null;
       if (passage) setPending(passage);
+      // A click on nothing clears the selection and the sheet, unless a form is being filled.
+      else if (!e.ctrlKey && !e.metaKey && !draft && !linkDraft) {
+        setSelectedIds([]);
+        showElement(null);
+      }
       return;
     }
     const result = capturePassage(selection, sizes, scale);
