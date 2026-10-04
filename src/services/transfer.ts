@@ -15,7 +15,7 @@ import {
 } from '../core/annotationTransfer.ts';
 import { annotatedDocuments, readDocument, writeDocument } from './annotationStore.ts';
 import { loadOcr, ocrDocuments, saveOcr } from './ocrStore.ts';
-import type { OcrDocument } from '../core/ocrLayout.ts';
+import { sanitizeOcrDocument, type OcrDocument } from '../core/ocrLayout.ts';
 
 /** OCR results travel too, so that an imported dossier is not recognized again. */
 const OCR_DIR = 'markneurone/ocr/';
@@ -42,8 +42,14 @@ export async function exportAnnotations(zip: ZipLike, dossierId: string): Promis
 async function importOcr(zip: ZipLike, dossierId: string): Promise<void> {
   for (const entry of zip.file(new RegExp(`^${OCR_DIR}[0-9a-f]{64}\\.json$`))) {
     const hash = entry.name.slice(OCR_DIR.length, -'.json'.length);
-    const imported = JSON.parse(await entry.async('string')) as OcrDocument;
-    if (!imported || typeof imported.pages !== 'object') continue;
+    let imported: OcrDocument | null;
+    try {
+      imported = sanitizeOcrDocument(JSON.parse(await entry.async('string')));
+    } catch {
+      imported = null;
+    }
+    // An unreadable file only costs a new recognition; the annotations still come.
+    if (!imported || !Object.keys(imported.pages).length) continue;
     const current = await loadOcr(dossierId, hash);
     await saveOcr(dossierId, hash, { ...imported, pages: { ...imported.pages, ...current.pages } });
   }
