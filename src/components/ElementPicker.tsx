@@ -9,6 +9,8 @@ import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import { searchElements, searchEvents, type ElementHit } from '../core/elementSearch.ts';
+import { countries } from '../core/propertyTypes.ts';
+import { normalizeName } from '../core/dictionary.ts';
 import type { ZnElement, ZnElementEvent, ZnTagSet } from '../services/znTypes.ts';
 
 interface PickerProps<T> {
@@ -206,5 +208,34 @@ export function EventPicker(p: EventPickerProps) {
             h('span', { className: 'text-sm text-text-primary truncate' }, ev.label || t('unnamed')),
             h('span', { className: 'text-xs text-text-tertiary shrink-0' }, date(ev))),
           ev.description ? h('span', { className: 'block text-xs text-text-secondary truncate mt-0.5' }, ev.description) : null)),
+  });
+}
+
+type Country = ReturnType<typeof countries>[number];
+
+/** Country by name (French or English) or code; the value is the ISO alpha-2 code, as in ZN. */
+export function CountryPicker(p: { value: string; onChange: (code: string) => void; inputClass: string }) {
+  const api = getHostAPI();
+  const React = api.React as typeof ReactTypes;
+  const h = React.createElement;
+  const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
+  const search = React.useCallback((query: string) => {
+    const n = normalizeName(query);
+    const all = countries();
+    return n ? all.filter((c) => normalizeName(c.fr).includes(n) || normalizeName(c.en).includes(n) || c.code.toLowerCase() === n) : all;
+  }, []);
+  return h(SearchPicker<Country>, {
+    search,
+    idOf: (c) => c.code,
+    labelOf: (c) => c.fr,
+    picked: p.value ? countries().find((c) => c.code === p.value) : undefined,
+    onChange: p.onChange,
+    inputClass: p.inputClass,
+    placeholder: t('country_placeholder'),
+    empty: t('country_none'),
+    row: (c) =>
+      h(React.Fragment, null,
+        h('span', { className: 'text-sm text-text-primary truncate flex-1' }, c.fr),
+        h('span', { className: 'text-xs text-text-tertiary font-mono shrink-0' }, c.code)),
   });
 }

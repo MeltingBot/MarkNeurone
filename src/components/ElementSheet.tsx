@@ -47,12 +47,14 @@ import {
   type ZnGeo,
   type ZnLink,
   type ZnProperty,
+  type ZnPropertyDefinition,
   type ZnPropertyType,
   type ZnTagSet,
 } from '../services/znTypes.ts';
 import type { Gesture } from './SelectionBar.tsx';
 import * as S from './znStyles.ts';
-import { ElementPicker, EventPicker } from './ElementPicker.tsx';
+import { CountryPicker, ElementPicker, EventPicker } from './ElementPicker.tsx';
+import { countryName, matchChoice, matchCountry, parseChoices, PROPERTY_TYPES } from '../core/propertyTypes.ts';
 import { ColorDot } from './ColorDot.tsx';
 
 export interface Draft {
@@ -134,7 +136,102 @@ function parseValue(type: ZnPropertyType | undefined, raw: string): ZnProperty['
   // "yyyy-mm-dd" or "yyyy-mm-ddThh:mm", in local time as ZN's panel does.
   if (type === 'datetime') return raw ? new Date(raw.includes('T') ? raw : `${raw}T00:00`) : null;
   if (type === 'number') return raw === '' ? null : Number(raw.replace(/\s/g, '').replace(',', '.'));
+  if (type === 'boolean') return raw === 'true';
   return raw;
+}
+
+/** A value as read in a row: booleans and countries in words. */
+function displayValue(type: ZnPropertyType | undefined, value: ZnProperty['value'], t: Env['t']): string {
+  if (type === 'boolean') return t(value ? 'yes' : 'no');
+  if (type === 'country' && typeof value === 'string' && value) return countryName(value);
+  return formatValue(value);
+}
+
+/** Property definitions known to the dossier: its own, its tag sets', and keys in use. */
+function propertyDefinitions(env: Env): Map<string, ZnPropertyDefinition> {
+  const defs = new Map<string, ZnPropertyDefinition>();
+  const dossier = getHostAPI().stores.useDossierStore.getState().currentDossier as { settings?: { suggestedProperties?: ZnPropertyDefinition[] } } | null;
+  for (const d of dossier?.settings?.suggestedProperties ?? []) defs.set(d.key, d);
+  for (const ts of env.tagSets) for (const d of ts.suggestedProperties ?? []) if (!defs.has(d.key)) defs.set(d.key, d);
+  for (const el of env.elements) {
+    for (const pr of [...el.properties, ...el.events.flatMap((ev) => ev.properties ?? [])]) {
+      if (!defs.has(pr.key)) defs.set(pr.key, { key: pr.key, type: pr.type ?? 'text' });
+    }
+  }
+  return defs;
+}
+
+/**
+ * A new key becomes a property definition of the dossier, associated with the
+ * element's tags, as ZN's panel does when a property is created (handleNewProperty).
+ */
+async function registerDefinition(def: ZnPropertyDefinition, tags: string[]): Promise<void> {
+  const store = getHostAPI().stores.useDossierStore.getState();
+  const known = (store.currentDossier?.settings?.suggestedProperties ?? []) as ZnPropertyDefinition[];
+  if (known.some((d) => d.key === def.key)) return;
+  await store.addSuggestedProperty(def);
+  if (tags.length) await store.associatePropertyWithTags(def, tags);
+}
+
+/** Value input for each of ZN's property types, as in ZN's PropertiesEditor. */
+function PropertyValueField(p: {
+  env: Env;
+  type: ZnPropertyType;
+  value: string;
+  time?: string;
+  choices: string[];
+  onValue: (value: string) => void;
+  onTime?: (time: string) => void;
+  onEnter?: () => void;
+}) {
+  const { h } = host();
+  const { env } = p;
+  const onKeyDown = (e: ReactTypes.KeyboardEvent) => {
+    if (e.key === 'Enter' && p.onEnter) {
+      e.preventDefault();
+      p.onEnter();
+    }
+  };
+  switch (p.type) {
+    case 'boolean': {
+      const on = p.value === 'true';
+      return h('button', { type: 'button', role: 'switch', 'aria-checked': on, onClick: () => p.onValue(on ? 'false' : 'true'), className: 'flex items-center gap-2 py-1 text-xs text-text-primary' },
+        h('span', { className: `relative inline-block w-8 h-4 rounded-full ${on ? 'bg-accent' : 'bg-bg-tertiary'}` },
+          h('span', { className: 'absolute top-0.5 w-3 h-3 rounded-full bg-white', style: { left: on ? 18 : 2 } })),
+        env.t(on ? 'yes' : 'no'));
+    }
+    case 'choice':
+      return p.choices.length
+        ? h('div', { className: 'flex flex-wrap gap-1', role: 'radiogroup', 'aria-label': env.t('field_value') },
+            p.choices.map((c) =>
+              h('button', {
+                key: c,
+                type: 'button',
+                role: 'radio',
+                'aria-checked': p.value === c,
+                onClick: () => p.onValue(c),
+                className: `px-2 py-0.5 text-xs rounded border ${p.value === c ? 'border-accent bg-accent/10 text-accent' : 'border-border-default bg-bg-primary text-text-primary hover:bg-bg-secondary'}`,
+              }, c)))
+        : h('p', { className: S.HINT }, env.t('choice_no_options'));
+    case 'country':
+      return h(CountryPicker, { value: p.value, onChange: p.onValue, inputClass: S.INPUT_IN_CARD });
+    case 'date':
+    case 'datetime':
+      return h('div', { className: 'flex gap-1' },
+        h('input', { type: 'date', className: S.INPUT_IN_CARD, value: p.value, 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onValue(e.target.value), onKeyDown }),
+        p.type === 'datetime'
+          ? h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: p.time ?? '', 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onTime?.(e.target.value) })
+          : null);
+    default:
+      return h('input', { type: 'text', className: S.INPUT_IN_CARD, value: p.value, placeholder: env.t('field_value'), 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onValue(e.target.value), onKeyDown });
+  }
+}
+
+/** Type select over ZN's types; geo is left to the location gesture. */
+function TypeSelect(p: { env: Env; value: ZnPropertyType; onChange: (type: ZnPropertyType) => void }) {
+  const { h } = host();
+  return h('select', { className: S.INPUT_IN_CARD, value: p.value, 'aria-label': p.env.t('field_type'), onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => p.onChange(e.target.value as ZnPropertyType) },
+    PROPERTY_TYPES.map((tp) => h('option', { key: tp, value: tp }, p.env.t(`type_${tp}`))));
 }
 
 function timeOf(date: Date): string {
@@ -517,14 +614,16 @@ function KeySuggestInput(p: {
 function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone: () => void }) {
   const { api, React, h } = host();
   const { env, element, passage } = p;
+  const defs = React.useMemo(() => propertyDefinitions(env), [env.elements, env.tagSets]);
+  // The element's tags' keys first, then every key known to the dossier.
   const suggested = React.useMemo(() => {
     const keys = new Map<string, ZnPropertyType>();
     for (const tag of element.tags) {
       for (const sp of env.tagSets.find((ts) => ts.name === tag)?.suggestedProperties ?? []) keys.set(sp.key, sp.type);
     }
-    for (const el of env.elements) for (const pr of el.properties) if (!keys.has(pr.key)) keys.set(pr.key, pr.type ?? 'text');
+    for (const d of defs.values()) if (!keys.has(d.key)) keys.set(d.key, d.type);
     return keys;
-  }, [element, env.elements, env.tagSets]);
+  }, [element, env.tagSets, defs]);
   const [key, setKey] = React.useState((passage.suggestion && getProfile().suggestionKeys[passage.suggestion.kind]) ?? '');
   const [type, setType] = React.useState<ZnPropertyType>(guessType(trimPunctuation(passage.text)));
   const firstDate = React.useMemo(() => findDates(passage.text, passage.referenceYear)[0], [passage]);
@@ -545,18 +644,39 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   );
   const onEvent = toEvent && eventId ? element.events.find((ev) => ev.id === eventId) : undefined;
 
+  // A new 'choice' key takes its options here, as in ZN; a known one keeps the dossier's.
+  const [options, setOptions] = React.useState('');
+  const known = defs.get(key.trim());
+  const knownChoices = known?.type === 'choice' && known.choices?.length ? known.choices : null;
+  const choices = knownChoices ?? parseChoices(options);
+  /** What the passage reads as, for each type. */
+  const passageValue = trimPunctuation(passage.text);
+  const valueFor = (tp: ZnPropertyType, ch: string[]): string =>
+    tp === 'boolean' ? 'true'
+    : tp === 'country' ? matchCountry(passageValue) ?? ''
+    : tp === 'choice' ? matchChoice(passageValue, ch) ?? ''
+    : tp === 'date' || tp === 'datetime' ? (firstDate ? toDateInputValue(firstDate.date) : '')
+    : passageValue;
+  const changeType = (tp: ZnPropertyType) => {
+    setType(tp);
+    setValue(valueFor(tp, choices));
+  };
   const onKeyChange = (next: string) => {
     setKey(next);
-    const known = suggested.get(next);
-    if (known === 'text' || known === 'number' || known === 'date' || known === 'datetime' || known === 'link') setType(known);
+    const def = defs.get(next) ?? (suggested.has(next) ? { key: next, type: suggested.get(next)! } : undefined);
+    if (def && def.type !== 'geo') {
+      setType(def.type);
+      setValue(valueFor(def.type, def.choices ?? []));
+    }
   };
-  const valid = key.trim() && value.trim() && (!toEvent || onEvent);
+  const valid = key.trim() && (type === 'boolean' || value.trim()) && (type !== 'choice' || choices.includes(value)) && (!toEvent || onEvent);
   const submit = async () => {
     setBusy(true);
     const property = { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type };
-    const ok = await env.run(() =>
-      onEvent ? qualifyAsEventProperty(env.ctx, passage, element.id, onEvent.id, property) : qualifyAsProperty(env.ctx, passage, element.id, property),
-    );
+    const ok = await env.run(async () => {
+      await registerDefinition({ key: property.key, type, ...(type === 'choice' ? { choices } : {}) }, element.tags);
+      await (onEvent ? qualifyAsEventProperty(env.ctx, passage, element.id, onEvent.id, property) : qualifyAsProperty(env.ctx, passage, element.id, property));
+    });
     if (ok) p.onDone();
     else setBusy(false);
   };
@@ -602,18 +722,18 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
     h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: (onEvent ? onEvent.properties ?? [] : element.properties).map((pr) => pr.key), onChange: onKeyChange })),
   h('div', { className: 'flex gap-2' },
-    h('div', { className: 'space-y-1 flex-1' },
-      h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
-      h('div', { className: 'flex gap-1' },
-        h('input', { type: type === 'date' || type === 'datetime' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) }),
-        type === 'datetime'
-          ? h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) })
-          : null),
-      h(ChecksumWarning, { env, passage })),
-    h('div', { className: 'space-y-1', style: { width: 96 } },
+    h('div', { className: 'space-y-1', style: { width: 120 } },
       h('label', { className: S.SMALL_LABEL }, env.t('field_type')),
-      h('select', { className: S.INPUT_IN_CARD, value: type, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as ZnPropertyType) },
-        (['text', 'number', 'date', 'datetime', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))))),
+      h(TypeSelect, { env, value: type, onChange: changeType })),
+    type === 'choice' && !knownChoices
+      ? h('div', { className: 'space-y-1 flex-1' },
+          h('label', { className: S.SMALL_LABEL }, env.t('field_options')),
+          h('input', { className: S.INPUT_IN_CARD, value: options, placeholder: env.t('field_options_placeholder'), 'aria-label': env.t('field_options'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setOptions(e.target.value) }))
+      : null),
+  h('div', { className: 'space-y-1' },
+    h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
+    h(PropertyValueField, { env, type, value, time, choices, onValue: setValue, onTime: setTime }),
+    h(ChecksumWarning, { env, passage })),
   h('div', { className: S.BUTTON_ROW },
     h('button', { type: 'button', onClick: p.onDone, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),
     h('button', { type: 'submit', disabled: busy || !valid, className: S.BUTTON_PRIMARY_SMALL }, env.t('add_property'))));
@@ -987,7 +1107,7 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
                   ariaLabel: pr.key,
                   onCommit: (v: string) => update(i, v),
                 }))
-            : h('div', { className: 'mt-1 text-xs text-text-primary' }, formatValue(pr.value))),
+            : h('div', { className: 'mt-1 text-xs text-text-primary' }, displayValue(type, pr.value, env.t))),
         h(AnchorButton, { env, annotation, onGoto: p.onGoto }),
         h('button', { type: 'button', onClick: () => remove(i), title: env.t('delete_property'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 })));
     }));
@@ -1064,27 +1184,26 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
               inputClass: S.INPUT_IN_CARD,
               onChange: (geo: ZnGeo | null) => update(ev.id, { geo: geo ?? undefined }),
             }))),
-        open.includes(ev.id) ? h(EventDetails, { env, elementId: element.id, event: ev, onGoto: p.onGoto, onUpdate: (changes: Partial<ZnElementEvent>) => update(ev.id, changes) }) : null);
+        open.includes(ev.id) ? h(EventDetails, { env, elementId: element.id, elementTags: element.tags, event: ev, onGoto: p.onGoto, onUpdate: (changes: Partial<ZnElementEvent>) => update(ev.id, changes) }) : null);
     }));
 }
 
 /** Description and properties of an event, as in ZN's event card. */
-function EventDetails(p: { env: Env; elementId: string; event: ZnElementEvent; onGoto: (a: Annotation) => void; onUpdate: (changes: Partial<ZnElementEvent>) => void }) {
+function EventDetails(p: { env: Env; elementId: string; elementTags: string[]; event: ZnElementEvent; onGoto: (a: Annotation) => void; onUpdate: (changes: Partial<ZnElementEvent>) => void }) {
   const { api, React, h } = host();
   const { X } = api.icons;
   const { env, event } = p;
   const properties = event.properties ?? [];
-  // Keys already used in the dossier, on elements and on events.
-  const suggestions = React.useMemo(() => {
-    const keys = new Map<string, ZnPropertyType>();
-    for (const el of env.elements) {
-      for (const pr of [...el.properties, ...el.events.flatMap((ev) => ev.properties ?? [])]) if (!keys.has(pr.key)) keys.set(pr.key, pr.type ?? 'text');
-    }
-    return keys;
-  }, [env.elements]);
+  const defs = React.useMemo(() => propertyDefinitions(env), [env.elements, env.tagSets]);
+  const suggestions = React.useMemo(() => new Map([...defs.values()].map((d) => [d.key, d.type] as const)), [defs]);
   const [key, setKey] = React.useState('');
   const [value, setValue] = React.useState('');
+  const [time, setTime] = React.useState('');
   const [type, setType] = React.useState<ZnPropertyType>('text');
+  const [options, setOptions] = React.useState('');
+  const known = defs.get(key.trim());
+  const knownChoices = known?.type === 'choice' && known.choices?.length ? known.choices : null;
+  const choices = knownChoices ?? parseChoices(options);
   const setProperties = (next: ZnProperty[]) => p.onUpdate({ properties: next.length ? next : undefined });
   const passagesOf = (key: string) => env.annotations.filter((a) => a.kind === 'property' && a.eventIds?.[p.elementId] === event.id && a.propertyKey === key);
   /** Removes a property; highlights of a key the event no longer has go too. */
@@ -1094,11 +1213,21 @@ function EventDetails(p: { env: Env; elementId: string; event: ZnElementEvent; o
     setProperties(next);
     if (!next.some((pr) => pr.key === key)) for (const a of passagesOf(key)) env.run(() => deleteAnnotation(env.ctx, a));
   };
+  const valid = key.trim() && (type === 'boolean' || value.trim()) && (type !== 'choice' || choices.includes(value));
+  const changeType = (tp: ZnPropertyType) => {
+    setType(tp);
+    setValue(tp === 'boolean' ? 'true' : '');
+  };
   const add = () => {
-    if (!key.trim() || !value.trim()) return;
-    setProperties([...properties, { key: key.trim(), value: parseValue(type, value.trim()), type }]);
+    if (!valid) return;
+    const k = key.trim();
+    const v = type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim();
+    env.run(() => registerDefinition({ key: k, type, ...(type === 'choice' ? { choices } : {}) }, p.elementTags));
+    setProperties([...properties, { key: k, value: parseValue(type, v), type }]);
     setKey('');
     setValue('');
+    setTime('');
+    setOptions('');
     setType('text');
   };
 
@@ -1115,16 +1244,19 @@ function EventDetails(p: { env: Env; elementId: string; event: ZnElementEvent; o
       h('label', { className: S.SMALL_LABEL }, env.t('section_properties')),
       properties.map((pr, i) => {
         const prType = pr.type ?? 'text';
+        const editable = prType === 'text' || prType === 'number' || prType === 'date' || prType === 'link';
         return h('div', { key: `${pr.key}-${i}`, className: 'flex items-center gap-2' },
           h('span', { className: 'text-xs text-text-secondary truncate shrink-0', style: { maxWidth: 110 }, title: pr.key }, pr.key),
           h('div', { className: 'flex-1 min-w-0' },
-            h(CommitInput, {
-              type: prType === 'date' ? 'date' : 'text',
-              className: S.INPUT_IN_CARD,
-              value: formatValue(pr.value),
-              ariaLabel: pr.key,
-              onCommit: (v: string) => setProperties(properties.map((x, j) => (j === i ? { ...x, value: parseValue(prType, v) } : x))),
-            })),
+            editable
+              ? h(CommitInput, {
+                  type: prType === 'date' ? 'date' : 'text',
+                  className: S.INPUT_IN_CARD,
+                  value: formatValue(pr.value),
+                  ariaLabel: pr.key,
+                  onCommit: (v: string) => setProperties(properties.map((x, j) => (j === i ? { ...x, value: parseValue(prType, v) } : x))),
+                })
+              : h('span', { className: 'text-xs text-text-primary' }, displayValue(prType, pr.value, env.t))),
           h(AnchorButton, { env, annotation: passagesOf(pr.key)[0], onGoto: p.onGoto }),
           h('button', { type: 'button', onClick: () => remove(i), title: env.t('delete_property'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 })));
       }),
@@ -1136,28 +1268,18 @@ function EventDetails(p: { env: Env; elementId: string; event: ZnElementEvent; o
           exclude: properties.map((pr) => pr.key),
           onChange: (next: string) => {
             setKey(next);
-            const known = suggestions.get(next);
-            if (known === 'text' || known === 'number' || known === 'date' || known === 'link') setType(known);
+            const def = defs.get(next);
+            if (def && def.type !== 'geo') changeType(def.type);
           },
         }),
         h('div', { className: 'flex gap-1' },
-          h('input', {
-            type: type === 'date' ? 'date' : 'text',
-            className: S.INPUT_IN_CARD,
-            value,
-            placeholder: env.t('field_value'),
-            'aria-label': env.t('field_value'),
-            onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value),
-            onKeyDown: (e: ReactTypes.KeyboardEvent) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                add();
-              }
-            },
-          }),
-          h('select', { className: S.INPUT_IN_CARD, style: { width: 96 }, value: type, 'aria-label': env.t('field_type'), onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as ZnPropertyType) },
-            (['text', 'number', 'date', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))),
-          h('button', { type: 'button', onClick: add, disabled: !key.trim() || !value.trim(), className: S.BUTTON_SECONDARY_SMALL }, env.t('event_add_property'))))));
+          h('div', { style: { width: 120 } }, h(TypeSelect, { env, value: type, onChange: changeType })),
+          type === 'choice' && !knownChoices
+            ? h('input', { className: S.INPUT_IN_CARD, value: options, placeholder: env.t('field_options_placeholder'), 'aria-label': env.t('field_options'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setOptions(e.target.value) })
+            : null),
+        h(PropertyValueField, { env, type, value, time, choices, onValue: setValue, onTime: setTime, onEnter: add }),
+        h('div', { className: 'flex justify-end' },
+          h('button', { type: 'button', onClick: add, disabled: !valid, className: S.BUTTON_SECONDARY_SMALL }, env.t('event_add_property'))))));
 }
 
 function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | null; onGoto: (a: Annotation) => void }) {

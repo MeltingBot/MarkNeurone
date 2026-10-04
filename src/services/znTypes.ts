@@ -5,6 +5,14 @@ import type { Evaluation } from '../core/evaluation.ts';
 
 export type ZnPropertyType = 'text' | 'number' | 'date' | 'datetime' | 'boolean' | 'choice' | 'geo' | 'country' | 'link';
 
+/** Property definition of the dossier or a tag set (types/index.ts PropertyDefinition). */
+export interface ZnPropertyDefinition {
+  key: string;
+  type: ZnPropertyType;
+  /** Options of a 'choice' property. */
+  choices?: string[];
+}
+
 export interface ZnProperty {
   key: string;
   value: string | number | boolean | Date | null;
@@ -64,7 +72,7 @@ export interface ZnTagSet {
   id: string;
   name: string;
   defaultVisual: { color: string | null; shape: string | null; icon: string | null };
-  suggestedProperties: { key: string; type: ZnPropertyType }[];
+  suggestedProperties: ZnPropertyDefinition[];
 }
 
 /** Elements that can carry information: canvas notes and groups are excluded. */

@@ -19,6 +19,7 @@ Première version, en cours de développement.
 **Création d'objets dans le graphe**
 - Création d'éléments, de propriétés, d'événements et de localisations à partir d'un passage (touches E, P, V, G ou clic droit).
 - Éléments existants de nom proche proposés lors de la création, sans rattachement automatique.
+- Propriétés des huit types de ZeroNeurone (texte, numérique, date, date et heure, booléen, choix, pays, lien), avec la saisie propre à chacun ; une nouvelle propriété est enregistrée dans le dossier et associée aux tags de l'élément, comme dans ZeroNeurone. Le pays ou l'option lus dans le passage sont proposés.
 - Recherche de l'élément concerné pour une propriété, un événement, une localisation, les extrémités d'un lien ou le rattachement d'un passage orphelin : libellé et valeurs des propriétés, sans tenir compte de la casse ni des accents. L'élément affiché peut être changé pendant la saisie.
 - Dates et heures lues dans la phrase, y compris écrites en toutes lettres.
 - Événements : description détaillée modifiable à la création (préremplie avec la phrase du passage) et dans la fiche ; propriétés propres à l'événement, comme dans ZeroNeurone. Une propriété lue dans un passage peut être rattachée à l'élément ou à l'un de ses événements.

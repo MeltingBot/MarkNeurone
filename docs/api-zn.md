@@ -54,6 +54,7 @@ Lecture en direct : `useDossierStore.getState()` expose `elements`, `links`, `as
 | Créer un élément | `createElement(label, position, options?: Partial<Element>)` |
 | Ajouter une propriété | `updateElement(id, { properties: [...anciennes, nouvelle] })` |
 | Ajouter un événement | `updateElement(id, { events: [...anciens, nouvel] })` |
+| Définir une nouvelle propriété (type, options d'un choix) | `addSuggestedProperty({ key, type, choices })` puis `associatePropertyWithTags(def, tags)`, comme `handleNewProperty` dans `ElementDetail.tsx` |
 | Créer un lien | `createLink(fromId, toId, { label, direction, source })` |
 | Attacher un fichier | `addAsset(elementId, file)` |
 
