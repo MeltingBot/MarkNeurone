@@ -579,6 +579,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setOcrPages({});
     setOcrLoaded(false);
     setOcrFailed([]);
+    setOcrCurrent(null);
     (async () => {
       const file = await api.fileService.getAssetFile(asset);
       const data = new Uint8Array(await file.arrayBuffer());
@@ -1318,10 +1319,9 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         if (cancelled) return;
         console.error('MarkNeurone: OCR failed on page', pageNumber, err);
         setOcrFailed((failed) => [...failed, pageNumber]);
-      })
-      .finally(() => {
-        if (!cancelled) setOcrCurrent(null);
       });
+    // ocrCurrent is not cleared when a page ends: the next run sets it at
+    // once, and clearing it showed "starting" for a frame between pages.
     return () => {
       cancelled = true;
     };
@@ -1644,7 +1644,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     { className: 'flex flex-col flex-1 min-w-0 min-h-0' },
     toolbar,
     notice
-      ? h('div', { className: 'flex items-center gap-2 px-4 py-2 border-b border-border-default text-xs text-text-secondary' },
+      ? h('div', { className: 'flex items-center gap-2 px-4 py-2 border-b border-border-default text-xs text-text-secondary tabular-nums' },
           noticeWarning
             ? h(TriangleAlert, { size: 14, className: 'text-warning shrink-0' })
             : h(api.icons.ScanText, { size: 14, className: 'text-text-tertiary shrink-0' }),
