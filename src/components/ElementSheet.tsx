@@ -452,11 +452,6 @@ function KeySuggestInput(p: {
     .filter(([key]) => !p.exclude.includes(key) && key.toLowerCase().includes(p.value.toLowerCase()))
     .slice(0, 50);
   const show = open && p.suggestions.size > 0;
-  // Position read after mount: on the first render the input does not exist yet.
-  const [rect, setRect] = React.useState<DOMRect | null>(null);
-  React.useLayoutEffect(() => {
-    setRect(show ? inputRef.current?.getBoundingClientRect() ?? null : null);
-  }, [show, p.value]);
 
   const pick = (key: string) => {
     p.onChange(key);
@@ -464,7 +459,8 @@ function KeySuggestInput(p: {
     setIndex(-1);
   };
 
-  return h(React.Fragment, null,
+  // The list hangs from the field, so that it follows it when the sheet scrolls.
+  return h('div', { className: 'relative' },
     h('input', {
       ref: inputRef,
       className: S.INPUT_IN_CARD,
@@ -496,10 +492,9 @@ function KeySuggestInput(p: {
         }
       },
     }),
-    show && rect
+    show
       ? h('div', {
-          className: 'fixed bg-bg-primary border border-border-default rounded shadow-lg z-[9999] max-h-48 overflow-y-auto',
-          style: { top: rect.bottom + 4, left: rect.left, minWidth: rect.width },
+          className: 'absolute left-0 right-0 z-20 mt-1 bg-bg-primary border border-border-default rounded panel-shadow max-h-48 overflow-y-auto',
         },
         filtered.length
           ? filtered.map(([key, type], i) =>
