@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildOcrPage, ocrPageText, rangeConfidence, unrotateBox, unrotatePoint, type RawLine } from './ocrLayout.ts';
+import { buildOcrPage, ocrPageText, sanitizeOcrDocument, rangeConfidence, unrotateBox, unrotatePoint, type RawLine } from './ocrLayout.ts';
 import { rotate, type GrayImage } from './image/preprocess.ts';
 
 describe('unrotatePoint', () => {
@@ -66,5 +66,36 @@ describe('ocrPageText', () => {
   it('gives the confidence of a passage', () => {
     expect(rangeConfidence(page, 12, 19)).toBe(62);
     expect(rangeConfidence(page, 0, 11)).toBe(93);
+  });
+});
+
+describe('sanitizeOcrDocument', () => {
+  const page = { lines: [{ w: [{ t: 'Martin', c: 91, b: [10, 20, 60, 32], s: [90, 92] }] }], confidence: 91, skew: 0.4, at: '2026-10-01T00:00:00.000Z' };
+
+  it('keeps well-formed pages and drops unknown fields', () => {
+    const doc = sanitizeOcrDocument({ version: 1, model: 'fra_fast', pages: { '1': { ...page, extra: 1 } }, extra: 'x' });
+    expect(doc).toEqual({ version: 1, model: 'fra_fast', pages: { '1': page } });
+  });
+
+  it('drops malformed pages and keys that are not page numbers', () => {
+    const doc = sanitizeOcrDocument({
+      version: 1,
+      model: 'fra_fast',
+      pages: {
+        '0': page,
+        abc: page,
+        '2': { ...page, lines: [{ w: [{ t: 'x', c: 'high', b: [0, 0, 1, 1] }] }] },
+        '3': { ...page, lines: [{ w: [{ t: 'x', c: 1, b: [0, 0, 1] }] }] },
+        '4': { ...page, confidence: Infinity },
+        '5': page,
+      },
+    });
+    expect(Object.keys(doc?.pages ?? {})).toEqual(['5']);
+  });
+
+  it('refuses a file that is not an OCR result', () => {
+    expect(sanitizeOcrDocument(null)).toBeNull();
+    expect(sanitizeOcrDocument({ version: 2, model: 'x', pages: {} })).toBeNull();
+    expect(sanitizeOcrDocument({ version: 1, model: 'x', pages: [] })).toBeNull();
   });
 });
