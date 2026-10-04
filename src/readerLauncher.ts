@@ -6,6 +6,8 @@
 export interface ReaderTarget {
   dossierId: string;
   assetId: string;
+  /** Passage to show once the document is open. */
+  annotationId?: string;
 }
 
 type Opener = (target: ReaderTarget) => void;
