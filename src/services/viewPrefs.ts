@@ -20,3 +20,7 @@ export async function loadViewPrefs(dossierId: string, hash: string): Promise<Vi
 export async function saveViewPrefs(dossierId: string, hash: string, prefs: ViewPrefs): Promise<void> {
   await getHostAPI().pluginData.set(dossierId, key(hash), prefs);
 }
+
+export async function deleteViewPrefs(dossierId: string, hash: string): Promise<void> {
+  await getHostAPI().pluginData.remove(dossierId, key(hash));
+}
