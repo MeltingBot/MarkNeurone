@@ -23,7 +23,7 @@ import {
   type PageInfo,
   type Passage,
 } from '../services/selectionCapture.ts';
-import { betweenRange } from '../core/sentences.ts';
+import { betweenRange, trimPunctuation } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
 import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
 import { loadOcr, saveOcrPage } from '../services/ocrStore.ts';
@@ -41,7 +41,7 @@ import { deleteAnnotation, reattachToElement, rejectSuggestion } from '../servic
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
 import type { NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
-import { DEFAULT_PROFILE } from '../profiles/default.ts';
+import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
 
@@ -551,6 +551,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   }, []);
 
   React.useSyncExternalStore(subscribe, getVersion);
+  // Settings changed in the settings window: profile and OCR option follow.
+  const settingsVersion = React.useSyncExternalStore(subscribeSettings, getSettingsVersion);
   const annotations = getAnnotations(dossierId, asset.hash);
   const elements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);
@@ -922,7 +924,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         piece.width = Math.max(1, Math.round((part.right - part.left) * OCR_SCALE));
         piece.height = Math.max(1, Math.round((part.bottom - part.top) * OCR_SCALE));
         piece.getContext('2d')!.drawImage(canvas, x, y, piece.width, piece.height, 0, 0, piece.width, piece.height);
-        const prepared = await engine.preprocessImage(piece, { deskew: false, dropColor: true });
+        const prepared = await engine.preprocessImage(piece, { deskew: false, dropColor: getSettings().ocr.dropColor });
         const read = buildOcrPage(await engine.recognize(prepared.canvas), { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: 0 });
         const text = ocrPageText(read).text.trim();
         if (text) texts.push(text);
@@ -1010,6 +1012,18 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setDraft(null);
     window.getSelection()?.removeAllRanges();
   }, []);
+
+  /** Shows every occurrence of a highlight's text in the document. */
+  const selectSameText = (hit: Annotation) => {
+    // Every occurrence, converted or not, through the search: framed, counted
+    // and browsable, starting from the clicked one.
+    const query = trimPunctuation(hit.text);
+    const found = findInPages(effectiveTexts.map((p) => p.text), query);
+    const here = found.findIndex((f) => f.page === hit.page && hit.textRange && f.start < hit.textRange[1] && f.end > hit.textRange[0]);
+    setSearchOpen(true);
+    setQuery(query);
+    setHitIndex(Math.max(0, here));
+  };
 
   /** Scrolls the document to a passage and marks it. */
   const gotoAnnotation = (a: Annotation) => {
@@ -1177,15 +1191,16 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           icon: Link2,
           action: () => openLinkDraft(selected, hit),
         });
-      } else if (hitElement) {
-        linkItems.push({ id: 'link-hint', label: t('menu_link_hint'), icon: Link2, disabled: true, action: () => undefined });
       }
       const label = hit.kind === 'link' ? (links.find((l) => l.id === hit.targetId)?.label || t('link_unnamed')) : nameOf(hit.targetId ?? '');
       setMenu({
         ...at,
         header: label,
         sections: [
-          [{ id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) }],
+          [
+            { id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) },
+            ...(hit.kind === 'link' ? [] : [{ id: 'same', label: t('menu_select_same'), icon: api.icons.ListChecks, action: () => selectSameText(hit) }]),
+          ],
           linkItems,
           [{
             id: 'remove',
@@ -1291,7 +1306,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       canvas.height = Math.round(viewport.height);
       await page.render({ canvas, viewport }).promise;
       if (cancelled) return;
-      const prepared = await engine.preprocessImage(canvas, { dropColor: true });
+      const prepared = await engine.preprocessImage(canvas, { dropColor: getSettings().ocr.dropColor });
       if (cancelled) return;
       const lines = await engine.recognize(prepared.canvas);
       if (cancelled) return;
@@ -1363,10 +1378,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           id: el.id,
           label: el.label,
           aliases: el.properties
-            .filter((pr) => typeof pr.value === 'string' && DEFAULT_PROFILE.aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()))
+            .filter((pr) => typeof pr.value === 'string' && getProfile().aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()))
             .map((pr) => pr.value as string),
         })),
-    [elements, assets],
+    [elements, assets, settingsVersion],
   );
 
   const suggestions = React.useMemo<Suggestion[]>(

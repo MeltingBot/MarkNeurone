@@ -1,7 +1,7 @@
 // ─── "Marqueur" tab of ZN's side panel ───────────────────────
 //
-// Passages of the element (or link) selected on the canvas, in every
-// document of the dossier, grouped by document. A click opens the document
+// Passages of the element selected on the canvas, or of the selected link,
+// in every document of the dossier, grouped by document. A click opens the document
 // on the passage.
 
 import type * as ReactTypes from 'react';
@@ -50,9 +50,10 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
       if (!asset) continue;
       const items = getAnnotations(dossierId, hash)
         .filter((a) => a.status !== 'rejected' && a.kind !== 'suggestion')
+        // A link's passages show when the link is selected; an element shows its own passages only.
         .filter((a) =>
           a.kind === 'link'
-            ? (!!a.targetId && selectedLinks.has(a.targetId)) || concernedElements(a).some((id) => selectedElements.has(id))
+            ? !!a.targetId && selectedLinks.has(a.targetId)
             : concernedElements(a).some((id) => selectedElements.has(id)),
         )
         .sort((a, b) => a.page - b.page || (a.textRange?.[0] ?? 0) - (b.textRange?.[0] ?? 0));

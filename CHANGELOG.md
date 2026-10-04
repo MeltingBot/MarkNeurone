@@ -33,6 +33,9 @@ Première version, en cours de développement.
 **Onglet « Marqueur »**
 - Passages de l'élément ou du lien sélectionné, dans tous les documents du dossier, dans le panneau de droite de ZeroNeurone ; un clic ouvre le document sur le passage.
 
+**Réglages**
+- Fenêtre de réglages depuis la carte du plugin : tags proposés, ordre et couleur, propriétés lues comme alias, tag et clé proposés par type de suggestion, retrait de l'encre de couleur avant l'OCR. Réglages communs à tous les dossiers.
+
 **Traçabilité**
 - Référence au passage d'origine enregistrée dans la source des éléments, des liens et des événements.
 - Prise en compte des fusions et suppressions d'éléments : les annotations sans élément sont conservées et peuvent être rattachées.
