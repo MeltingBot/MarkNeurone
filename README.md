@@ -51,6 +51,19 @@ Les suggestions sont masquées à la première ouverture de chaque document, pou
 
 La partie droite du lecteur présente l'élément sélectionné avec la même organisation que le panneau de ZeroNeurone : libellé et tags, propriétés, événements, localisation, liens, et liste des passages du document qui s'y rapportent.
 
+### Onglet « Marqueur »
+
+Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les passages de l'élément sélectionné sur le canvas (ou, pour un lien sélectionné, ceux du lien), dans tous les documents du dossier, un document par section repliable. Les passages identiques n'occupent qu'une ligne, suivie de leurs numéros de page. Un clic ouvre le document sur le passage.
+
+### Réglages
+
+La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la page d'accueil de ZeroNeurone, ouvre les réglages. Ils valent pour tous les dossiers :
+
+- les tags proposés à la création d'un élément, choisis parmi ceux du gestionnaire de tags de ZeroNeurone, leur ordre, qui donne les raccourcis Alt+1 à Alt+9, et leur couleur, qui est celle du tag dans ZeroNeurone ;
+- les propriétés de surnom : leur valeur est cherchée dans les documents comme un autre nom de l'élément (par défaut « Alias » ; par exemple « Le Grand » pour Jules TERRIER) ;
+- le tag et la clé de propriété proposés pour chaque type de suggestion ;
+- le retrait de l'encre de couleur avant la reconnaissance du texte.
+
 ### Autres fonctions
 
 - Recherche dans l'ensemble du document, y compris dans le texte reconnu par OCR.
@@ -125,10 +138,7 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 ## État du projet
 
-Version 0.1.0, en développement. Fonctions prévues pour terminer la première version :
-
-- accès aux passages depuis le panneau de ZeroNeurone ;
-- réglage du profil (tags, raccourcis, alias).
+Version 0.1.0, en développement. Les fonctions de la première version sont en place ; elles restent à éprouver sur des pièces réelles.
 
 ## Licence
 
