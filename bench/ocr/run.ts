@@ -1,11 +1,15 @@
 // OCR bench: runs Tesseract (French model) on every PDF of a folder, with and
-// without preprocessing, and reports time per page, mean confidence and error
-// rates on identifiers against an optional JSON ground truth.
+// without preprocessing, and reports time per page, mean confidence, and how
+// well the plugin's suggestions (every pattern kind and the dossier's names)
+// survive OCR, against an optional JSON ground truth.
 //
 // Usage:
 //   tsx run.ts --input out/corpus [--truth out/corpus/truth.json]
 //              [--models fast,best] [--modes brut,pretraite] [--pages 2]
-//              [--filter cumul] [--out out/report]
+//              [--filter cumul] [--out out/report] [--dump] [--drop-color]
+//
+// --dump writes the text of every page (text layer or OCR) to <out>/text/,
+// to see what the OCR actually read where a suggestion is missed.
 //
 // Everything runs locally: models are read from ./models, nothing is downloaded.
 
@@ -17,15 +21,18 @@ import { createCanvas } from '@napi-rs/canvas';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createWorker, OEM, type Worker } from 'tesseract.js';
 import { DEFAULT_PREPROCESS, grayToRgba, preprocess, rgbaToGray } from '../../src/core/image/preprocess.ts';
-import type { IdentifierKind } from '../../src/core/patterns/identifiers.ts';
-import { emptyScore, pageCer, scoreIdentifiers, type IdentifierTruth, type KindScore } from './metrics.ts';
+import type { NamedElement } from '../../src/core/dictionary.ts';
+import { dictionaryOf, emptyScore, pageCer, scoreSuggestions, type KindScore } from './metrics.ts';
+import { TRUTH_KINDS, type PageTruth as GeneratedTruth, type TruthKind } from './gen/fiction.ts';
 
 const DPI = 300;
-const KINDS: IdentifierKind[] = ['phone', 'plate', 'iban', 'siret'];
-const KIND_LABEL: Record<IdentifierKind, string> = { phone: 'Téléphones', plate: 'Plaques', iban: 'IBAN', siret: 'SIRET' };
+const KIND_LABEL: Record<TruthKind, string> = {
+  name: 'Noms connus', phone: 'Téléphones', plate: 'Plaques', iban: 'IBAN', siret: 'SIRET', nir: 'NIR', email: 'E-mails',
+  url: 'URL', ipv4: 'IPv4', ipv6: 'IPv6', btc: 'Bitcoin', eth: 'Ethereum', amount: 'Montants', date: 'Dates',
+};
 
 type Mode = 'brut' | 'pretraite';
-type PageTruth = IdentifierTruth & { text: string; skewDeg?: number };
+type PageTruth = GeneratedTruth & { skewDeg?: number };
 type Truth = Record<string, Record<string, PageTruth>>;
 
 interface PageResult {
@@ -40,7 +47,7 @@ interface PageResult {
   skewDetected?: number;
   skewTruth?: number;
   cer?: number;
-  identifiers?: Record<IdentifierKind, KindScore>;
+  suggestions?: Record<TruthKind, KindScore>;
 }
 
 const { values } = parseArgs({
@@ -52,6 +59,8 @@ const { values } = parseArgs({
     pages: { type: 'string' },
     filter: { type: 'string' },
     out: { type: 'string', default: 'out/report' },
+    dump: { type: 'boolean', default: false },
+    'drop-color': { type: 'boolean', default: false },
   },
 });
 
@@ -100,10 +109,19 @@ async function makeWorker(model: string): Promise<Worker> {
   return createWorker('fra', OEM.LSTM_ONLY, { langPath, gzip: false, cacheMethod: 'none' });
 }
 
-function score(result: PageResult, text: string, pageTruth: PageTruth | undefined): void {
-  if (!pageTruth) return;
+function dump(result: PageResult, text: string): void {
+  if (!values.dump) return;
+  const dir = join(values.out!, 'text');
+  mkdirSync(dir, { recursive: true });
+  const tag = result.mode === 'couche-texte' ? 'texte' : `${result.model}-${result.mode}`;
+  writeFileSync(join(dir, `${basename(result.file, '.pdf')}-p${result.page}-${tag}.txt`), text);
+}
+
+function score(result: PageResult, text: string, pageTruth: PageTruth | undefined, dictionary: NamedElement[]): void {
+  dump(result, text);
+  if (!pageTruth?.items) return;
   result.cer = pageCer(pageTruth.text, text);
-  result.identifiers = scoreIdentifiers(pageTruth, text);
+  result.suggestions = scoreSuggestions(pageTruth.items, text, dictionary);
   if (pageTruth.skewDeg !== undefined) result.skewTruth = pageTruth.skewDeg;
 }
 
@@ -123,12 +141,14 @@ async function main(): Promise<void> {
     const layer = await textLayer(data.slice());
     const pageCount = Math.min(layer.pages, maxPages);
     const fileTruth = truth[file];
+    // The dossier knows every name of the report, as if each had been qualified once.
+    const dictionary = dictionaryOf(Object.values(fileTruth ?? {}).flatMap((t) => t.items ?? []));
 
     // A PDF with a usable text layer needs no OCR; the plugin applies the same rule.
     if (layer.chars / layer.pages > 50) {
       for (let p = 1; p <= pageCount; p++) {
         const r: PageResult = { file, page: p, model: '-', mode: 'couche-texte', renderMs: 0, preprocessMs: 0, ocrMs: 0, confidence: null };
-        score(r, layer.text[p - 1], fileTruth?.[String(p)]);
+        score(r, layer.text[p - 1], fileTruth?.[String(p)], dictionary);
         results.push(r);
       }
       console.log(`${file}: couche texte présente, OCR inutile`);
@@ -146,7 +166,8 @@ async function main(): Promise<void> {
           const t0 = performance.now();
           const ctx = canvas.getContext('2d');
           const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-          const res = preprocess(rgbaToGray(rgba, canvas.width, canvas.height), DEFAULT_PREPROCESS);
+          // --drop-color: coloured ink (stamps) removed, as the plugin does when re-reading a passage.
+          const res = preprocess(rgbaToGray(rgba, canvas.width, canvas.height, values['drop-color'] ? 'max' : 'luma'), DEFAULT_PREPROCESS);
           const out = createCanvas(res.image.width, res.image.height);
           const octx = out.getContext('2d');
           const imageData = octx.createImageData(res.image.width, res.image.height);
@@ -166,7 +187,7 @@ async function main(): Promise<void> {
             confidence: ocr.confidence,
             ...(skewDetected !== undefined ? { skewDetected } : {}),
           };
-          score(r, ocr.text, pageTruth);
+          score(r, ocr.text, pageTruth, dictionary);
           results.push(r);
           const cer = r.cer !== undefined ? ` CER ${(r.cer * 100).toFixed(1)} %` : '';
           console.log(`${file} p${p} ${model}/${mode}: ${Math.round(ocrMs)} ms, confiance ${ocr.confidence.toFixed(0)}${cer}`);
@@ -208,39 +229,53 @@ function markdown(results: PageResult[]): string {
     groups.get(key)!.push(r);
   }
 
-  lines.push('## Synthèse par variante', '');
-  lines.push('| Variante | Modèle | Mode | Pages | OCR ms/page | Prétrait. ms/page | Confiance | CER page | ' +
-    KINDS.map((k) => `${KIND_LABEL[k]} trouvés`).join(' | ') + ' | Clés invalides signalées |');
-  lines.push('|' + ' --- |'.repeat(9 + KINDS.length));
-  for (const [key, rs] of [...groups].sort()) {
+  const total = (rs: PageResult[], kind: TruthKind) => {
+    const t = emptyScore();
+    for (const r of rs) if (r.suggestions) for (const f of Object.keys(t) as (keyof KindScore)[]) t[f] += r.suggestions[kind][f];
+    return t;
+  };
+  const sorted = [...groups].sort();
+  const column = (key: string) => {
     const [variant, model, mode] = key.split('|');
-    const totals = Object.fromEntries(KINDS.map((k) => [k, emptyScore()])) as Record<IdentifierKind, KindScore>;
-    for (const r of rs) {
-      if (!r.identifiers) continue;
-      for (const k of KINDS) for (const f of Object.keys(totals[k]) as (keyof KindScore)[]) totals[k][f] += r.identifiers[k][f];
-    }
+    return `${variant}${mode === 'couche-texte' ? '' : ` ${mode}`}${models.length > 1 && model !== '-' ? ` ${model}` : ''}`;
+  };
+
+  lines.push('## Synthèse par variante', '');
+  lines.push('| Variante | Modèle | Mode | Pages | OCR ms/page | Prétrait. ms/page | Confiance | CER page | Suggestions trouvées | Fausses suggestions | Signalées comme mal lues | Erreurs non signalées |');
+  lines.push('|' + ' --- |'.repeat(12));
+  for (const [key, rs] of sorted) {
+    const [variant, model, mode] = key.split('|');
+    const all = TRUTH_KINDS.map((k) => total(rs, k));
+    const sum = (f: keyof KindScore) => all.reduce((a, t) => a + t[f], 0);
     const conf = rs.map((r) => r.confidence).filter((c): c is number => c !== null);
     const cers = rs.map((r) => r.cer).filter((c): c is number => c !== undefined);
-    const flagged = totals.iban.checksumFlagged + totals.siret.checksumFlagged;
     lines.push(`| ${variant} | ${model} | ${mode} | ${rs.length} | ${ms(mean(rs.map((r) => r.ocrMs)))} | ` +
       `${ms(mean(rs.map((r) => r.preprocessMs)))} | ${conf.length ? mean(conf).toFixed(0) : '-'} | ${pct(mean(cers))} | ` +
-      KINDS.map((k) => (totals[k].expected ? `${totals[k].found}/${totals[k].expected}` : '-')).join(' | ') +
-      ` | ${flagged} |`);
+      `${sum('expected') ? `${sum('found')}/${sum('expected')}` : '-'} | ${sum('falsePositives')} | ${sum('checksumFlagged')} | ${sum('checksumMissed')} |`);
   }
 
-  lines.push('', '## Erreur moyenne par caractère sur les identifiants', '');
-  lines.push('Distance d\'édition entre la valeur attendue et le meilleur passage du texte reconnu, rapportée à sa longueur. Mesure la gravité des erreurs, y compris quand l\'identifiant n\'est plus reconnu par le motif.', '');
-  lines.push('| Variante | Modèle | Mode | ' + KINDS.map((k) => KIND_LABEL[k]).join(' | ') + ' | Erreurs non détectées par la clé |');
-  lines.push('|' + ' --- |'.repeat(4 + KINDS.length));
-  for (const [key, rs] of [...groups].sort()) {
-    const [variant, model, mode] = key.split('|');
-    const cells = KINDS.map((k) => {
-      const n = rs.reduce((a, r) => a + (r.identifiers?.[k].expected ?? 0), 0);
-      const s = rs.reduce((a, r) => a + (r.identifiers?.[k].cerSum ?? 0), 0);
-      return n ? pct(s / n) : '-';
+  lines.push('', '## Suggestions par type', '');
+  lines.push('Suggestions trouvées sur attendues, et entre parenthèses les suggestions fausses (valeur mal lue ou motif reconnu à tort).', '');
+  lines.push('| Type | ' + sorted.map(([key]) => column(key)).join(' | ') + ' |');
+  lines.push('|' + ' --- |'.repeat(1 + sorted.length));
+  for (const kind of TRUTH_KINDS) {
+    const cells = sorted.map(([, rs]) => {
+      const t = total(rs, kind);
+      return t.expected || t.falsePositives ? `${t.found}/${t.expected}${t.falsePositives ? ` (+${t.falsePositives})` : ''}` : '-';
     });
-    const missed = rs.reduce((a, r) => a + (r.identifiers ? r.identifiers.iban.checksumMissed + r.identifiers.siret.checksumMissed : 0), 0);
-    lines.push(`| ${variant} | ${model} | ${mode} | ${cells.join(' | ')} | ${missed} |`);
+    lines.push(`| ${KIND_LABEL[kind]} | ${cells.join(' | ')} |`);
+  }
+
+  lines.push('', '## Erreur moyenne par caractère, par type', '');
+  lines.push('Distance d\'édition entre la valeur attendue et le meilleur passage du texte reconnu, rapportée à sa longueur. Mesure la gravité des erreurs, y compris quand la valeur n\'est plus reconnue.', '');
+  lines.push('| Type | ' + sorted.map(([key]) => column(key)).join(' | ') + ' |');
+  lines.push('|' + ' --- |'.repeat(1 + sorted.length));
+  for (const kind of TRUTH_KINDS) {
+    const cells = sorted.map(([, rs]) => {
+      const t = total(rs, kind);
+      return t.expected ? pct(t.cerSum / t.expected) : '-';
+    });
+    lines.push(`| ${KIND_LABEL[kind]} | ${cells.join(' | ')} |`);
   }
 
   const skews = results.filter((r) => r.skewTruth !== undefined && r.skewDetected !== undefined);

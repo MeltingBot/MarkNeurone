@@ -16,6 +16,8 @@ export interface PreprocessOptions {
   sauvolaK: number;
   /** Maximum skew searched, in degrees, on each side. */
   maxSkewDeg: number;
+  /** Drop coloured ink (stamps) by keeping the lightest channel, see rgbaToGray. */
+  dropColor?: boolean;
 }
 
 export const DEFAULT_PREPROCESS: PreprocessOptions = {
@@ -32,12 +34,19 @@ export interface PreprocessResult {
   skewDeg: number;
 }
 
-export function rgbaToGray(rgba: Uint8ClampedArray, width: number, height: number): GrayImage {
+/**
+ * Grey levels of an RGBA image. 'luma' is the usual brightness; 'max' keeps
+ * the lightest channel, so that coloured ink (a red or blue stamp) turns
+ * almost white while black text stays black.
+ */
+export function rgbaToGray(rgba: Uint8ClampedArray, width: number, height: number, mode: 'luma' | 'max' = 'luma'): GrayImage {
   const data = new Uint8ClampedArray(width * height);
   for (let i = 0, j = 0; j < data.length; i += 4, j++) {
     // ITU-R BT.601 luma; transparent pixels are treated as white paper.
     const a = rgba[i + 3] / 255;
-    const y = 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
+    const y = mode === 'max'
+      ? Math.max(rgba[i], rgba[i + 1], rgba[i + 2])
+      : 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
     data[j] = y * a + 255 * (1 - a);
   }
   return { data, width, height };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estimateSkew, median3, rotate, sauvola, type GrayImage } from './preprocess.ts';
+import { estimateSkew, median3, rgbaToGray, rotate, sauvola, type GrayImage } from './preprocess.ts';
 
 /** White page with dark horizontal "text lines". */
 function linedPage(w = 800, h = 600): GrayImage {
@@ -51,5 +51,14 @@ describe('median3', () => {
     const i = 300 * page.width + 30;
     page.data[i] = 0;
     expect(median3(page).data[i]).toBe(240);
+  });
+});
+
+describe('rgbaToGray with dropColor', () => {
+  it('turns coloured ink almost white and keeps black text', () => {
+    // red stamp, blue stamp, black text
+    const rgba = new Uint8ClampedArray([210, 40, 40, 255, 40, 60, 200, 255, 20, 20, 20, 255]);
+    expect([...rgbaToGray(rgba, 3, 1, 'max').data]).toEqual([210, 200, 20]);
+    expect(rgbaToGray(rgba, 3, 1).data[0]).toBeLessThan(100);
   });
 });

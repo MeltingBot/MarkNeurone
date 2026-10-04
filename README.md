@@ -17,7 +17,10 @@ Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'auditi
 ### Formats pris en charge
 
 - **PDF avec couche texte**, affichés avec PDF.js.
-- **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document.
+- **PDF numérisés.** Le texte est reconnu en arrière-plan, page par page, avec Tesseract. Le résultat est enregistré avec le dossier et n'est calculé qu'une fois par document. Lorsqu'un mot du passage a été lu avec une faible confiance, le formulaire affiche l'image du passage pour corriger la lecture avant de valider. Le texte lu par l'OCR reste enregistré à côté du texte validé.
+- **Relecture d'une sélection.** Sur une page numérisée, la barre de sélection propose « Relire la sélection » : le passage est relu seul, à haute résolution et sans l'encre de couleur (tampons), et le formulaire affiche son image.
+- **Passage encadré.** Pour ce qui ne peut pas être sélectionné (passage manuscrit, zone sans texte reconnu), « Encadrer un passage » dans le menu du clic droit (touche Z) permet de l'entourer à la souris. Si rien n'est lu, le texte se saisit dans le formulaire en s'aidant de l'image.
+- **Tampons.** Avant la reconnaissance, l'encre de couleur (tampons rouges ou bleus) est retirée de l'image. Un texte imprimé en couleur est retiré de la même façon.
 - **DOCX, ODT, TXT et Markdown.** Le texte est affiché sur une page continue avec ses titres, paragraphes, listes et tableaux. La mise en page d'origine n'est pas reproduite.
 
 ### Création d'objets dans le graphe
@@ -33,9 +36,33 @@ Après sélection d'un passage, une touche (ou le menu du clic droit) indique ce
 
 Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en appuyant sur L. Lorsque les deux passages appartiennent à la même phrase, le texte qui les sépare est proposé comme libellé du lien.
 
+### Suggestions
+
+Le bouton « Afficher les suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
+
+- les noms des éléments déjà présents dans le dossier (libellés et propriétés « Alias »), dans la couleur de leur tag, y compris en ordre inversé ou avec une initiale pour le prénom ;
+- les téléphones, plaques d'immatriculation, IBAN, SIRET, NIR, adresses e-mail, URL, adresses IP, adresses Bitcoin et Ethereum, montants en euros et dates.
+
+Un clic sur une suggestion propose les mêmes choix qu'une sélection (E, P, V, G), avec le tag ou la clé de propriété correspondant au type détecté, ou permet de l'ignorer (Suppr). Chaque suggestion se traite séparément : il n'existe pas de validation groupée. Les objets créés de cette façon gardent l'indication de leur origine (motif ou dictionnaire). Lorsque la clé de contrôle d'un IBAN, d'un SIRET ou d'un NIR est fausse, le formulaire signale une erreur de lecture probable.
+
+Les suggestions sont masquées à la première ouverture de chaque document, pour une première lecture sans orientation. Le choix est ensuite conservé par document.
+
 ### Fiche de l'élément
 
 La partie droite du lecteur présente l'élément sélectionné avec la même organisation que le panneau de ZeroNeurone : libellé et tags, propriétés, événements, localisation, liens, et liste des passages du document qui s'y rapportent.
+
+### Onglet « Marqueur »
+
+Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les passages de l'élément sélectionné sur le canvas (ou, pour un lien sélectionné, ceux du lien), dans tous les documents du dossier, un document par section repliable. Les passages identiques n'occupent qu'une ligne, suivie de leurs numéros de page. Un clic ouvre le document sur le passage.
+
+### Réglages
+
+La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la page d'accueil de ZeroNeurone, ouvre les réglages. Ils valent pour tous les dossiers :
+
+- les tags proposés à la création d'un élément, choisis parmi ceux du gestionnaire de tags de ZeroNeurone, leur ordre, qui donne les raccourcis Alt+1 à Alt+9, et leur couleur, qui est celle du tag dans ZeroNeurone ;
+- les propriétés de surnom : leur valeur est cherchée dans les documents comme un autre nom de l'élément (par défaut « Alias » ; par exemple « Le Grand » pour Jules TERRIER) ;
+- le tag et la clé de propriété proposés pour chaque type de suggestion ;
+- le retrait de l'encre de couleur avant la reconnaissance du texte.
 
 ### Autres fonctions
 
@@ -59,6 +86,8 @@ Le lecteur peut être réduit pour revenir au canvas, puis rouvert à la même p
 | Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire de création d'élément |
 | Ctrl+clic | Sélectionner plusieurs passages surlignés |
 | L | Créer un lien entre les deux éléments sélectionnés |
+| Z | Encadrer un passage à la souris |
+| Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |
 | Entrée, Maj+Entrée | Résultat de recherche suivant, précédent |
 | Échap | Fermer la liste ou le formulaire ouvert, puis réduire le lecteur |
@@ -109,12 +138,7 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 ## État du projet
 
-Version 0.1.0, en développement. Fonctions prévues pour terminer la première version :
-
-- pré-surlignage des identifiants et des noms déjà présents dans le dossier, à valider un par un ;
-- OCR d'une zone sélectionnée, avec correction du texte reconnu ;
-- accès aux passages depuis le panneau de ZeroNeurone ;
-- réglage du profil (tags, raccourcis, alias).
+Version 0.1.0, en développement. Les fonctions de la première version sont en place ; elles restent à éprouver sur des pièces réelles.
 
 ## Licence
 
