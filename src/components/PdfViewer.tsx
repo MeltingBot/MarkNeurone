@@ -26,7 +26,7 @@ import {
 import { betweenRange, trimPunctuation } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
 import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
-import { loadOcr, saveOcrPage } from '../services/ocrStore.ts';
+import { deleteOcr, loadOcr, saveOcrPage } from '../services/ocrStore.ts';
 import { guardTextSelection } from '../services/textSelection.ts';
 import { renderOcrLayer } from '../services/ocrLayer.ts';
 import { renderTextBlocks, TEXT_SHEET_CSS, TEXT_SHEET_WIDTH } from '../services/textSheet.ts';
@@ -508,6 +508,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [ocrPages, setOcrPages] = React.useState<Record<string, OcrPage>>({});
   const [ocrLoaded, setOcrLoaded] = React.useState(false);
   const [ocrPaused, setOcrPaused] = React.useState(false);
+  /** Asking to confirm the deletion of the recognized text. */
+  const [ocrClearing, setOcrClearing] = React.useState(false);
   const [ocrCurrent, setOcrCurrent] = React.useState<number | null>(null);
   /** Progress of the page being recognized, in percent. */
   const [ocrPercent, setOcrPercent] = React.useState(0);
@@ -1272,6 +1274,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setOcrLoaded(false);
     setOcrFailed([]);
     setOcrCurrent(null);
+    setOcrClearing(false);
     loadOcr(dossierId, asset.hash)
       .then((doc) => {
         if (cancelled) return;
@@ -1633,7 +1636,27 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       h('button', { type: 'button', onClick, className: 'ml-2 text-xs text-accent hover:underline' }, label);
     const recognized = report.imagePages.map((n) => ocrPages[String(n)]).filter((o): o is OcrPage => !!o);
     const meanConfidence = recognized.length ? Math.round(recognized.reduce((sum, o) => sum + o.confidence, 0) / recognized.length) : 0;
-    if (done < total - ocrFailed.length && !ocrPaused) {
+    // Deleted on request; the OCR stays paused until the user resumes it.
+    const clearOcr = () => {
+      setOcrPaused(true);
+      setOcrClearing(false);
+      deleteOcr(dossierId, asset.hash)
+        .then(() => {
+          setOcrPages({});
+          setOcrFailed([]);
+        })
+        .catch((err: unknown) => {
+          console.error('MarkNeurone: cannot delete the recognized text', err);
+          api.toast.error(t('ocr_clear_error'));
+        });
+    };
+    const clearButton = done > 0 ? noticeButton(t('ocr_clear'), () => setOcrClearing(true)) : null;
+    if (ocrClearing) {
+      notice = h(React.Fragment, null,
+        t('ocr_clear_confirm'),
+        noticeButton(t('ocr_clear_action'), clearOcr),
+        noticeButton(t('cancel'), () => setOcrClearing(false)));
+    } else if (done < total - ocrFailed.length && !ocrPaused) {
       notice = h(React.Fragment, null,
         ocrCurrent ? t('ocr_running', { done, total }) : t('ocr_starting', { done, total }),
         ocrCurrent
@@ -1649,14 +1672,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           : null,
         noticeButton(t('ocr_pause'), () => setOcrPaused(true)));
     } else if (ocrPaused && done < total) {
-      notice = h(React.Fragment, null, t('ocr_paused', { done, total }), noticeButton(t('ocr_resume'), () => setOcrPaused(false)));
+      notice = h(React.Fragment, null, t('ocr_paused', { done, total }), noticeButton(t('ocr_resume'), () => setOcrPaused(false)), clearButton);
     } else if (ocrFailed.length) {
       noticeWarning = true;
       notice = h(React.Fragment, null,
         t('ocr_failed', { pages: ocrFailed.join(', '), done, total }),
-        noticeButton(t('ocr_retry'), () => setOcrFailed([])));
+        noticeButton(t('ocr_retry'), () => setOcrFailed([])),
+        clearButton);
     } else {
-      notice = t('ocr_done', { count: done, confidence: meanConfidence });
+      notice = h(React.Fragment, null, t('ocr_done', { count: done, confidence: meanConfidence }), clearButton);
     }
   }
 

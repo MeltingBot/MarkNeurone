@@ -108,6 +108,7 @@ Types : `dossier:created|updated|deleted|opened|closed`, `element:created|update
 | 11 | Pas de méthode de centrage sur un élément | Calcul de la vue et `requestViewportChange` |
 | 12 | `element:updated` ne porte pas les changements, `element:deleted` ne porte pas l'élément supprimé | Le plugin compare avec son propre index d'annotations |
 | 13 | Les raccourcis de plugin ne fonctionnent que sur la page dossier, `scope` est ignoré | Sans conséquence : le lecteur n'a de sens que dans un dossier |
+| 14 | `asset:deleted` est émis après la suppression, avec le seul identifiant de l'asset, et aucun événement ne précède la suppression. `removeAsset` retire l'asset de son élément mais garde sa ligne dans la table `assets` | Le plugin ne peut ni prévenir ni demander confirmation avant. Après coup, il retrouve l'empreinte et le nom par la ligne conservée, efface le texte reconnu si plus aucun élément ne référence un document de même empreinte, et avertit l'utilisateur si des surlignages sont conservés. Un document est tenu pour présent tant qu'un élément le référence, y compris pour l'export |
 
 ## 9. Évolutions de ZN qui simplifieraient le plugin
 
@@ -118,6 +119,7 @@ Types : `dossier:created|updated|deleted|opened|closed`, `element:created|update
 3. Un champ `aliases` sur `Element`.
 4. Une méthode `centerOnElement(id)` dans `useViewStore`.
 5. Un slot de vue principale pour les plugins.
+6. Un événement ou un crochet avant la suppression d'un asset, pour avertir l'utilisateur des surlignages qui en dépendent avant qu'il confirme.
 
 ## 10. Évolutions de ZN réalisées pour MarkNeurone
 
