@@ -36,6 +36,16 @@ Après sélection d'un passage, une touche (ou le menu du clic droit) indique ce
 
 Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en appuyant sur L. Lorsque les deux passages appartiennent à la même phrase, le texte qui les sépare est proposé comme libellé du lien.
 
+### Aide à la création de liens (facultative)
+
+Deux aides complètent la création de liens. Elles sont désactivées par défaut et s'activent dans l'onglet « Liens » des réglages. Aucune ne crée de lien seule : chacune ouvre le formulaire de lien prérempli, que l'utilisateur valide, corrige ou annule.
+
+**Mode verbe.** Sélectionner les mots qui expriment la relation, par exemple « a cédé ses parts à » dans « M. VALLIER a cédé ses parts à la SARL BOIS », puis appuyer sur L (ou cliquer sur le bouton Lien de la barre de sélection). Le formulaire propose comme extrémités l'élément déjà surligné le plus proche avant ces mots et celui le plus proche après, dans la même phrase. Les mots sélectionnés deviennent le libellé du lien et restent surlignés comme passage du lien. Chaque extrémité se modifie d'un clic ; si la phrase ne contient pas d'élément d'un côté, un champ de recherche permet de le choisir. Le mode verbe ne fonctionne que si les deux éléments ont déjà été surlignés dans la phrase. Il ne résout pas les pronoms : dans « Il lui a remis une enveloppe », aucune extrémité n'est trouvée.
+
+**Liens possibles signalés dans la marge.** Lorsque deux éléments surlignés figurent dans la même phrase (ou le même paragraphe, selon le réglage) sans être reliés par un lien dans le graphe, un trait fin apparaît dans la marge gauche de la page, à la hauteur des deux passages. Le survol du trait indique les deux éléments ; un clic ouvre le formulaire de lien prérempli. Le bouton « Ne plus proposer » écarte ce couple d'éléments pour le document. Le trait disparaît dès que le lien est créé. Les documents ne comportent pas de marques de paragraphe : une ligne vide ou une ligne terminée par un point est prise comme fin de paragraphe, ce qui rend le réglage « Même phrase » plus fiable.
+
+Ces signalements ne portent que sur des éléments déjà suivis dans le dossier. Ils peuvent orienter la lecture vers l'hypothèse en cours au détriment d'éléments nouveaux : il est préférable de les activer pour une relecture plutôt que pour une première lecture.
+
 ### Suggestions
 
 Le bouton « Afficher les suggestions » de la barre d'outils signale dans le document, en surlignage atténué :
@@ -62,7 +72,8 @@ La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la 
 - les tags proposés à la création d'un élément, choisis parmi ceux du gestionnaire de tags de ZeroNeurone, leur ordre, qui donne les raccourcis Alt+1 à Alt+9, et leur couleur, qui est celle du tag dans ZeroNeurone ;
 - les propriétés de surnom : leur valeur est cherchée dans les documents comme un autre nom de l'élément (par défaut « Alias » ; par exemple « Le Grand » pour Jules TERRIER) ;
 - le tag et la clé de propriété proposés pour chaque type de suggestion ;
-- le retrait de l'encre de couleur avant la reconnaissance du texte.
+- le retrait de l'encre de couleur avant la reconnaissance du texte ;
+- le mode verbe et le signalement des liens possibles (onglet « Liens »), tous deux désactivés par défaut.
 
 ### Autres fonctions
 
@@ -85,7 +96,7 @@ Le lecteur peut être réduit pour revenir au canvas, puis rouvert à la même p
 | E, P, V, G | Créer un élément, une propriété, un événement ou une localisation à partir de la sélection |
 | Alt+1 à Alt+7 | Ajouter un tag du profil dans le formulaire de création d'élément |
 | Ctrl+clic | Sélectionner plusieurs passages surlignés |
-| L | Créer un lien entre les deux éléments sélectionnés |
+| L | Créer un lien entre les deux éléments sélectionnés ; avec le mode verbe activé, créer un lien à partir des mots sélectionnés |
 | Z | Encadrer un passage à la souris |
 | Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |
