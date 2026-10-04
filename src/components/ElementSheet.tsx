@@ -1411,7 +1411,8 @@ export function ElementSheet(props: Props) {
             h('option', { value: '' }, t('choose_element')),
             elements.map((el) => h('option', { key: el.id, value: el.id }, el.label)))))
       : elementId ? h('div', { className: 'p-4 text-xs text-text-tertiary' }, t('element_missing')) : null;
-    return container(picker);
+    // Nothing to show: no column, the document takes the width.
+    return picker ? container(picker) : null;
   }
 
   const color = element.tags[0] ? tagColor(tagSets, element.tags[0]) : null;
