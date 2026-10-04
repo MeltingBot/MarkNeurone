@@ -1483,7 +1483,6 @@ export function ElementSheet(props: Props) {
     return container(picker);
   }
 
-  const color = element.tags[0] ? tagColor(tagSets, element.tags[0]) : null;
   /** Clears the position; the highlights it came from go with it. */
   const clearLocation = () =>
     run(async () => {
@@ -1492,7 +1491,6 @@ export function ElementSheet(props: Props) {
     });
   return container(h(React.Fragment, null,
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
-      h('span', { className: 'inline-block rounded-full shrink-0', style: { width: 10, height: 10, background: color ?? 'var(--color-border-strong)' } }),
       draft
         ? null
         : h('button', { type: 'button', onClick: () => props.onElementChange(null), title: t('index_back'), 'aria-label': t('index_back'), className: S.ICON_BUTTON },
