@@ -2,8 +2,8 @@
 //
 // The only place where element categories are named. They are ZN tag names:
 // colors come from the user's TagSets, and a tag missing from the dossier is
-// simply created by ZN when used. Profiles will be editable in the settings
-// and provided by GoNeurone (V2).
+// simply created by ZN when used. The user changes them in the settings
+// (core/settings.ts); profiles provided by GoNeurone are for V2.
 
 import type { SuggestionKind } from '../core/suggestions.ts';
 
@@ -40,6 +40,9 @@ export const DEFAULT_PROFILE: ReadingProfile = {
     email: 'Email',
     plate: 'Véhicule',
     siret: 'Entreprise',
+    url: 'Site web',
+    btc: 'Wallet crypto',
+    eth: 'Wallet crypto',
   },
   suggestionKeys: {
     phone: 'Téléphone',

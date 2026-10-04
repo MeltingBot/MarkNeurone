@@ -7,6 +7,8 @@ import { getHostAPI } from './hostAPI.ts';
 import { PLUGIN_ID, I18N_NS, MN_PLUGIN_VERSION } from './constants.ts';
 import { MarkReaderModal } from './components/MarkReaderModal.tsx';
 import { MarkerPanel } from './components/MarkerPanel.tsx';
+import { SettingsModal } from './components/SettingsModal.tsx';
+import { loadSettings, openSettings, setSettingsOpener } from './services/settingsStore.ts';
 import { openReader, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
 import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
@@ -27,6 +29,9 @@ export async function registerSlots(): Promise<void> {
 
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
 
+  // Settings apply to every dossier; defaults stay in use if they cannot be read.
+  await loadSettings().catch((err: unknown) => console.error('MarkNeurone: cannot load settings', err));
+
   // ─── home:card ───────────────────────────────────────────
   api.registerPlugin('home:card', {
     id: PLUGIN_ID,
@@ -36,6 +41,7 @@ export async function registerSlots(): Promise<void> {
     version: MN_PLUGIN_VERSION,
     license: 'MIT',
     features: [],
+    onConfigure: () => openSettings(),
     actions: [],
   }, PLUGIN_ID);
 
@@ -43,6 +49,7 @@ export async function registerSlots(): Promise<void> {
   function MarkGlobalOverlay() {
     const [target, setTarget] = useReactState(null as ReaderTarget | null);
     const [minimized, setMinimized] = useReactState(false);
+    const [settingsOpen, setSettingsOpen] = useReactState(false);
     const currentDossierId = api.stores.useDossierStore(
       (s: { currentDossier: { id: string } | null }) => s.currentDossier?.id ?? null,
     );
@@ -52,7 +59,11 @@ export async function registerSlots(): Promise<void> {
         setTarget(next);
         setMinimized(false);
       });
-      return () => setReaderOpener(null);
+      setSettingsOpener(setSettingsOpen);
+      return () => {
+        setReaderOpener(null);
+        setSettingsOpener(null);
+      };
     }, []);
 
     // The reader belongs to one dossier: leaving it closes the reader.
@@ -64,7 +75,7 @@ export async function registerSlots(): Promise<void> {
     const onRestore = useReactCallback(() => setMinimized(false), []);
     const onClose = useReactCallback(() => setTarget(null), []);
 
-    return target
+    const reader = target
       ? React.createElement(MarkReaderModal, {
           dossierId: target.dossierId,
           assetId: target.assetId,
@@ -76,6 +87,9 @@ export async function registerSlots(): Promise<void> {
           onClose,
         })
       : null;
+    return React.createElement(React.Fragment, null,
+      reader,
+      settingsOpen ? React.createElement(SettingsModal, { onClose: () => setSettingsOpen(false) }) : null);
   }
   api.registerPlugin('app:global', MarkGlobalOverlay, PLUGIN_ID);
 
