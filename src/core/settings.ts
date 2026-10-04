@@ -13,12 +13,16 @@ export interface Settings {
     /** Remove coloured ink (stamps) before recognition. */
     dropColor: boolean;
   };
+  labels: {
+    /** Offer the passage in capitals as the name of a new element. */
+    uppercase: boolean;
+  };
 }
 
 /** Alt+1 to Alt+9. */
 export const MAX_GRID = 9;
 
-export const DEFAULT_SETTINGS: Settings = { profile: DEFAULT_PROFILE, ocr: { dropColor: true } };
+export const DEFAULT_SETTINGS: Settings = { profile: DEFAULT_PROFILE, ocr: { dropColor: true }, labels: { uppercase: false } };
 
 const clean = (s: unknown) => (typeof s === 'string' ? s.trim() : '');
 
@@ -46,7 +50,7 @@ function cleanMap(value: unknown, fallback: Record<string, string | undefined>):
  * trimmed and without duplicates, shortcuts given by the order (Alt+1 first).
  */
 export function normalizeSettings(stored: unknown): Settings {
-  const s = (stored && typeof stored === 'object' ? stored : {}) as { profile?: Partial<ReadingProfile>; ocr?: Partial<Settings['ocr']> };
+  const s = (stored && typeof stored === 'object' ? stored : {}) as { profile?: Partial<ReadingProfile>; ocr?: Partial<Settings['ocr']>; labels?: Partial<Settings['labels']> };
   const p: Partial<ReadingProfile> = s.profile ?? {};
   const tags = Array.isArray(p.grid) ? uniqueNames(p.grid.map((g: unknown) => (g as { tag?: unknown } | null)?.tag)) : DEFAULT_PROFILE.grid.map((g) => g.tag);
   return {
@@ -59,5 +63,6 @@ export function normalizeSettings(stored: unknown): Settings {
       suggestionKeys: cleanMap(p.suggestionKeys, DEFAULT_PROFILE.suggestionKeys),
     },
     ocr: { dropColor: typeof s.ocr?.dropColor === 'boolean' ? s.ocr.dropColor : DEFAULT_SETTINGS.ocr.dropColor },
+    labels: { uppercase: typeof s.labels?.uppercase === 'boolean' ? s.labels.uppercase : DEFAULT_SETTINGS.labels.uppercase },
   };
 }

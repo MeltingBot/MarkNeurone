@@ -15,8 +15,9 @@ import { trimPunctuation } from '../core/sentences.ts';
 import { extractPatterns } from '../core/patterns/patterns.ts';
 import { LOW_CONFIDENCE } from '../core/ocrLayout.ts';
 import { formatCoordinate, parseLatLng } from '../core/geo.ts';
+import { EVALUATION_GRIDS, evaluationModelOf, formatEvaluation, withAxis, type Evaluation, type EvaluationModel } from '../core/evaluation.ts';
 import { canPickOnMap, pickOnMap } from '../services/mapPicker.ts';
-import { getProfile, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
+import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import type { Passage } from '../services/selectionCapture.ts';
 import {
   concernedElements,
@@ -341,7 +342,10 @@ function ChecksumWarning(p: { env: Env; passage: Passage }) {
 function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string) => void; onCancel: () => void }) {
   const { React, h } = host();
   const { env, passage } = p;
-  const [label, setLabel] = React.useState(trimPunctuation(passage.text));
+  const [label, setLabel] = React.useState(() => {
+    const text = trimPunctuation(passage.text);
+    return getSettings().labels.uppercase ? text.toLocaleUpperCase('fr') : text;
+  });
   const [tags, setTags] = React.useState<string[]>(() => {
     const tag = passage.suggestion && getProfile().suggestionTags[passage.suggestion.kind];
     return tag ? [tag] : [];
@@ -794,6 +798,76 @@ function CommitInput(p: { value: string; type?: string; className: string; ariaL
   });
 }
 
+// ─── Evaluation ──────────────────────────────────────────────
+
+type EvaluationChanges = { confidence?: number | null; evaluation?: Evaluation | null };
+
+/**
+ * Confidence or grading, following the dossier's model as ZN's panel does
+ * (EvaluationInput). The grading labels come from ZN's own translations.
+ */
+function EvaluationFields(p: {
+  env: Env;
+  confidence: number | null | undefined;
+  evaluation: Evaluation | null | undefined;
+  onChange: (changes: EvaluationChanges) => void;
+}) {
+  const { api, h } = host();
+  const { env } = p;
+  const model: EvaluationModel = api.stores.useDossierStore((s: { currentDossier: { evaluationModel?: unknown } | null }) => evaluationModelOf(s.currentDossier));
+  const clearButton = (onClick: () => void) =>
+    h('button', { type: 'button', onClick, className: 'px-1.5 py-0.5 text-xs text-text-secondary border border-border-default rounded hover:bg-bg-secondary' }, env.t('evaluation_clear'));
+
+  if (model === 'zeroneurone') {
+    const confidence = p.confidence ?? null;
+    return h('div', { className: 'space-y-1.5' },
+      h('div', { className: 'flex items-center justify-between' },
+        h('label', { className: S.LABEL }, env.t('field_confidence')),
+        h('span', { className: 'flex items-center gap-2 text-xs text-text-tertiary' },
+          confidence !== null ? `${confidence} %` : env.t('confidence_unset'),
+          confidence !== null ? clearButton(() => p.onChange({ confidence: null })) : null)),
+      h('input', {
+        type: 'range',
+        min: 0,
+        max: 100,
+        step: 10,
+        value: confidence ?? 50,
+        'aria-label': env.t('field_confidence'),
+        onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onChange({ confidence: Math.round(Number(e.target.value) / 10) * 10 }),
+        className: 'w-full h-1.5 bg-bg-tertiary rounded appearance-none cursor-pointer accent-accent',
+      }));
+  }
+
+  const zn = (key: string, opts?: Record<string, unknown>) => api.i18n.t(`evaluation.${key}`, { ns: 'common', ...opts });
+  const scale = model;
+  const grid = EVALUATION_GRIDS[scale];
+  const value = p.evaluation ?? null;
+  const current = value?.scale === scale ? value : null;
+  const axis = (name: 'source' | 'info', codes: readonly string[], label: string) => {
+    const plural = name === 'source' ? 'sources' : 'infos';
+    const code = current?.[name] ?? '';
+    return h('div', { className: 'space-y-1' },
+      h('label', { className: S.LABEL }, label),
+      h('select', {
+        className: S.INPUT,
+        value: code,
+        title: code ? zn(`${scale}.${plural}Help.${code}`) : undefined,
+        onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => p.onChange({ evaluation: withAxis(value, scale, name, e.target.value) }),
+      },
+      h('option', { value: '' }, zn('notGraded')),
+      codes.map((c) => h('option', { key: c, value: c }, env.t('evaluation_option', { code: c, label: zn(`${scale}.${plural}.${c}`) })))));
+  };
+
+  return h('div', { className: 'space-y-2' },
+    value && !current
+      ? h('div', { className: 'flex items-center justify-between gap-2 text-xs text-text-tertiary' },
+          h('span', null, zn('outOfModel', { scale: zn(`scales.${value.scale}`), code: formatEvaluation(value) })),
+          clearButton(() => p.onChange({ evaluation: null })))
+      : null,
+    axis('source', grid.sources, zn('sourceLabel')),
+    axis('info', grid.infos, zn('infoLabel')));
+}
+
 function AnchorButton(p: { env: Env; annotation: Annotation | undefined; onGoto: (a: Annotation) => void }) {
   const { api, h } = host();
   if (!p.annotation) return null;
@@ -1065,6 +1139,13 @@ function LinkSheet(p: {
             ariaLabel: env.t('field_link_label'),
             onCommit: (v: string) => env.run(() => graph.updateLink(link.id, { label: v })),
           })))),
+    h(Section, { title: env.t('section_evaluation') },
+      h(EvaluationFields, {
+        env,
+        confidence: link.confidence,
+        evaluation: link.evaluation,
+        onChange: (changes: EvaluationChanges) => env.run(() => graph.updateLink(link.id, changes)),
+      })),
     h(Section, { title: env.t('section_passages'), badge: passages.length },
       h(PassageRows, { env, items: passages, selectedId: p.selectedId, onGoto: p.onGoto })),
     h('div', { className: 'px-4 py-3' },
@@ -1354,6 +1435,13 @@ export function ElementSheet(props: Props) {
         h('div', { className: 'space-y-1.5' },
           h('label', { className: S.LABEL }, t('field_tags')),
           h(TagsEditor, { env, tags: element.tags, onChange: (tags: string[]) => run(() => graph.updateElement(element.id, { tags })) })))),
+    h(Section, { title: t('section_evaluation') },
+      h(EvaluationFields, {
+        env,
+        confidence: element.confidence,
+        evaluation: element.evaluation,
+        onChange: (changes: EvaluationChanges) => run(() => graph.updateElement(element.id, changes)),
+      })),
     h(Section, { title: t('section_properties'), badge: element.properties.length },
       h('div', { className: 'space-y-2' },
         draft?.gesture === 'property'
