@@ -42,7 +42,7 @@ Première version, en cours de développement.
 - Prise en compte des fusions et suppressions d'éléments : les annotations sans élément sont conservées et peuvent être rattachées.
 - Annotations et texte reconnu inclus dans l'export ZIP de ZeroNeurone et rattachés à l'import.
 - Contrôle des annotations et du texte reconnu à l'import d'une archive : les données mal formées sont écartées, et un fichier de texte reconnu illisible n'empêche plus l'import des annotations.
-- Suppression d'un document : son texte reconnu est effacé, ses surlignages sont conservés et un message l'indique. L'export n'inclut que les documents présents dans le dossier.
+- Suppression d'un document : son texte reconnu est effacé, ses surlignages sont conservés et un message l'indique. L'onglet « Marqueur » liste les documents supprimés dont des surlignages sont conservés et permet de les effacer. L'export n'inclut que les documents présents dans le dossier.
 - Effacement du texte reconnu d'un document depuis le lecteur, avec confirmation.
 
 **Outils**
