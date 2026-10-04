@@ -18,6 +18,9 @@ export const PAGE_TIMEOUT_MS = 90_000;
 
 let tesseract: Promise<TesseractWorker> | null = null;
 let urls: string[] = [];
+/** Progress callbacks of running recognitions, by tesseract.js job id. */
+const progressByJob = new Map<string, (progress: number) => void>();
+let jobCounter = 0;
 
 function blobUrl(source: string, type: string): string {
   const url = URL.createObjectURL(new Blob([source], { type }));
@@ -57,6 +60,9 @@ function getTesseract(): Promise<TesseractWorker> {
       workerBlobURL: false,
       cacheMethod: 'none',
       gzip: false,
+      logger: (m: { status: string; progress: number; userJobId?: string }) => {
+        if (m.status === 'recognizing text' && m.userJobId) progressByJob.get(m.userJobId)?.(m.progress);
+      },
     });
     tesseract = started;
     started.catch(() => {
@@ -106,8 +112,10 @@ interface TesseractBlock {
   paragraphs: { lines: RawLine[] }[];
 }
 
-/** Lines of words with boxes (image pixels) and confidences. */
-export async function recognize(canvas: HTMLCanvasElement): Promise<RawLine[]> {
+/** Lines of words with boxes (image pixels) and confidences; progress from 0 to 1. */
+export async function recognize(canvas: HTMLCanvasElement, onProgress?: (progress: number) => void): Promise<RawLine[]> {
+  const jobId = `mn-${++jobCounter}`;
+  if (onProgress) progressByJob.set(jobId, onProgress);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error('ocr-timeout')), PAGE_TIMEOUT_MS);
@@ -116,7 +124,7 @@ export async function recognize(canvas: HTMLCanvasElement): Promise<RawLine[]> {
     // Engine start is covered by the timeout too: a failed initialization
     // leaves the tesseract.js promise pending.
     const worker = await Promise.race([getTesseract(), timeout]);
-    const result = await Promise.race([worker.recognize(canvas, {}, { blocks: true, text: false }), timeout]);
+    const result = await Promise.race([worker.recognize(canvas, {}, { blocks: true, text: false }, jobId), timeout]);
     const blocks = (result.data.blocks ?? []) as unknown as TesseractBlock[];
     return blocks.flatMap((b) => b.paragraphs.flatMap((p) => p.lines));
   } catch (err) {
@@ -125,5 +133,6 @@ export async function recognize(canvas: HTMLCanvasElement): Promise<RawLine[]> {
     throw err;
   } finally {
     clearTimeout(timer);
+    progressByJob.delete(jobId);
   }
 }
