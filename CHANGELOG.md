@@ -22,6 +22,7 @@ Première version, en cours de développement.
 - Dates et heures lues dans la phrase, y compris écrites en toutes lettres.
 - Liens entre deux surlignages (Ctrl+clic puis L), libellé proposé à partir du texte qui les sépare.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, tags et couleurs de tags compris.
+- Cotation de l'élément ou du lien dans la fiche, selon le modèle d'évaluation du dossier : niveau de confiance, grille Europol ou grille Amirauté / OTAN.
 - Localisation avec le sélecteur de carte de ZeroNeurone.
 
 **Suggestions**
@@ -34,12 +35,13 @@ Première version, en cours de développement.
 - Passages de l'élément ou du lien sélectionné, dans tous les documents du dossier, dans le panneau de droite de ZeroNeurone ; un clic ouvre le document sur le passage.
 
 **Réglages**
-- Fenêtre de réglages depuis la carte du plugin : tags proposés, ordre et couleur, propriétés lues comme alias, tag et clé proposés par type de suggestion, retrait de l'encre de couleur avant l'OCR. Réglages communs à tous les dossiers.
+- Fenêtre de réglages depuis la carte du plugin : tags proposés, ordre et couleur, propriétés lues comme alias, tag et clé proposés par type de suggestion, retrait de l'encre de couleur avant l'OCR, nom des nouveaux éléments proposé en majuscules. Réglages communs à tous les dossiers.
 
 **Traçabilité**
 - Référence au passage d'origine enregistrée dans la source des éléments, des liens et des événements.
 - Prise en compte des fusions et suppressions d'éléments : les annotations sans élément sont conservées et peuvent être rattachées.
 - Annotations et texte reconnu inclus dans l'export ZIP de ZeroNeurone et rattachés à l'import.
+- Contrôle des annotations et du texte reconnu à l'import d'une archive : les données mal formées sont écartées, et un fichier de texte reconnu illisible n'empêche plus l'import des annotations.
 
 **Outils**
 - Banc d'essai OCR autonome, avec génération de procès-verbaux fictifs dégradés.
