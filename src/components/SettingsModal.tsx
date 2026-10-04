@@ -189,6 +189,14 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
             h('input', {
               type: 'checkbox',
+              checked: draft.labels.uppercase,
+              onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDraft({ ...draft, labels: { uppercase: e.target.checked } }),
+            }),
+            t('settings_uppercase')),
+
+          h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
+            h('input', {
+              type: 'checkbox',
               checked: draft.ocr.dropColor,
               onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDraft({ ...draft, ocr: { ...draft.ocr, dropColor: e.target.checked } }),
             }),
