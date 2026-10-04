@@ -6,6 +6,7 @@
 
 import type { AnnotationOrigin, Quad } from '../core/model.ts';
 import type { SuggestionKind } from '../core/suggestions.ts';
+import type { PreviewLines } from '../core/ocrLayout.ts';
 import {
   applyTransform,
   invertTransform,
@@ -30,13 +31,16 @@ export interface Passage {
   page: number;
   quads: Quad[];
   text: string;
-  textRange: [number, number];
+  /** Offsets in the page text; absent for an OCR zone outside the recognized text. */
+  textRange?: [number, number];
   context?: string;
   sentenceRange?: [number, number];
   /** Year of the first complete date of the page, for dates written without year. */
   referenceYear?: number;
   /** Set on scanned pages: what the OCR read, and how sure it was. */
   ocr?: { rawText: string; confidence: number };
+  /** Scanned page: image of the passage and words as read, to check and correct the reading. */
+  preview?: { image: string; lines: PreviewLines; framed?: boolean };
   /** Set when the passage comes from a pre-highlighting suggestion. */
   origin?: AnnotationOrigin;
   suggestion?: { kind: SuggestionKind; checksumOk?: boolean; suspect?: boolean; elementIds?: string[] };
