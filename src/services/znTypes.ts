@@ -24,6 +24,8 @@ export interface ZnElementEvent {
   description?: string;
   source?: string;
   geo?: ZnGeo;
+  /** Typed properties, as on elements and links. */
+  properties?: ZnProperty[];
 }
 
 export interface ZnElement {

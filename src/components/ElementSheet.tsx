@@ -608,6 +608,7 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   const [extra, setExtra] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [geo, setGeo] = React.useState<ZnGeo | null>(null);
+  const [description, setDescription] = React.useState(passage.context ?? '');
   const listed = [...new Set([...initial, ...extra])];
 
   const toggle = (id: string) => setChecked(checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id]);
@@ -615,7 +616,7 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   const submit = async () => {
     setBusy(true);
     const date = new Date(`${day}T${time || '12:00'}:00`);
-    const event = { date, label: label.trim(), ...(passage.context ? { description: passage.context } : {}), ...(geo ? { geo } : {}) };
+    const event = { date, label: label.trim(), ...(description.trim() ? { description: description.trim() } : {}), ...(geo ? { geo } : {}) };
     // The current element first: it stays the active one.
     const ordered = [element.id, ...checked.filter((id) => id !== element.id)].filter((id) => checked.includes(id));
     const ok = await env.run(() => qualifyAsEvent(env.ctx, passage, ordered, event));
@@ -638,6 +639,15 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
     h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) })),
   dates[0] && !dates[0].hasYear ? h('p', { className: 'text-[10px] text-warning' }, env.t('year_assumed')) : null,
   !dates.length ? h('p', { className: S.HINT }, env.t('no_date_found')) : null,
+  h('div', { className: 'space-y-1' },
+    h('label', { className: S.SMALL_LABEL }, env.t('field_description')),
+    h('textarea', {
+      className: `${S.INPUT_IN_CARD} resize-y`,
+      rows: 3,
+      value: description,
+      'aria-label': env.t('field_description'),
+      onChange: (e: ReactTypes.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value),
+    })),
   h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_event_place')),
     h(GeoFields, { env, geo, mapButton: true, inputClass: S.INPUT_IN_CARD, onChange: setGeo })),
@@ -801,6 +811,25 @@ function CommitInput(p: { value: string; type?: string; className: string; ariaL
   });
 }
 
+/** Multi-line text saved on blur; Escape restores the saved text. */
+function CommitTextarea(p: { value: string; className: string; ariaLabel: string; placeholder?: string; onCommit: (value: string) => void }) {
+  const { React, h } = host();
+  const [value, setValue] = React.useState(p.value);
+  React.useEffect(() => setValue(p.value), [p.value]);
+  return h('textarea', {
+    className: p.className,
+    rows: 3,
+    value,
+    placeholder: p.placeholder,
+    'aria-label': p.ariaLabel,
+    onChange: (e: ReactTypes.ChangeEvent<HTMLTextAreaElement>) => setValue(e.target.value),
+    onBlur: () => {
+      if (value !== p.value) p.onCommit(value);
+    },
+    onKeyDown: escapeTo(() => setValue(p.value)),
+  });
+}
+
 // ─── Evaluation ──────────────────────────────────────────────
 
 type EvaluationChanges = { confidence?: number | null; evaluation?: Evaluation | null };
@@ -929,9 +958,11 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
 }
 
 function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) => void }) {
-  const { api, h } = host();
-  const { Calendar, X } = api.icons;
+  const { api, React, h } = host();
+  const { Calendar, X, ChevronDown, ChevronUp, FileText } = api.icons;
   const { env, element } = p;
+  /** Events whose description and properties are shown, as ZN folds its event cards. */
+  const [open, setOpen] = React.useState<string[]>([]);
   if (!element.events.length) return h('p', { className: 'text-xs text-text-tertiary' }, env.t('no_events'));
 
   const sorted = [...element.events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -961,6 +992,14 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
       return h('div', { key: ev.id, className: S.CARD },
         h('div', { className: 'flex items-center gap-2' },
           h(CommitInput, { className: S.INPUT_IN_CARD, value: ev.label, ariaLabel: env.t('field_event_label'), onCommit: (v: string) => update(ev.id, { label: v }) }),
+          ev.description ? h('span', { title: env.t('event_has_description'), className: 'shrink-0' }, h(FileText, { size: 12, className: 'text-text-tertiary' })) : null,
+          h('button', {
+            type: 'button',
+            onClick: () => setOpen(open.includes(ev.id) ? open.filter((id) => id !== ev.id) : [...open, ev.id]),
+            title: env.t(open.includes(ev.id) ? 'event_fold' : 'event_unfold'),
+            'aria-expanded': open.includes(ev.id),
+            className: S.ICON_BUTTON,
+          }, h(open.includes(ev.id) ? ChevronUp : ChevronDown, { size: 12 })),
           h(AnchorButton, { env, annotation, onGoto: p.onGoto }),
           h('button', { type: 'button', onClick: () => remove(ev.id), title: env.t('delete_event'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 }))),
         h('div', { className: 'flex items-center gap-2' },
@@ -988,8 +1027,92 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
               mapButton: true,
               inputClass: S.INPUT_IN_CARD,
               onChange: (geo: ZnGeo | null) => update(ev.id, { geo: geo ?? undefined }),
-            }))));
+            }))),
+        open.includes(ev.id) ? h(EventDetails, { env, event: ev, onUpdate: (changes: Partial<ZnElementEvent>) => update(ev.id, changes) }) : null);
     }));
+}
+
+/** Description and properties of an event, as in ZN's event card. */
+function EventDetails(p: { env: Env; event: ZnElementEvent; onUpdate: (changes: Partial<ZnElementEvent>) => void }) {
+  const { api, React, h } = host();
+  const { X } = api.icons;
+  const { env, event } = p;
+  const properties = event.properties ?? [];
+  // Keys already used in the dossier, on elements and on events.
+  const suggestions = React.useMemo(() => {
+    const keys = new Map<string, ZnPropertyType>();
+    for (const el of env.elements) {
+      for (const pr of [...el.properties, ...el.events.flatMap((ev) => ev.properties ?? [])]) if (!keys.has(pr.key)) keys.set(pr.key, pr.type ?? 'text');
+    }
+    return keys;
+  }, [env.elements]);
+  const [key, setKey] = React.useState('');
+  const [value, setValue] = React.useState('');
+  const [type, setType] = React.useState<ZnPropertyType>('text');
+  const setProperties = (next: ZnProperty[]) => p.onUpdate({ properties: next.length ? next : undefined });
+  const add = () => {
+    if (!key.trim() || !value.trim()) return;
+    setProperties([...properties, { key: key.trim(), value: parseValue(type, value.trim()), type }]);
+    setKey('');
+    setValue('');
+    setType('text');
+  };
+
+  return h('div', { className: 'space-y-2 pt-2 border-t border-border-default' },
+    h('div', { className: 'space-y-1' },
+      h('label', { className: S.SMALL_LABEL }, env.t('field_description')),
+      h(CommitTextarea, {
+        className: `${S.INPUT_IN_CARD} resize-y`,
+        value: event.description ?? '',
+        ariaLabel: env.t('field_description'),
+        onCommit: (v: string) => p.onUpdate({ description: v.trim() ? v : undefined }),
+      })),
+    h('div', { className: 'space-y-1' },
+      h('label', { className: S.SMALL_LABEL }, env.t('section_properties')),
+      properties.map((pr, i) => {
+        const prType = pr.type ?? 'text';
+        return h('div', { key: `${pr.key}-${i}`, className: 'flex items-center gap-2' },
+          h('span', { className: 'text-xs text-text-secondary truncate shrink-0', style: { maxWidth: 110 }, title: pr.key }, pr.key),
+          h('div', { className: 'flex-1 min-w-0' },
+            h(CommitInput, {
+              type: prType === 'date' ? 'date' : 'text',
+              className: S.INPUT_IN_CARD,
+              value: formatValue(pr.value),
+              ariaLabel: pr.key,
+              onCommit: (v: string) => setProperties(properties.map((x, j) => (j === i ? { ...x, value: parseValue(prType, v) } : x))),
+            })),
+          h('button', { type: 'button', onClick: () => setProperties(properties.filter((_, j) => j !== i)), title: env.t('delete_property'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 })));
+      }),
+      h('div', { className: 'space-y-1 pt-1' },
+        h(KeySuggestInput, {
+          env,
+          value: key,
+          suggestions,
+          exclude: properties.map((pr) => pr.key),
+          onChange: (next: string) => {
+            setKey(next);
+            const known = suggestions.get(next);
+            if (known === 'text' || known === 'number' || known === 'date' || known === 'link') setType(known);
+          },
+        }),
+        h('div', { className: 'flex gap-1' },
+          h('input', {
+            type: type === 'date' ? 'date' : 'text',
+            className: S.INPUT_IN_CARD,
+            value,
+            placeholder: env.t('field_value'),
+            'aria-label': env.t('field_value'),
+            onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value),
+            onKeyDown: (e: ReactTypes.KeyboardEvent) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            },
+          }),
+          h('select', { className: S.INPUT_IN_CARD, style: { width: 96 }, value: type, 'aria-label': env.t('field_type'), onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as ZnPropertyType) },
+            (['text', 'number', 'date', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))),
+          h('button', { type: 'button', onClick: add, disabled: !key.trim() || !value.trim(), className: S.BUTTON_SECONDARY_SMALL }, env.t('event_add_property'))))));
 }
 
 function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | null; onGoto: (a: Annotation) => void }) {
