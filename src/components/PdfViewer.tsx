@@ -529,8 +529,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [zoneBusy, setZoneBusy] = React.useState<{ page: number; quad: Quad } | null>(null);
   /** Gesture being filled in the sheet. */
   const [draft, setDraft] = React.useState<Draft | null>(null);
-  /** Element shown in the sheet; null until the user picks or creates one. */
-  const [activeElementId, setActiveElementId] = React.useState<string | null>(null);
+  /**
+   * Element shown in the sheet: undefined until the user picks one (the sheet
+   * then shows the latest worked element), null once the user cleared it.
+   */
+  const [activeElementId, setActiveElementId] = React.useState<string | null | undefined>(undefined);
   /** Selected highlights, in click order; Ctrl+click adds one (to link two elements). */
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const selectedAnnotationId = selectedIds.length ? selectedIds[selectedIds.length - 1] : null;
@@ -788,7 +791,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     return latest?.targetId ?? null;
   }, [annotations, elements]);
 
-  const sheetElementId = activeElementId ?? lastWorkedElementId;
+  const sheetElementId = activeElementId === undefined ? lastWorkedElementId : activeElementId;
 
   // Links between two highlights of one page are drawn as arcs, for the current selection only.
   const arcsByPage = React.useMemo(() => {
@@ -1013,6 +1016,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
       const passage = suggestion ? suggestionPassage(suggestion) : null;
       if (passage) setPending(passage);
+      // A click on nothing clears the selection and the sheet, unless a form is being filled.
+      else if (!e.ctrlKey && !e.metaKey && !draft && !linkDraft) {
+        setSelectedIds([]);
+        showElement(null);
+      }
       return;
     }
     const result = capturePassage(selection, sizes, scale);
