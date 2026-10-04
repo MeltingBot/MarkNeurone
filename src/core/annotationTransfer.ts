@@ -144,6 +144,8 @@ export function rewire(annotations: Annotation[], graph: ImportedGraph): Annotat
     const out: Annotation = { ...base, documentId: assetByHash.get(a.documentHash) ?? a.documentId };
     // Ids of the exporting dossier mean nothing here: an orphan keeps none.
     const orphan: Annotation = { ...out, orphan: true };
+    // A rejected suggestion has no graph object to find.
+    if (a.kind === 'suggestion') return out;
 
     if (a.kind === 'link') {
       const link = linkByToken.get(token);

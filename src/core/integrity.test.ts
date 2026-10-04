@@ -91,6 +91,12 @@ describe('reconcile after undoing a merge', () => {
     expect(out[0].targetId).toBe('A');
     expect(changed).toBe(0);
   });
+  it('leaves a rejected suggestion alone', () => {
+    const rejected = ann(B_EL, 'suggestion', { status: 'rejected', origin: 'pattern' });
+    const { annotations: out, changed } = reconcile([rejected], { elements: [{ id: 'A', source: '' }], links: [] });
+    expect(changed).toBe(0);
+    expect(out[0]).toEqual(rejected);
+  });
 });
 
 describe('reconcile after a deletion and an undo', () => {

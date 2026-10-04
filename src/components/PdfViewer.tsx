@@ -13,7 +13,7 @@ import type { DocumentAsset } from '../services/documentAssets.ts';
 import type { OpenedPdf, PDFDocumentProxy } from '../services/pdfjs.ts';
 import { analyseTextLayer, countTextChars, type TextLayerReport } from '../core/textLayerDetection.ts';
 import type { Annotation, Quad } from '../core/model.ts';
-import { applyTransform, linkArc, pdfQuadToViewport, scaleTransform, type Rect, type Transform } from '../core/geometry.ts';
+import { applyTransform, linkArc, pdfQuadToViewport, scaleTransform, viewportRectToPdf, type Rect, type Transform } from '../core/geometry.ts';
 import {
   annotationAt,
   capturePassage,
@@ -23,9 +23,9 @@ import {
   type PageInfo,
   type Passage,
 } from '../services/selectionCapture.ts';
-import { betweenRange } from '../core/sentences.ts';
+import { betweenRange, trimPunctuation } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
-import { buildOcrPage, ocrPageText, rangeConfidence, type OcrPage } from '../core/ocrLayout.ts';
+import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
 import { loadOcr, saveOcrPage } from '../services/ocrStore.ts';
 import { guardTextSelection } from '../services/textSelection.ts';
 import { renderOcrLayer } from '../services/ocrLayer.ts';
@@ -33,11 +33,15 @@ import { renderTextBlocks, TEXT_SHEET_CSS, TEXT_SHEET_WIDTH } from '../services/
 import { blocksText, textFormatOf, type TextBlock } from '../core/textDocument.ts';
 import { getAnnotations, getVersion, loadAnnotations, subscribe, writeDocument } from '../services/annotationStore.ts';
 import { reconcile } from '../core/integrity.ts';
-import type { ZnElement, ZnLink, ZnTagSet } from '../services/znTypes.ts';
+import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../services/znTypes.ts';
 import { SelectionBar, type Gesture } from './SelectionBar.tsx';
 import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
-import { deleteAnnotation, reattachToElement } from '../services/qualify.ts';
+import { deleteAnnotation, reattachToElement, rejectSuggestion } from '../services/qualify.ts';
+import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
+import type { NamedElement } from '../core/dictionary.ts';
+import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
+import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
 
@@ -118,6 +122,11 @@ interface PageProps {
   arcs: LinkArcInfo[];
   /** Search results on this page; `current` is the one selected in the bar. */
   searchHits: { start: number; end: number; current: boolean }[];
+  /** Pre-highlighting suggestions on this page, drawn faintly under the text. */
+  suggestions: PageSuggestion[];
+  /** Zone reading: a rectangle drawn on the page is sent for OCR. */
+  zoneMode: boolean;
+  onZone: (page: number, rect: Rect, client: Rect) => void;
   /** OCR result of a scanned page: it replaces pdf.js' text layer. */
   ocr: OcrPage | null;
 }
@@ -154,7 +163,14 @@ function selectedStyle(hl: Highlight): ReactTypes.CSSProperties {
   return hl.selected ? { outline: `2px solid ${hl.color}`, outlineOffset: 1, borderRadius: 2 } : {};
 }
 
-function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, ocr }: PageProps) {
+interface PageSuggestion {
+  key: string;
+  start: number;
+  end: number;
+  color: string;
+}
+
+function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, zoneMode, onZone, ocr }: PageProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -165,6 +181,9 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
   /** Bumped when the text layer has been (re)built, to place search boxes. */
   const [textVersion, setTextVersion] = React.useState(0);
   const [searchBoxes, setSearchBoxes] = React.useState<{ rect: Rect; current: boolean }[]>([]);
+  const [suggestionBoxes, setSuggestionBoxes] = React.useState<{ key: string; rect: Rect; color: string }[]>([]);
+  /** Rectangle being drawn in zone mode, in page CSS pixels. */
+  const [drawing, setDrawing] = React.useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const scaleRef = React.useRef(scale);
   scaleRef.current = scale;
 
@@ -266,6 +285,15 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
     setSearchBoxes(searchHits.flatMap((hit) => rangeBoxes(textDiv, hit.start, hit.end).map((rect) => ({ rect, current: hit.current }))));
   }, [searchHits, textVersion, near, scale]);
 
+  React.useEffect(() => {
+    const textDiv = textRef.current;
+    if (!textDiv || !near || !suggestions.length || !textDiv.childNodes.length) {
+      setSuggestionBoxes([]);
+      return;
+    }
+    setSuggestionBoxes(suggestions.flatMap((s) => rangeBoxes(textDiv, s.start, s.end).map((rect, i) => ({ key: `${s.key}-${i}`, rect, color: s.color }))));
+  }, [suggestions, textVersion, near, scale]);
+
   const width = Math.floor(size.width * scale);
   const height = Math.floor(size.height * scale);
   return h(
@@ -296,6 +324,24 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
           });
         });
       })),
+    suggestionBoxes.length
+      ? h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none' } },
+          suggestionBoxes.map((box) =>
+            h('div', {
+              key: box.key,
+              'data-suggestion': '',
+              style: {
+                position: 'absolute',
+                left: box.rect.left - 1,
+                top: box.rect.top - 1,
+                width: box.rect.right - box.rect.left + 2,
+                height: box.rect.bottom - box.rect.top + 2,
+                background: `color-mix(in srgb, ${box.color} 12%, transparent)`,
+                outline: `1px dashed color-mix(in srgb, ${box.color} 70%, transparent)`,
+                borderRadius: 2,
+              },
+            })))
+      : null,
     searchBoxes.length
       ? h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none' } },
           searchBoxes.map((box, i) =>
@@ -332,7 +378,56 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
         }))
       : null,
     h('div', { ref: textRef, className: blocks ? 'textLayer mn-flow' : 'textLayer' }),
+    zoneMode ? zoneLayer() : null,
   );
+
+  // Above the text layer while the zone tool is on: drag draws the rectangle.
+  function zoneLayer() {
+    const at = (e: ReactTypes.PointerEvent) => {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const rect = drawing
+      ? { left: Math.min(drawing.x0, drawing.x1), top: Math.min(drawing.y0, drawing.y1), right: Math.max(drawing.x0, drawing.x1), bottom: Math.max(drawing.y0, drawing.y1) }
+      : null;
+    return h('div', {
+      'data-zone-layer': '',
+      style: { position: 'absolute', inset: 0, zIndex: 3, cursor: 'crosshair' },
+      onPointerDown: (e: ReactTypes.PointerEvent) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        const p = at(e);
+        setDrawing({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+      },
+      onPointerMove: (e: ReactTypes.PointerEvent) => {
+        if (!drawing) return;
+        const p = at(e);
+        setDrawing({ ...drawing, x1: p.x, y1: p.y });
+      },
+      onPointerUp: (e: ReactTypes.PointerEvent) => {
+        if (!drawing || !rect) return;
+        setDrawing(null);
+        // A click without drag is not a zone.
+        if (rect.right - rect.left < 6 || rect.bottom - rect.top < 6) return;
+        const origin = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        onZone(pageNumber, rect, { left: origin.left + rect.left, top: origin.top + rect.top, right: origin.left + rect.right, bottom: origin.top + rect.bottom });
+      },
+    },
+    rect
+      ? h('div', {
+          style: {
+            position: 'absolute',
+            left: rect.left,
+            top: rect.top,
+            width: rect.right - rect.left,
+            height: rect.bottom - rect.top,
+            outline: '1px dashed var(--color-accent)',
+            background: 'color-mix(in srgb, var(--color-accent) 8%, transparent)',
+          },
+        })
+      : null);
+  }
 }
 
 // ─── Viewer ──────────────────────────────────────────────────
@@ -340,6 +435,8 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
 interface ViewerProps {
   dossierId: string;
   asset: DocumentAsset;
+  /** Passage to scroll to and select, e.g. clicked in ZN's side panel. */
+  focus?: { annotationId: string; target: object } | null;
   /** Hides the reader, to look at the canvas. */
   onMinimize: () => void;
 }
@@ -349,10 +446,43 @@ type Zoom = number | 'auto' | 'fit';
 const NO_HIGHLIGHTS: Highlight[] = [];
 const NO_ARCS: LinkArcInfo[] = [];
 const NO_SEARCH_HITS: { start: number; end: number; current: boolean }[] = [];
+const NO_SUGGESTIONS: PageSuggestion[] = [];
+const SUGGESTION_COLOR = 'var(--color-text-tertiary)';
+
+/**
+ * Image of quads (page units) from the page as rendered on screen, with a
+ * small margin, as a PNG data URL. Null when the page has no canvas.
+ */
+function cropPage(root: HTMLElement, page: number, quads: Quad[], size: PageInfo | undefined, scale: number): string | null {
+  const canvas = root.querySelector(`.mn-page[data-page-number="${page}"] canvas`) as HTMLCanvasElement | null;
+  if (!canvas || !size || !quads.length || !canvas.width) return null;
+  const ratio = canvas.width / (size.width * scale);
+  const rects = quads.map((q) => pdfQuadToViewport(q, size.transform));
+  const margin = 4;
+  const left = Math.max(0, (Math.min(...rects.map((r) => r.left)) * scale - margin) * ratio);
+  const top = Math.max(0, (Math.min(...rects.map((r) => r.top)) * scale - margin) * ratio);
+  const right = Math.min(canvas.width, (Math.max(...rects.map((r) => r.right)) * scale + margin) * ratio);
+  const bottom = Math.min(canvas.height, (Math.max(...rects.map((r) => r.bottom)) * scale + margin) * ratio);
+  if (right <= left || bottom <= top) return null;
+  const out = document.createElement('canvas');
+  out.width = Math.round(right - left);
+  out.height = Math.round(bottom - top);
+  out.getContext('2d')!.drawImage(canvas, left, top, right - left, bottom - top, 0, 0, out.width, out.height);
+  return out.toDataURL('image/png');
+}
+
+/** An element that holds a document and is named after its file: not a name to look for in texts. */
+function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string }[]): boolean {
+  const label = el.label.trim().toLowerCase();
+  return (el.assetIds ?? []).some((id) => {
+    const name = assets.find((a) => a.id === id)?.filename.toLowerCase();
+    return !!name && (label === name || label === name.replace(/\.[^.]+$/, ''));
+  });
+}
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
 
-export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
+export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -387,6 +517,10 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   /** Selection waiting for a gesture (E, P, V). */
   const [pending, setPending] = React.useState<Passage | null>(null);
+  /** Zone reading tool: the next rectangle drawn on a page is read by OCR. */
+  const [zoneMode, setZoneMode] = React.useState(false);
+  /** Zone being read, shown on its page until the reading is done. */
+  const [zoneBusy, setZoneBusy] = React.useState<{ page: number; quad: Quad } | null>(null);
   /** Gesture being filled in the sheet. */
   const [draft, setDraft] = React.useState<Draft | null>(null);
   /** Element shown in the sheet; null until the user picks or creates one. */
@@ -417,6 +551,8 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
   }, []);
 
   React.useSyncExternalStore(subscribe, getVersion);
+  // Settings changed in the settings window: profile and OCR option follow.
+  const settingsVersion = React.useSyncExternalStore(subscribeSettings, getSettingsVersion);
   const annotations = getAnnotations(dossierId, asset.hash);
   const elements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);
@@ -588,15 +724,20 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     if (draft) {
       const { page, quads, textRange } = draft.passage;
       const layer = textDoc && root ? (root.querySelector(`.mn-page[data-page-number="${page}"] .textLayer`) as HTMLElement | null) : null;
-      const shown = layer
+      const shown = layer && textRange
         ? rangeBoxes(layer, textRange[0], textRange[1]).map((r): Quad => [r.left / scale, r.top / scale, r.right / scale, r.bottom / scale])
         : quads;
       const list = byPage.get(page) ?? [];
       list.push({ id: 'draft', quads: shown, color: 'var(--color-accent)', kind: draft.gesture, selected: true });
       byPage.set(page, list);
     }
+    if (zoneBusy) {
+      const list = byPage.get(zoneBusy.page) ?? [];
+      list.push({ id: 'zone', quads: [zoneBusy.quad], color: 'var(--color-accent)', kind: 'event', selected: false });
+      byPage.set(zoneBusy.page, list);
+    }
     return byPage;
-  }, [placed, elements, links, selectedIds, tagSetMap, draft, textDoc, root, layoutVersion, scale]);
+  }, [placed, elements, links, selectedIds, tagSetMap, draft, textDoc, root, layoutVersion, scale, zoneBusy]);
 
   // Keep annotations on the graph as it changes (merge, deletion, undo,
   // collaborators). Nothing is rewritten before the dossier is fully loaded.
@@ -717,12 +858,136 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     else if (hit.targetId) showElement(hit.targetId);
   };
 
+  /**
+   * Reads a rectangle drawn on a page: rendered at 300 dpi, cleaned (without
+   * deskew, unreliable on a few words), recognized. The passage keeps what
+   * was read; the form shows the image so that the user corrects it, or
+   * types a handwritten passage the OCR could not read.
+   */
+  const onZone = (pageNumber: number, rect: Rect, client: Rect) => {
+    setZoneMode(false);
+    void readArea(pageNumber, [{ left: rect.left / scale, top: rect.top / scale, right: rect.right / scale, bottom: rect.bottom / scale }], client);
+  };
+
+  /** Reads the rectangle of a selection again, at high resolution: same passage, better reading. */
+  const rereadSelection = (passage: Passage) => {
+    const size = sizes[passage.page - 1];
+    if (!size || !passage.quads.length) return;
+    // One rectangle per line of the selection, with a small margin.
+    const margin = 2;
+    const parts = passage.quads.map((q) => {
+      const r = pdfQuadToViewport(q, size.transform);
+      return { left: Math.max(0, r.left - margin), top: Math.max(0, r.top - margin), right: Math.min(size.width, r.right + margin), bottom: Math.min(size.height, r.bottom + margin) };
+    });
+    setPending(null);
+    void readArea(passage.page, parts, passage.clientBox, {
+      quads: passage.quads,
+      ...(passage.textRange ? { textRange: passage.textRange } : {}),
+      ...(passage.origin ? { origin: passage.origin } : {}),
+      ...(passage.suggestion ? { suggestion: passage.suggestion } : {}),
+    });
+  };
+
+  /**
+   * OCR of rectangles of a page (page units at scale 1): a framed zone, or the
+   * lines of a selection, each read on its own so that a selection over two
+   * lines does not take in the rest of them.
+   */
+  const readArea = async (pageNumber: number, parts: Rect[], client: Rect, keep: Partial<Passage> = {}) => {
+    const size = sizes[pageNumber - 1];
+    if (!opened || !size || !parts.length) return;
+    const unit = {
+      left: Math.min(...parts.map((r) => r.left)),
+      top: Math.min(...parts.map((r) => r.top)),
+      right: Math.max(...parts.map((r) => r.right)),
+      bottom: Math.max(...parts.map((r) => r.bottom)),
+    };
+    const quad = viewportRectToPdf(unit, size.transform) as Quad;
+    setZoneBusy({ page: pageNumber, quad });
+    try {
+      const engine = await import('../services/ocrEngine.ts');
+      const page = await opened.doc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: OCR_SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round((unit.right - unit.left) * OCR_SCALE));
+      canvas.height = Math.max(1, Math.round((unit.bottom - unit.top) * OCR_SCALE));
+      await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -unit.left * OCR_SCALE, -unit.top * OCR_SCALE] }).promise;
+      const image = canvas.toDataURL('image/png');
+      const texts: string[] = [];
+      const lines: { t: string; c: number }[][] = [];
+      let sum = 0;
+      let count = 0;
+      for (const part of parts) {
+        const piece = document.createElement('canvas');
+        const x = Math.round((part.left - unit.left) * OCR_SCALE);
+        const y = Math.round((part.top - unit.top) * OCR_SCALE);
+        piece.width = Math.max(1, Math.round((part.right - part.left) * OCR_SCALE));
+        piece.height = Math.max(1, Math.round((part.bottom - part.top) * OCR_SCALE));
+        piece.getContext('2d')!.drawImage(canvas, x, y, piece.width, piece.height, 0, 0, piece.width, piece.height);
+        const prepared = await engine.preprocessImage(piece, { deskew: false, dropColor: getSettings().ocr.dropColor });
+        const read = buildOcrPage(await engine.recognize(prepared.canvas), { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: 0 });
+        const text = ocrPageText(read).text.trim();
+        if (text) texts.push(text);
+        for (const l of read.lines) {
+          lines.push(l.w.map((w) => ({ t: w.t, c: w.c })));
+          for (const w of l.w) {
+            sum += w.c;
+            count++;
+          }
+        }
+      }
+      const text = texts.join(' ');
+      const pageOcr = ocrPages[String(pageNumber)];
+      const range = pageOcr ? rangeInBox(pageOcr, [unit.left, unit.top, unit.right, unit.bottom]) : null;
+      setPending({
+        page: pageNumber,
+        quads: [quad],
+        text,
+        ...(range ? { textRange: range } : {}),
+        ...(text ? { context: text } : {}),
+        ocr: { rawText: text, confidence: count ? Math.round(sum / count) : 0 },
+        preview: { image, lines, framed: true },
+        clientBox: client,
+        ...keep,
+      });
+    } catch (err) {
+      console.error('MarkNeurone: zone reading failed', err);
+      api.toast.error(t('zone_error'));
+    } finally {
+      setZoneBusy(null);
+    }
+  };
+
+  /**
+   * On a scanned page, the passage keeps what the machine read and how sure it
+   * was, with the image of the passage to check the reading against.
+   */
+  const withOcrReading = (passage: Passage): Passage => {
+    const ocr = ocrPages[String(passage.page)];
+    if (!ocr || !passage.textRange) return passage;
+    const [start, end] = passage.textRange;
+    const image = root ? cropPage(root, passage.page, passage.quads, sizes[passage.page - 1], scale) : null;
+    return {
+      ...passage,
+      ocr: { rawText: passage.text, confidence: rangeConfidence(ocr, start, end) ?? ocr.confidence },
+      ...(image ? { preview: { image, lines: wordsInRange(ocr, start, end) } } : {}),
+    };
+  };
+
   const onMouseUp = (e: ReactTypes.MouseEvent) => {
     if (e.button !== 0) return;
+    // The end of a zone drag, handled by the zone layer.
+    if (e.target instanceof Element && e.target.closest('[data-zone-layer]')) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, placed);
-      if (hit) selectHighlight(hit, e.ctrlKey || e.metaKey);
+      if (hit) {
+        selectHighlight(hit, e.ctrlKey || e.metaKey);
+        return;
+      }
+      const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
+      const passage = suggestion ? suggestionPassage(suggestion) : null;
+      if (passage) setPending(passage);
       return;
     }
     const result = capturePassage(selection, sizes, scale);
@@ -731,13 +996,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       api.toast.warning(t('selection_multipage'));
       return;
     }
-    const ocr = ocrPages[String(result.passage.page)];
-    if (ocr) {
-      // Keep what the machine read: the validated text may be corrected later.
-      const [start, end] = result.passage.textRange;
-      result.passage.ocr = { rawText: result.passage.text, confidence: rangeConfidence(ocr, start, end) ?? ocr.confidence };
-    }
-    setPending(result.passage);
+    setPending(withOcrReading(result.passage));
   };
 
   const cancelPending = React.useCallback(() => setPending(null), []);
@@ -754,6 +1013,18 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     window.getSelection()?.removeAllRanges();
   }, []);
 
+  /** Shows every occurrence of a highlight's text in the document. */
+  const selectSameText = (hit: Annotation) => {
+    // Every occurrence, converted or not, through the search: framed, counted
+    // and browsable, starting from the clicked one.
+    const query = trimPunctuation(hit.text);
+    const found = findInPages(effectiveTexts.map((p) => p.text), query);
+    const here = found.findIndex((f) => f.page === hit.page && hit.textRange && f.start < hit.textRange[1] && f.end > hit.textRange[0]);
+    setSearchOpen(true);
+    setQuery(query);
+    setHitIndex(Math.max(0, here));
+  };
+
   /** Scrolls the document to a passage and marks it. */
   const gotoAnnotation = (a: Annotation) => {
     setSelectedAnnotationId(a.id);
@@ -764,6 +1035,18 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
     const offset = first ? pdfQuadToViewport(first, scaleTransform(sizes[a.page - 1].transform, scale)).top : 0;
     root.scrollTo({ top: Math.max(0, top + offset - root.clientHeight / 3), behavior: 'smooth' });
   };
+
+  // A passage asked from outside (ZN's side panel): shown once the document,
+  // its annotations and, for a text document, the laid out sheet are ready.
+  const focusDone = React.useRef<object | null>(null);
+  React.useEffect(() => {
+    if (!focus || focusDone.current === focus.target || !root || !sizes.length) return;
+    const a = placed.find((x) => x.id === focus.annotationId);
+    if (!a || (textDoc && !a.quads.length)) return;
+    focusDone.current = focus.target;
+    selectHighlight(a, false);
+    gotoAnnotation(a);
+  });
 
   // L links the two selected elements; Escape clears a multiple selection.
   // Capture phase on document: runs before the reader's own Escape handling.
@@ -780,6 +1063,17 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       }
       const el = e.target as HTMLElement | null;
       if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (e.key === 'Escape' && zoneMode) {
+        e.stopImmediatePropagation();
+        setZoneMode(false);
+        return;
+      }
+      if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey && !pending && opened) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        setZoneMode((on) => !on);
+        return;
+      }
       if (e.key === 'Escape' && selectedIds.length > 1) {
         e.stopImmediatePropagation();
         setSelectedIds([]);
@@ -807,6 +1101,11 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
   const onContextMenu = (e: ReactTypes.MouseEvent) => {
     e.preventDefault();
     setPending(null);
+    // Right-click leaves the zone tool, as Escape does.
+    if (zoneMode) {
+      setZoneMode(false);
+      return;
+    }
     const at = { x: e.clientX, y: e.clientY };
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed) {
@@ -892,15 +1191,16 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           icon: Link2,
           action: () => openLinkDraft(selected, hit),
         });
-      } else if (hitElement) {
-        linkItems.push({ id: 'link-hint', label: t('menu_link_hint'), icon: Link2, disabled: true, action: () => undefined });
       }
       const label = hit.kind === 'link' ? (links.find((l) => l.id === hit.targetId)?.label || t('link_unnamed')) : nameOf(hit.targetId ?? '');
       setMenu({
         ...at,
         header: label,
         sections: [
-          [{ id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) }],
+          [
+            { id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) },
+            ...(hit.kind === 'link' ? [] : [{ id: 'same', label: t('menu_select_same'), icon: api.icons.ListChecks, action: () => selectSameText(hit) }]),
+          ],
           linkItems,
           [{
             id: 'remove',
@@ -919,13 +1219,34 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       });
       return;
     }
+    const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
+    const suggested = suggestion ? suggestionPassage(suggestion) : null;
+    if (suggested) {
+      setMenu({
+        ...at,
+        header: suggestionTitle(suggested),
+        sections: [
+          [
+            { id: 'element', label: t('gesture_element'), icon: Highlighter, shortcut: 'E', action: () => applyGesture('element', suggested) },
+            { id: 'property', label: t('gesture_property'), icon: Tag, shortcut: 'P', action: () => applyGesture('property', suggested) },
+            { id: 'event', label: t('gesture_event'), icon: Calendar, shortcut: 'V', action: () => applyGesture('event', suggested) },
+            { id: 'location', label: t('gesture_location'), icon: api.icons.MapPin, shortcut: 'G', action: () => applyGesture('location', suggested) },
+          ],
+          [{ id: 'reject', label: t('suggestion_reject'), icon: api.icons.X, action: () => reject(suggested) }],
+        ],
+      });
+      return;
+    }
     setMenu({
       ...at,
-      sections: [[
+      sections: [
+        ...(opened ? [[{ id: 'zone', label: t('zone_read'), icon: api.icons.SquareDashed, shortcut: 'Z', action: () => setZoneMode(true) }]] : []),
+        [
         { id: 'zoom-in', label: t('viewer_zoom_in'), icon: ZoomIn, action: () => stepZoom(1) },
         { id: 'zoom-out', label: t('viewer_zoom_out'), icon: ZoomOut, action: () => stepZoom(-1) },
         { id: 'fit', label: t('viewer_fit_width'), icon: MoveHorizontal, action: () => setZoom('fit') },
-      ]],
+        ],
+      ],
     });
   };
 
@@ -985,7 +1306,7 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       canvas.height = Math.round(viewport.height);
       await page.render({ canvas, viewport }).promise;
       if (cancelled) return;
-      const prepared = await engine.preprocessImage(canvas);
+      const prepared = await engine.preprocessImage(canvas, { dropColor: getSettings().ocr.dropColor });
       if (cancelled) return;
       const lines = await engine.recognize(prepared.canvas);
       if (cancelled) return;
@@ -1023,6 +1344,130 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       }),
     [pageTexts, ocrPages],
   );
+
+  // ─── Pre-highlighting ────────────────────────────────────
+
+  // Off when a document is first read, then as the user leaves it.
+  const [suggestionsOn, setSuggestionsOn] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    setSuggestionsOn(false);
+    loadViewPrefs(dossierId, asset.hash)
+      .then((prefs) => {
+        if (!cancelled) setSuggestionsOn(prefs.suggestions);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load reader preferences', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, asset.hash]);
+  const toggleSuggestions = () => {
+    const next = !suggestionsOn;
+    setSuggestionsOn(next);
+    saveViewPrefs(dossierId, asset.hash, { suggestions: next }).catch((err: unknown) =>
+      console.error('MarkNeurone: cannot save reader preferences', err));
+  };
+
+  /** Names the dictionary looks for: labels, and values of the profile's alias properties. */
+  const assets: { id: string; filename: string }[] = api.stores.useDossierStore((s: { assets: { id: string; filename: string }[] }) => s.assets);
+  const named = React.useMemo<NamedElement[]>(
+    () =>
+      elements
+        .filter((el) => isGraphElement(el) && el.label?.trim() && !isDocumentCarrier(el, assets))
+        .map((el) => ({
+          id: el.id,
+          label: el.label,
+          aliases: el.properties
+            .filter((pr) => typeof pr.value === 'string' && getProfile().aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()))
+            .map((pr) => pr.value as string),
+        })),
+    [elements, assets, settingsVersion],
+  );
+
+  const suggestions = React.useMemo<Suggestion[]>(
+    () => (suggestionsOn ? buildSuggestions(effectiveTexts.map((p) => p.text), named, annotations) : []),
+    [suggestionsOn, effectiveTexts, named, annotations],
+  );
+
+  const suggestionsByPage = React.useMemo(() => {
+    const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
+    const tagColorOf = (elementId: string) => {
+      const tag = elements.find((el) => el.id === elementId)?.tags[0];
+      return tag ? tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null : null;
+    };
+    const byPage = new Map<number, PageSuggestion[]>();
+    for (const s of suggestions) {
+      // A known name takes its element's tag color; homonyms of different colors stay neutral.
+      const colors = new Set((s.elementIds ?? []).map(tagColorOf));
+      const color = colors.size === 1 ? [...colors][0] ?? SUGGESTION_COLOR : SUGGESTION_COLOR;
+      const list = byPage.get(s.page) ?? [];
+      list.push({ key: s.key, start: s.start, end: s.end, color });
+      byPage.set(s.page, list);
+    }
+    return byPage;
+  }, [suggestions, elements, tagSetMap]);
+
+  /** Suggestion under a click, measured on the rendered text layer. */
+  const suggestionAt = (target: EventTarget | null, x: number, y: number): Suggestion | null => {
+    const pageEl = target instanceof Element ? (target.closest('.mn-page') as HTMLElement | null) : null;
+    const layer = pageEl?.querySelector('.textLayer') as HTMLElement | null;
+    if (!pageEl || !layer || !suggestions.length) return null;
+    const page = Number(pageEl.dataset.pageNumber);
+    const origin = layer.getBoundingClientRect();
+    const px = x - origin.left;
+    const py = y - origin.top;
+    return (
+      suggestions.find(
+        (s) => s.page === page && rangeBoxes(layer, s.start, s.end).some((r) => px >= r.left - 1 && px <= r.right + 1 && py >= r.top - 1 && py <= r.bottom + 1),
+      ) ?? null
+    );
+  };
+
+  /** The suggested passage, ready for the same choices as a manual selection. */
+  const suggestionPassage = (s: Suggestion): Passage | null => {
+    if (!root) return null;
+    const passage = passageFromOffsets(root, s.page, s.start, s.end, sizes, scale);
+    if (!passage) return null;
+    return withOcrReading({
+      ...passage,
+      origin: s.source,
+      suggestion: {
+        kind: s.kind,
+        ...(s.checksumOk !== undefined ? { checksumOk: s.checksumOk } : {}),
+        ...(s.suspect ? { suspect: true } : {}),
+        ...(s.elementIds ? { elementIds: s.elementIds } : {}),
+      },
+    });
+  };
+
+  /**
+   * What a suggestion was recognized as: its type, or the element already in
+   * the dossier, shown with its tag color as on the canvas.
+   */
+  const suggestionLabel = (p: Passage): { title: string; titleColor?: string | null; titleHint?: string } | null => {
+    const s = p.suggestion;
+    if (!s) return null;
+    if (s.kind !== 'name') return { title: t(`suggestion_kind_${s.kind}`) };
+    const ids = s.elementIds ?? [];
+    if (ids.length > 1) return { title: t('suggestion_homonyms', { count: ids.length }), titleColor: null };
+    const element = elements.find((el) => el.id === ids[0]);
+    const tag = element?.tags[0];
+    const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
+    const color = tag ? tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null : null;
+    return { title: element?.label ?? '', titleColor: color, titleHint: t('suggestion_known', { name: element?.label ?? '' }) };
+  };
+  const suggestionTitle = (p: Passage) => {
+    const label = suggestionLabel(p);
+    return label?.titleHint ?? label?.title;
+  };
+
+  const reject = (p: Passage) => {
+    setPending(null);
+    rejectSuggestion({ dossierId, asset }, p).catch((err: unknown) => {
+      console.error('MarkNeurone: cannot dismiss suggestion', err);
+      api.toast.error(t('write_error'));
+    });
+  };
 
   // ─── Search ──────────────────────────────────────────────
 
@@ -1126,6 +1571,14 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
           h('button', { onClick: () => stepHit(1), disabled: !hits.length, title: t('search_next'), className: toolButton }, h(api.icons.ChevronDown, { size: 14 })),
           h('button', { onClick: closeSearch, title: t('search_close'), className: toolButton }, h(api.icons.X, { size: 14 })))
       : h('button', { onClick: openSearch, disabled: !ready, title: t('search_open'), className: toolButton }, h(api.icons.Search, { size: 14 })),
+    h('button', {
+      onClick: toggleSuggestions,
+      disabled: !ready,
+      'aria-pressed': suggestionsOn,
+      title: t(suggestionsOn ? 'suggestions_hide' : 'suggestions_show'),
+      // Grey when off, accent when on: the icon alone tells the state.
+      className: `p-1.5 rounded disabled:opacity-40 ${suggestionsOn ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
+    }, h(api.icons.Sparkles, { size: 14 })),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', { onClick: () => stepZoom(-1), disabled: !ready, title: t('viewer_zoom_out'), className: toolButton }, h(ZoomOut, { size: 14 })),
       h('span', { className: 'text-center', style: { minWidth: 40 } }, `${percent} %`),
@@ -1147,13 +1600,14 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
         className: 'absolute z-10 flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-accent/30 rounded sketchy-border-soft panel-shadow text-xs text-text-primary',
         style: { top: 8, left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100% - 32px)' },
       },
-        h(Link2, { size: 14, className: 'text-accent shrink-0' }),
-        h('span', { className: 'truncate' }, t('link_pair', { from: nameOf(elementOf(linkPair.from)!), to: nameOf(elementOf(linkPair.to)!) })),
+        h('span', { className: 'truncate' }, `${nameOf(elementOf(linkPair.from)!)} → ${nameOf(elementOf(linkPair.to)!)}`),
         h('button', {
           type: 'button',
           onClick: () => openLinkDraft(linkPair.from, linkPair.to),
-          className: 'ml-auto px-2 py-0.5 text-xs font-medium text-accent border border-accent/30 rounded hover:bg-accent/20',
-        }, t('link_pair_action')),
+          title: t('link_pair_action'),
+          'aria-label': t('link_pair_action'),
+          className: 'ml-auto p-1 rounded text-accent hover:bg-accent/20',
+        }, h(Link2, { size: 14 })),
         h('button', { type: 'button', onClick: () => setSelectedIds([]), title: t('clear_selection'), className: 'p-1 text-text-tertiary hover:text-text-secondary' },
           h(api.icons.X, { size: 12 })))
     : null;
@@ -1223,6 +1677,9 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
               highlights: highlightsByPage.get(i + 1) ?? NO_HIGHLIGHTS,
               arcs: arcsByPage.get(i + 1) ?? NO_ARCS,
               searchHits: hitsByPage.get(i + 1) ?? NO_SEARCH_HITS,
+              suggestions: suggestionsByPage.get(i + 1) ?? NO_SUGGESTIONS,
+              zoneMode,
+              onZone,
               ocr: ocrPages[String(i + 1)] ?? null,
             }))
         : null,
@@ -1251,7 +1708,15 @@ export function PdfViewer({ dossierId, asset, onMinimize }: ViewerProps) {
       onPickOnMap: pickOnMap,
     }),
     pending
-      ? h(SelectionBar, { passage: pending, onChoose: chooseGesture, onCancel: cancelPending })
+      ? h(SelectionBar, {
+          passage: pending,
+          onChoose: chooseGesture,
+          onCancel: cancelPending,
+          ...suggestionLabel(pending),
+          onReject: pending.suggestion ? () => reject(pending) : undefined,
+          // A selection on a scanned page can be read again, more finely.
+          onReread: ocrPages[String(pending.page)] && !pending.preview?.framed ? () => rereadSelection(pending) : undefined,
+        })
       : null,
     menu ? h(ReaderContextMenu, { ...menu, onClose: () => setMenu(null) }) : null,
   );

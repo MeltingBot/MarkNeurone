@@ -12,9 +12,11 @@ import type { Annotation } from '../core/model.ts';
 import { defaultAttachment, findCandidates, type MatchKind } from '../core/dictionary.ts';
 import { findDates, toDateInputValue } from '../core/dates.ts';
 import { trimPunctuation } from '../core/sentences.ts';
+import { extractPatterns } from '../core/patterns/patterns.ts';
+import { LOW_CONFIDENCE } from '../core/ocrLayout.ts';
 import { formatCoordinate, parseLatLng } from '../core/geo.ts';
 import { canPickOnMap, pickOnMap } from '../services/mapPicker.ts';
-import { DEFAULT_PROFILE } from '../profiles/default.ts';
+import { getProfile, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import type { Passage } from '../services/selectionCapture.ts';
 import {
   concernedElements,
@@ -46,6 +48,7 @@ import {
 } from '../services/znTypes.ts';
 import type { Gesture } from './SelectionBar.tsx';
 import * as S from './znStyles.ts';
+import { ColorDot } from './ColorDot.tsx';
 
 export interface Draft {
   gesture: Gesture;
@@ -112,7 +115,7 @@ function guessType(text: string): ZnPropertyType {
   // A leading zero means an identifier (phone, postcode), not a quantity.
   if (/^-?(?:0|[1-9]\d{0,11})(?:[.,]\d+)?$/.test(t.replace(/\s/g, ''))) return 'number';
   const [date] = findDates(t);
-  if (date && date.raw.length >= t.length * 0.6) return 'date';
+  if (date && date.raw.length >= t.length * 0.6) return date.hasTime ? 'datetime' : 'date';
   return 'text';
 }
 
@@ -123,6 +126,8 @@ function formatValue(value: ZnProperty['value']): string {
 
 function parseValue(type: ZnPropertyType | undefined, raw: string): ZnProperty['value'] {
   if (type === 'date') return raw ? new Date(`${raw}T12:00:00`) : null;
+  // "yyyy-mm-dd" or "yyyy-mm-ddThh:mm", in local time as ZN's panel does.
+  if (type === 'datetime') return raw ? new Date(raw.includes('T') ? raw : `${raw}T00:00`) : null;
   if (type === 'number') return raw === '' ? null : Number(raw.replace(/\s/g, '').replace(',', '.'));
   return raw;
 }
@@ -157,71 +162,13 @@ function Section(p: { title: string; badge?: number; children?: ReactTypes.React
 
 // ─── New element ─────────────────────────────────────────────
 
-/** ZN's node palette (DEFAULT_COLORS), offered for tag colors. */
-const TAG_COLORS = [
-  'var(--color-node-yellow)',
-  'var(--color-node-pink)',
-  'var(--color-node-blue)',
-  'var(--color-node-green)',
-  'var(--color-node-orange)',
-  'var(--color-node-purple)',
-  'var(--color-node-red)',
-  'var(--color-node-cyan)',
-  'var(--color-node-lime)',
-];
-
 /** Color of a tag, chosen from ZN's palette or freely; applies to every element carrying the tag. */
 function TagColorButton(p: { env: Env; tag: string }) {
-  const { React, h } = host();
-  const { env } = p;
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
-  const [rect, setRect] = React.useState<DOMRect | null>(null);
-  const color = tagColor(env.tagSets, p.tag);
-  const choose = (value: string | null) => {
-    setRect(null);
-    env.run(() => graph.setTagColor(p.tag, value));
-  };
-  const swatch = (value: string | null, key: string) =>
-    h('button', {
-      key,
-      type: 'button',
-      onClick: () => choose(value),
-      title: value ? undefined : env.t('tag_color_none'),
-      className: `w-5 h-5 rounded border-2 ${color === value ? 'border-accent' : value ? 'border-transparent' : 'border-border-default'}`,
-      style: { background: value ?? 'var(--color-bg-primary)' },
-    });
-  return h(React.Fragment, null,
-    h('button', {
-      ref: buttonRef,
-      type: 'button',
-      onClick: () => setRect(rect ? null : buttonRef.current?.getBoundingClientRect() ?? null),
-      title: env.t('tag_color'),
-      className: 'inline-block rounded-full shrink-0 focus:outline-none',
-      style: { width: 8, height: 8, background: color ?? 'var(--color-border-strong)' },
-    }),
-    rect
-      ? h(React.Fragment, null,
-          h('div', { className: 'fixed inset-0 z-[9998]', onMouseDown: () => setRect(null) }),
-          h('div', {
-            className: 'fixed bg-bg-primary border border-border-default rounded shadow-lg z-[9999] p-2 flex flex-wrap gap-1.5',
-            style: { top: rect.bottom + 6, left: rect.left - 4, width: 160 },
-            onKeyDown: (e: ReactTypes.KeyboardEvent) => {
-              if (e.key === 'Escape') {
-                e.stopPropagation();
-                setRect(null);
-              }
-            },
-          },
-          swatch(null, 'none'),
-          TAG_COLORS.map((c) => swatch(c, c)),
-          h('input', {
-            type: 'color',
-            value: color && color.startsWith('#') ? color : '#888888',
-            onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => choose(e.target.value),
-            title: env.t('tag_color_custom'),
-            className: 'w-5 h-5 rounded cursor-pointer border-0 p-0',
-          })))
-      : null);
+  const { h } = host();
+  return h(ColorDot, {
+    color: tagColor(p.env.tagSets, p.tag),
+    onChoose: (value: string | null) => p.env.run(() => graph.setTagColor(p.tag, value)),
+  });
 }
 
 /**
@@ -242,8 +189,8 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
     (s: { currentDossier: { settings: { existingTags: string[] } } | null }) => s.currentDossier?.settings.existingTags ?? NO_TAGS,
   );
   const tagSetNames = new Set(env.tagSets.map((ts) => ts.name));
-  const shortcut = new Map(DEFAULT_PROFILE.grid.map((g) => [g.tag, g.key]));
-  const all = [...new Set([...DEFAULT_PROFILE.grid.map((g) => g.tag), ...tagSetNames, ...existingTags])].sort((a, b) => {
+  const shortcut = new Map(getProfile().grid.map((g) => [g.tag, g.key]));
+  const all = [...new Set([...getProfile().grid.map((g) => g.tag), ...tagSetNames, ...existingTags])].sort((a, b) => {
     // Profile tags first, in shortcut order; then alphabetical, as in ZN.
     const ka = shortcut.get(a);
     const kb = shortcut.get(b);
@@ -341,8 +288,7 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
                         className: `w-full px-2 py-1.5 text-xs text-left hover:bg-bg-secondary flex items-center gap-2 ${i === index ? 'bg-bg-secondary' : ''}`,
                       },
                       h('span', { className: 'inline-block rounded-full shrink-0', style: { width: 8, height: 8, background: tagColor(env.tagSets, tag) ?? 'var(--color-border-strong)' } }),
-                      h('span', { className: 'flex-1' }, tag),
-                      shortcut.has(tag) ? h('span', { className: 'text-[10px] text-text-tertiary' }, `Alt+${shortcut.get(tag)}`) : null,
+                      h('span', { className: 'flex-1', title: shortcut.has(tag) ? `Alt+${shortcut.get(tag)}` : undefined }, tag),
                       tagSetNames.has(tag) ? h(Sparkles, { size: 10, className: 'text-accent shrink-0' }) : null))
                   : h('div', { className: 'px-2 py-1.5 text-xs text-text-tertiary' },
                       value.trim() ? env.t('tag_enter_to_create', { value: value.trim() }) : env.t('tag_type_to_filter')))
@@ -360,11 +306,46 @@ function TagsEditor(p: { env: Env; tags: string[]; onChange: (tags: string[]) =>
 
 const NO_TAGS: string[] = [];
 
+/**
+ * Image of a scanned passage, to correct the reading in the form's fields.
+ * Shown only when it helps: a word read with low confidence, or a framed
+ * passage (handwriting, stamp), where the image is the only reference.
+ */
+function OcrPreview(p: { passage: Passage }) {
+  const { h } = host();
+  const preview = p.passage.preview;
+  if (!preview) return null;
+  const doubtful = preview.lines.some((line) => line.some((w) => w.c < LOW_CONFIDENCE));
+  if (!doubtful && !preview.framed) return null;
+  return h('img', {
+    src: preview.image,
+    alt: '',
+    className: 'w-full rounded border border-border-default bg-white',
+    style: { maxHeight: 140, objectFit: 'contain', objectPosition: 'left' },
+  });
+}
+
+/** Identifies a passage for form keys: its text offsets, or its box for an OCR zone. */
+const passageKey = (p: Passage) => `${p.page}-${(p.textRange ?? p.quads[0] ?? []).join('-')}`;
+
+/** A check digit that fails, or characters typical of OCR confusions: probable misreading. */
+function ChecksumWarning(p: { env: Env; passage: Passage }) {
+  const { h } = host();
+  const found = extractPatterns(p.passage.text);
+  const invalid = p.passage.suggestion?.checksumOk === false || found.some((m) => m.checksumOk === false);
+  const suspect = p.passage.suggestion?.suspect || found.some((m) => m.suspect);
+  if (!invalid && !suspect) return null;
+  return h('p', { className: 'text-[10px] text-warning' }, p.env.t(invalid ? 'checksum_invalid' : 'misread_suspect'));
+}
+
 function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string) => void; onCancel: () => void }) {
   const { React, h } = host();
   const { env, passage } = p;
   const [label, setLabel] = React.useState(trimPunctuation(passage.text));
-  const [tags, setTags] = React.useState<string[]>([]);
+  const [tags, setTags] = React.useState<string[]>(() => {
+    const tag = passage.suggestion && getProfile().suggestionTags[passage.suggestion.kind];
+    return tag ? [tag] : [];
+  });
   const [busy, setBusy] = React.useState(false);
 
   const candidates = React.useMemo(() => {
@@ -372,7 +353,7 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
       id: el.id,
       label: el.label,
       aliases: el.properties
-        .filter((pr) => DEFAULT_PROFILE.aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()) && typeof pr.value === 'string')
+        .filter((pr) => getProfile().aliasKeys.some((k) => k.toLowerCase() === pr.key.toLowerCase()) && typeof pr.value === 'string')
         .map((pr) => pr.value as string),
     }));
     return findCandidates(label, named).slice(0, 5);
@@ -407,16 +388,18 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
     },
     onKeyDown: (e: ReactTypes.KeyboardEvent) => {
       escapeTo(p.onCancel)(e);
-      const g = e.altKey ? DEFAULT_PROFILE.grid.find((x) => x.key === e.key) : undefined;
+      const g = e.altKey ? getProfile().grid.find((x) => x.key === e.key) : undefined;
       if (g) {
         e.preventDefault();
         toggle(g.tag);
       }
     },
   },
+  h(OcrPreview, { passage }),
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_label')),
-    h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) })),
+    h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
+    h(ChecksumWarning, { env, passage })),
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_tags')),
     h(TagsEditor, { env, tags, onChange: setTags })),
@@ -539,24 +522,26 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     for (const el of env.elements) for (const pr of el.properties) if (!keys.has(pr.key)) keys.set(pr.key, pr.type ?? 'text');
     return keys;
   }, [element, env.elements, env.tagSets]);
-  const [key, setKey] = React.useState('');
+  const [key, setKey] = React.useState((passage.suggestion && getProfile().suggestionKeys[passage.suggestion.kind]) ?? '');
   const [type, setType] = React.useState<ZnPropertyType>(guessType(trimPunctuation(passage.text)));
+  const firstDate = React.useMemo(() => findDates(passage.text, passage.referenceYear)[0], [passage]);
   const [value, setValue] = React.useState(() => {
-    if (guessType(passage.text) !== 'date') return trimPunctuation(passage.text);
-    const [d] = findDates(passage.text, passage.referenceYear);
-    return d ? toDateInputValue(d.date) : '';
+    const guessed = guessType(passage.text);
+    if (guessed !== 'date' && guessed !== 'datetime') return trimPunctuation(passage.text);
+    return firstDate ? toDateInputValue(firstDate.date) : '';
   });
+  const [time, setTime] = React.useState(() => (firstDate?.hasTime ? timeOf(firstDate.date) : ''));
   const [busy, setBusy] = React.useState(false);
 
   const onKeyChange = (next: string) => {
     setKey(next);
     const known = suggested.get(next);
-    if (known === 'text' || known === 'number' || known === 'date' || known === 'link') setType(known);
+    if (known === 'text' || known === 'number' || known === 'date' || known === 'datetime' || known === 'link') setType(known);
   };
   const valid = key.trim() && value.trim();
   const submit = async () => {
     setBusy(true);
-    const ok = await env.run(() => qualifyAsProperty(env.ctx, passage, element.id, { key: key.trim(), value: parseValue(type, value.trim()), type }));
+    const ok = await env.run(() => qualifyAsProperty(env.ctx, passage, element.id, { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type }));
     if (ok) p.onDone();
     else setBusy(false);
   };
@@ -569,17 +554,23 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     },
     onKeyDown: escapeTo(p.onDone),
   },
+  h(OcrPreview, { passage }),
   h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
     h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: element.properties.map((pr) => pr.key), onChange: onKeyChange })),
   h('div', { className: 'flex gap-2' },
     h('div', { className: 'space-y-1 flex-1' },
       h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
-      h('input', { type: type === 'date' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) })),
+      h('div', { className: 'flex gap-1' },
+        h('input', { type: type === 'date' || type === 'datetime' ? 'date' : 'text', className: S.INPUT_IN_CARD, value, 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setValue(e.target.value) }),
+        type === 'datetime'
+          ? h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) })
+          : null),
+      h(ChecksumWarning, { env, passage })),
     h('div', { className: 'space-y-1', style: { width: 96 } },
       h('label', { className: S.SMALL_LABEL }, env.t('field_type')),
       h('select', { className: S.INPUT_IN_CARD, value: type, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as ZnPropertyType) },
-        (['text', 'number', 'date', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))))),
+        (['text', 'number', 'date', 'datetime', 'link'] as ZnPropertyType[]).map((tp) => h('option', { key: tp, value: tp }, env.t(`type_${tp}`)))))),
   h('div', { className: S.BUTTON_ROW },
     h('button', { type: 'button', onClick: p.onDone, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),
     h('button', { type: 'submit', disabled: busy || !valid, className: S.BUTTON_PRIMARY_SMALL }, env.t('add_property'))));
@@ -633,6 +624,7 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
     },
     onKeyDown: escapeTo(p.onDone),
   },
+  h(OcrPreview, { passage }),
   h('input', { className: S.INPUT_IN_CARD, value: label, autoFocus: true, 'aria-label': env.t('field_event_label'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
   h('div', { className: 'flex items-center gap-2' },
     h('input', { type: 'date', className: S.INPUT_IN_CARD, value: day, 'aria-label': env.t('field_date'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDay(e.target.value) }),
@@ -692,6 +684,7 @@ function LocationDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   }, []);
 
   return h('div', { className: S.CARD, onKeyDown: escapeTo(p.onDone) },
+    h(OcrPreview, { passage: p.passage }),
     h('p', { className: 'text-xs text-text-primary' }, `« ${query} »`),
     canPickOnMap()
       ? h('button', {
@@ -936,7 +929,7 @@ function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | nu
         className: `flex items-center gap-2 px-2 py-1 rounded ${a.id === p.selectedId ? 'bg-accent/10 border border-accent/20' : 'hover:bg-bg-secondary'}`,
       },
       h(icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
-      h('button', { type: 'button', onClick: () => p.onGoto(a), className: 'flex-1 min-w-0 text-left', title: a.context ?? a.text },
+      h('button', { type: 'button', onClick: () => p.onGoto(a), className: 'flex-1 min-w-0 text-left' },
         h('span', { className: 'block text-xs text-text-primary truncate' }, a.text),
         h('span', { className: S.HINT }, [isPdf(env.ctx.asset) ? `p.${a.page}` : '', a.kind === 'property' ? a.propertyKey : ''].filter(Boolean).join(' · ') || null)),
       h('button', {
@@ -1223,6 +1216,8 @@ export function ElementSheet(props: Props) {
   const { ctx, elementId, draft, annotations, selectedAnnotationId } = props;
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
   const { LocateFixed } = api.icons;
+  // The forms read the profile: they follow a change made in the settings.
+  React.useSyncExternalStore(subscribeSettings, getSettingsVersion);
 
   const allElements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
   const elements = React.useMemo(
@@ -1276,7 +1271,7 @@ export function ElementSheet(props: Props) {
     return container(
       h(Section, { title: t('new_element') },
         h(NewElementForm, {
-          key: draft.passage.textRange.join('-') + draft.passage.page,
+          key: passageKey(draft.passage) + draft.passage.page,
           env,
           passage: draft.passage,
           onCreated: (id: string) => {
@@ -1334,7 +1329,7 @@ export function ElementSheet(props: Props) {
             },
             h('option', { value: '' }, t('choose_element')),
             elements.map((el) => h('option', { key: el.id, value: el.id }, el.label)))))
-      : h('div', { className: 'p-4 text-xs text-text-tertiary' }, t(elementId ? 'element_missing' : 'sheet_empty'));
+      : elementId ? h('div', { className: 'p-4 text-xs text-text-tertiary' }, t('element_missing')) : null;
     return container(picker);
   }
 
@@ -1362,20 +1357,20 @@ export function ElementSheet(props: Props) {
     h(Section, { title: t('section_properties'), badge: element.properties.length },
       h('div', { className: 'space-y-2' },
         draft?.gesture === 'property'
-          ? h(PropertyDraft, { key: `p-${draft.passage.page}-${draft.passage.textRange.join('-')}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
+          ? h(PropertyDraft, { key: `p-${draft.passage.page}-${passageKey(draft.passage)}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
           : null,
         h(PropertyRows, { env, element, onGoto: props.onGoto }))),
     h(Section, { title: t('section_events'), badge: element.events.length },
       h('div', { className: 'space-y-2' },
         draft?.gesture === 'event'
-          ? h(EventDraft, { key: `e-${draft.passage.page}-${draft.passage.textRange.join('-')}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
+          ? h(EventDraft, { key: `e-${draft.passage.page}-${passageKey(draft.passage)}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
           : null,
         h(EventRows, { env, element, onGoto: props.onGoto }))),
     h(Section, { title: t('section_location') },
       h('div', { className: 'space-y-2' },
         h('label', { className: S.LABEL }, t('geo_coordinates')),
         draft?.gesture === 'location'
-          ? h(LocationDraft, { key: `g-${draft.passage.page}-${draft.passage.textRange.join('-')}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
+          ? h(LocationDraft, { key: `g-${draft.passage.page}-${passageKey(draft.passage)}`, env, element, passage: draft.passage, onDone: props.onDraftDone })
           : null,
         h(GeoFields, {
           env,
