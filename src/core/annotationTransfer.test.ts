@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Annotation } from './model.ts';
 import { anchorLabel } from './anchors.ts';
-import { buildExport, mergeAnnotations, parseExport, rewire, EXPORT_FORMAT } from './annotationTransfer.ts';
+import { buildExport, mergeAnnotations, parseExport, rewire, sanitizeAnnotation, EXPORT_FORMAT } from './annotationTransfer.ts';
 
 const HASH = 'e770f9de2b679d8cc843daa088acf5b8554845b61c79a94bdabae164613401d1';
 
@@ -46,6 +46,60 @@ describe('buildExport / parseExport', () => {
   });
 });
 
+describe('sanitizeAnnotation', () => {
+  const file = (hash: string, annotations: unknown[]) => parseExport({ format: EXPORT_FORMAT, version: 1, documents: [{ hash, annotations }] });
+
+  it('refuses a document hash that is not a SHA-256', () => {
+    expect(file('../ann-index', [ann(ELEMENT, 'element', { documentHash: '../ann-index' })])?.documents).toEqual([]);
+    expect(file(HASH.toUpperCase(), [])?.documents).toEqual([]);
+  });
+
+  it('drops an annotation filed under another document', () => {
+    expect(sanitizeAnnotation(ann(ELEMENT, 'element', { documentHash: 'f'.repeat(64) }), HASH)).toBeNull();
+  });
+
+  it('drops malformed quads, pages, statuses and origins', () => {
+    const bad = [
+      { quads: [[1, 2, 3]] },
+      { quads: [[1, 2, 3, '4']] },
+      { quads: [[1, 2, 3, null]] },
+      { page: 0 },
+      { page: 1.5 },
+      { status: 'accepted' },
+      { origin: 'network' },
+    ];
+    for (const extra of bad) expect(sanitizeAnnotation({ ...ann(ELEMENT, 'element'), ...extra }, HASH), JSON.stringify(extra)).toBeNull();
+  });
+
+  it('keeps known fields only, with their expected types', () => {
+    const a = sanitizeAnnotation(
+      {
+        ...ann(ELEMENT, 'event'),
+        injected: '<img src=x onerror=alert(1)>',
+        textRange: [4, 2],
+        linkEnds: ['a'],
+        eventIds: { el: 'ev', bad: 3 },
+        ocr: { rawText: 'x', confidence: '90', corrected: false },
+        context: 'Phrase.',
+      },
+      HASH,
+    );
+    expect(a).not.toBeNull();
+    expect(a).not.toHaveProperty('injected');
+    expect(a).not.toHaveProperty('textRange');
+    expect(a).not.toHaveProperty('linkEnds');
+    expect(a).not.toHaveProperty('ocr');
+    expect(a?.eventIds).toEqual({ el: 'ev' });
+    expect(a?.context).toBe('Phrase.');
+  });
+
+  it('does not let a __proto__ key change the prototype of eventIds', () => {
+    const a = sanitizeAnnotation(JSON.parse(JSON.stringify(ann(ELEMENT, 'event')).replace('"kind"', '"eventIds":{"__proto__":{"polluted":"yes"}},"kind"')), HASH);
+    expect(Object.getPrototypeOf(a?.eventIds)).toBe(Object.prototype);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+});
+
 describe('rewire', () => {
   const graph = {
     elements: [
@@ -84,6 +138,13 @@ describe('rewire', () => {
     const [lost] = rewire([ann(LOST, 'element')], graph);
     expect(lost.orphan).toBe(true);
     expect(lost.text).toBe(LOST);
+  });
+
+  it('keeps no id of the exporting dossier on an orphan', () => {
+    const [el, link] = rewire([ann(LOST, 'element'), ann(LOST, 'link', { linkEnds: ['old-a', 'old-b'] })], graph);
+    expect(el).not.toHaveProperty('targetId');
+    expect(link).not.toHaveProperty('targetId');
+    expect(link).not.toHaveProperty('linkEnds');
   });
 });
 
