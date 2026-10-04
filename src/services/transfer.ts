@@ -15,6 +15,7 @@ import {
 } from '../core/annotationTransfer.ts';
 import { annotatedDocuments, readDocument, writeDocument } from './annotationStore.ts';
 import { loadOcr, ocrDocuments, saveOcr } from './ocrStore.ts';
+import { presentDocumentHashes } from './documentData.ts';
 import { sanitizeOcrDocument, type OcrDocument } from '../core/ocrLayout.ts';
 
 /** OCR results travel too, so that an imported dossier is not recognized again. */
@@ -27,12 +28,14 @@ export interface ZipLike {
   file(pattern: RegExp): { name: string; async(type: 'string'): Promise<string> }[];
 }
 
+/** Only documents still in the dossier: nothing of a deleted document leaves with the archive. */
 export async function exportAnnotations(zip: ZipLike, dossierId: string): Promise<void> {
-  const hashes = await annotatedDocuments(dossierId);
+  const present = await presentDocumentHashes(dossierId);
+  const hashes = (await annotatedDocuments(dossierId)).filter((h) => present.has(h));
   const documents = await Promise.all(hashes.map(async (hash) => ({ hash, annotations: await readDocument(dossierId, hash) })));
   const file = buildExport(documents);
   if (file) zip.file(EXPORT_FILE, JSON.stringify(file, null, 2));
-  for (const hash of await ocrDocuments(dossierId)) {
+  for (const hash of (await ocrDocuments(dossierId)).filter((h) => present.has(h))) {
     const ocr = await loadOcr(dossierId, hash);
     if (Object.keys(ocr.pages).length) zip.file(`${OCR_DIR}${hash}.json`, JSON.stringify(ocr));
   }

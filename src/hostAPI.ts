@@ -67,7 +67,7 @@ export interface MarkHostAPI {
     /** Decrypted content of a dossier asset. */
     getAssetFile: (asset: { id: string; hash: string; filename: string; mimeType: string }) => Promise<File>;
     /** Assets of any dossier, open or not (import hook). */
-    getAssetsByDossier: (dossierId: string) => Promise<{ id: string; hash: string }[]>;
+    getAssetsByDossier: (dossierId: string) => Promise<{ id: string; hash: string; filename: string }[]>;
   };
 
   // ─── Event bus ────────────────────────────────────────────
