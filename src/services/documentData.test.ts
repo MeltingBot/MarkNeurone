@@ -20,7 +20,7 @@ vi.mock('../hostAPI.ts', () => ({
     fileService: { getAssetsByDossier: async () => assets },
   }),
 }));
-const { onDocumentDeleted, presentDocumentHashes } = await import('./documentData.ts');
+const { absentDocuments, onDocumentDeleted, presentDocumentHashes } = await import('./documentData.ts');
 
 const ocr = { version: 1, model: 'fra_fast', pages: { '1': { lines: [], confidence: 90, skew: 0, at: '' } } };
 
@@ -58,5 +58,19 @@ describe('onDocumentDeleted', () => {
     elements.push({ assetIds: ['a3'] });
     expect(await onDocumentDeleted('d', 'a1')).toBeNull();
     expect(data.has(`ocr:${H1}`)).toBe(true);
+  });
+});
+
+describe('absentDocuments', () => {
+  it('lists deleted documents that still have annotations, with their file name', async () => {
+    data.set('ann-index', [H1, H2]);
+    data.set(`ann:${H2}`, [{ id: 'z' }]);
+    expect(await absentDocuments('d')).toEqual([{ hash: H1, filename: 'pv.pdf', annotations: 2 }]);
+  });
+
+  it('gives no name when ZN no longer has the asset row', async () => {
+    data.set('ann-index', [H1]);
+    assets = assets.filter((a) => a.id !== 'a1');
+    expect(await absentDocuments('d')).toEqual([{ hash: H1, filename: null, annotations: 2 }]);
   });
 });

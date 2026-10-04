@@ -8,7 +8,7 @@
 
 import { getHostAPI } from '../hostAPI.ts';
 import { deleteOcr, ocrDocuments } from './ocrStore.ts';
-import { readDocument } from './annotationStore.ts';
+import { annotatedDocuments, readDocument } from './annotationStore.ts';
 
 /** Hashes of the documents an element of the dossier refers to. */
 export async function presentDocumentHashes(dossierId: string): Promise<Set<string>> {
@@ -40,4 +40,24 @@ export async function onDocumentDeleted(dossierId: string, assetId: string): Pro
   const asset = (await getHostAPI().fileService.getAssetsByDossier(dossierId)).find((a) => a.id === assetId);
   if (!asset || (await presentDocumentHashes(dossierId)).has(asset.hash)) return null;
   return { filename: asset.filename, annotations: (await readDocument(dossierId, asset.hash)).length };
+}
+
+export interface AbsentDocument {
+  hash: string;
+  /** Name of the deleted file, when ZN still has its row. */
+  filename: string | null;
+  annotations: number;
+}
+
+/** Documents no longer in the dossier whose annotations are still stored. */
+export async function absentDocuments(dossierId: string): Promise<AbsentDocument[]> {
+  const present = await presentDocumentHashes(dossierId);
+  const assets = await getHostAPI().fileService.getAssetsByDossier(dossierId);
+  const out: AbsentDocument[] = [];
+  for (const hash of await annotatedDocuments(dossierId)) {
+    if (present.has(hash)) continue;
+    const annotations = (await readDocument(dossierId, hash)).length;
+    if (annotations) out.push({ hash, filename: assets.find((a) => a.hash === hash)?.filename ?? null, annotations });
+  }
+  return out;
 }

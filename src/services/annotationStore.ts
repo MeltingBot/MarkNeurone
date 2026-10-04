@@ -108,3 +108,13 @@ export async function removeAnnotation(dossierId: string, hash: string, annotati
   notify();
   await persist(dossierId, hash, next);
 }
+
+/** Removes all annotations of a document (deleted document, on request). */
+export async function deleteDocument(dossierId: string, hash: string): Promise<void> {
+  const api = getHostAPI();
+  await api.pluginData.remove(dossierId, docKey(hash));
+  const index = await annotatedDocuments(dossierId);
+  if (index.includes(hash)) await api.pluginData.set(dossierId, INDEX_KEY, index.filter((h) => h !== hash));
+  cache.delete(cacheKey(dossierId, hash));
+  notify();
+}

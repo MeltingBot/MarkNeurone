@@ -8,7 +8,8 @@ import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import type { Annotation } from '../core/model.ts';
-import { annotatedDocuments, getAnnotations, getVersion, loadAnnotations, subscribe } from '../services/annotationStore.ts';
+import { annotatedDocuments, deleteDocument, getAnnotations, getVersion, loadAnnotations, subscribe } from '../services/annotationStore.ts';
+import { absentDocuments, type AbsentDocument } from '../services/documentData.ts';
 import { concernedElements } from '../services/qualify.ts';
 import { isPdf, type DocumentAsset } from '../services/documentAssets.ts';
 import { openReader } from '../readerLauncher.ts';
@@ -62,14 +63,29 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
     return out.sort((a, b) => a.asset.filename.localeCompare(b.asset.filename, 'fr'));
   }, [hashes, assets, selectedElements, selectedLinks, version]);
 
+  // Highlights kept from deleted documents, until the user deletes them.
+  const [absent, setAbsent] = React.useState<AbsentDocument[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    absentDocuments(dossierId)
+      .then((list) => {
+        if (!cancelled) setAbsent(list);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot list deleted documents', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, version, assets]);
+  const absentSection = absent.length ? h(AbsentSection, { key: 'absent', dossierId, documents: absent }) : null;
+
   const icons: Record<string, ReactTypes.ElementType> = { element: Highlighter, property: Tag, event: Calendar, location: MapPin, link: Link2 };
   const open = (asset: DocumentAsset, a: Annotation) => openReader({ dossierId, assetId: asset.id, annotationId: a.id });
 
   if (!selectedElements.size && !selectedLinks.size) {
-    return h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_select'));
+    return h('div', null, h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_select')), absentSection);
   }
   if (!groups.length) {
-    return h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_none'));
+    return h('div', null, h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_none')), absentSection);
   }
   // With many documents, sections start closed.
   const startOpen = groups.length <= 3;
@@ -91,7 +107,37 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
                 row.items.map((a, i) =>
                   h('button', { key: a.id, type: 'button', onClick: () => open(asset, a), className: 'hover:text-accent hover:underline' },
                     isPdf(asset) ? String(a.page) : String(i + 1))))));
-        }))));
+        }))),
+    absentSection);
+}
+
+/** Deleted documents whose highlights are kept; each can be deleted, after confirmation. */
+function AbsentSection(p: { dossierId: string; documents: AbsentDocument[] }) {
+  const api = getHostAPI();
+  const React = api.React as typeof ReactTypes;
+  const h = React.createElement;
+  const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
+  const [confirming, setConfirming] = React.useState<string | null>(null);
+  const remove = (hash: string) => {
+    setConfirming(null);
+    deleteDocument(p.dossierId, hash).catch((err: unknown) => {
+      console.error('MarkNeurone: cannot delete highlights', err);
+      api.toast.error(t('absent_delete_error'));
+    });
+  };
+  const link = 'text-xs text-accent hover:underline shrink-0';
+  return h(DocSection, { title: t('absent_title'), count: p.documents.length, startOpen: false },
+    p.documents.map((d) =>
+      h('div', { key: d.hash, className: 'flex items-center gap-2 px-2 py-1 text-xs' },
+        confirming === d.hash
+          ? h(React.Fragment, null,
+              h('span', { className: 'flex-1 min-w-0 text-text-primary' }, t('absent_delete_confirm', { count: d.annotations })),
+              h('button', { type: 'button', onClick: () => remove(d.hash), className: link }, t('absent_delete')),
+              h('button', { type: 'button', onClick: () => setConfirming(null), className: link }, t('cancel')))
+          : h(React.Fragment, null,
+              h('span', { className: 'flex-1 min-w-0 truncate text-text-primary', title: d.filename ?? d.hash }, d.filename ?? t('absent_unnamed')),
+              h('span', { className: 'text-text-tertiary shrink-0' }, t('absent_count', { count: d.annotations })),
+              h('button', { type: 'button', onClick: () => setConfirming(d.hash), className: link }, t('absent_delete'))))));
 }
 
 /** Identical passages (same kind, text and property key) share one row. */
