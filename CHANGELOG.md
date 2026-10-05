@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0 (non publiée)
+## 1.0.0 (2026-10-05)
 
-Première version, en cours de développement.
+Première version. Documentation utilisateur dans `user_doc/`.
 
 **Lecture**
 - Lecteur affiché dans une fenêtre de ZeroNeurone, qui peut être réduite pour revenir au canvas.
@@ -51,6 +51,9 @@ Première version, en cours de développement.
 - Contrôle des annotations et du texte reconnu à l'import d'une archive : les données mal formées sont écartées, et un fichier de texte reconnu illisible n'empêche plus l'import des annotations.
 - Suppression d'un document : son texte reconnu est effacé, ses surlignages sont conservés et un message l'indique. L'onglet « Marqueur » liste les documents supprimés dont des surlignages sont conservés et permet de les effacer. L'export n'inclut que les documents présents dans le dossier.
 - Effacement du texte reconnu d'un document depuis le lecteur, avec confirmation.
+
+**Distribution**
+- Licence de MarkNeurone et des composants inclus placée en tête du fichier `markneurone.js`, la minification retirant les mentions de licence des bibliothèques.
 
 **Outils**
 - Banc d'essai OCR autonome, avec génération de procès-verbaux fictifs dégradés.

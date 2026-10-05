@@ -1,0 +1,36 @@
+# Ouvrir et lire un document
+
+## Formats pris en charge
+
+| Format | Affichage |
+|---|---|
+| PDF avec couche texte | Pages d'origine, texte sélectionnable |
+| PDF numérisé (sans couche texte) | Pages d'origine, texte reconnu en arrière-plan : voir [Documents numérisés](documents-numerises.md) |
+| DOCX, ODT | Texte sur une page continue, avec titres, paragraphes, listes et tableaux |
+| TXT (UTF-8 ou Windows-1252), Markdown | Texte sur une page continue |
+
+Pour les DOCX, ODT, TXT et Markdown, la mise en page d'origine n'est pas reproduite. Ces documents n'ont pas de numéro de page : la référence au passage ne mentionne alors que le document.
+
+## Ouvrir un document
+
+1. Déposez le fichier sur le canvas de ZeroNeurone. Un élément portant le document est créé.
+2. Faites un clic droit sur cet élément et choisissez « Lire dans MarkNeurone ».
+
+Le lecteur s'ouvre dans une grande fenêtre. Il comporte le document à gauche et, à droite, la fiche de l'élément sélectionné.
+
+## Naviguer dans le document
+
+- Les boutons de la barre d'outils permettent d'agrandir, de réduire le zoom et d'ajuster la page à la largeur de la fenêtre.
+- Ctrl+F ouvre la recherche dans tout le document, texte reconnu compris. Entrée et Maj+Entrée passent au résultat suivant ou précédent.
+
+## Réduire et reprendre la lecture
+
+Échap, ou le bouton « Réduire », ferme le lecteur et laisse une pastille sur l'écran de ZeroNeurone. Elle permet de revenir au canvas, puis de reprendre la lecture à la même position. Le bouton « Fermer » ferme le lecteur.
+
+## Référence de la pièce
+
+En haut du lecteur, un champ permet de saisir la référence de la pièce, par exemple « PV n° 00347/2026, pièce n° 2 ». Cette référence remplace le nom du fichier dans la source des objets créés, dans le titre du lecteur et dans l'onglet « Marqueur ».
+
+MarkNeurone propose la référence qu'il lit en tête de la première page, lorsqu'il en trouve une. Elle n'est utilisée qu'après un clic sur « Utiliser cette référence ».
+
+Si vous modifiez la référence après avoir créé des objets, MarkNeurone propose de mettre à jour leur source. Le texte que vous avez vous-même ajouté dans la source n'est pas modifié. « Laisser » conserve les sources telles quelles.
