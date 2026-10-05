@@ -1,29 +1,35 @@
 // French numbers written in words, 1 to 99, as found in hearing reports
-// ("le vingt-quatre septembre", "à onze heures dix-neuf").
+// ("le vingt-quatre septembre", "à onze heures dix-neuf"), with the Belgian
+// and Swiss septante, huitante (or octante) and nonante.
 
 const UNITS = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
   'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize'];
 const TENS: Record<number, string> = { 20: 'vingt', 30: 'trente', 40: 'quarante', 50: 'cinquante', 60: 'soixante' };
 
+// Belgium and Switzerland; huitante in Vaud, Valais and Fribourg, octante is rarer.
+const REGIONAL_TENS: Record<number, string[]> = { 70: ['septante'], 80: ['huitante', 'octante'], 90: ['nonante'] };
+
+/** Tens word followed by a unit: "vingt et un", "trente-deux". */
+function regular(tens: string, unit: number): string[] {
+  if (unit === 0) return [tens];
+  if (unit === 1) return [`${tens} et un`, `${tens}-et-un`, `${tens}-un`];
+  return [`${tens}-${UNITS[unit]}`];
+}
+
 /** Canonical spellings of n (1-99); several when usage varies. */
 function spellings(n: number): string[] {
   if (n <= 16) return [UNITS[n]];
   if (n < 20) return [`dix-${UNITS[n - 10]}`];
-  if (n < 70) {
-    const tens = TENS[Math.floor(n / 10) * 10];
-    const unit = n % 10;
-    if (unit === 0) return [tens];
-    if (unit === 1) return [`${tens} et un`, `${tens}-et-un`, `${tens}-un`];
-    return [`${tens}-${UNITS[unit]}`];
-  }
+  if (n < 70) return regular(TENS[Math.floor(n / 10) * 10], n % 10);
+  const regional = REGIONAL_TENS[Math.floor(n / 10) * 10].flatMap((tens) => regular(tens, n % 10));
   if (n < 80) {
     const rest = n - 60;
-    if (rest === 11) return ['soixante et onze', 'soixante-et-onze', 'soixante-onze'];
-    return rest <= 16 ? [`soixante-${UNITS[rest]}`] : [`soixante-dix-${UNITS[rest - 10]}`];
+    if (rest === 11) return ['soixante et onze', 'soixante-et-onze', 'soixante-onze', ...regional];
+    return [rest <= 16 ? `soixante-${UNITS[rest]}` : `soixante-dix-${UNITS[rest - 10]}`, ...regional];
   }
-  if (n === 80) return ['quatre-vingts', 'quatre-vingt'];
+  if (n === 80) return ['quatre-vingts', 'quatre-vingt', ...regional];
   const rest = n - 80;
-  return rest <= 16 ? [`quatre-vingt-${UNITS[rest]}`] : [`quatre-vingt-dix-${UNITS[rest - 10]}`];
+  return [rest <= 16 ? `quatre-vingt-${UNITS[rest]}` : `quatre-vingt-dix-${UNITS[rest - 10]}`, ...regional];
 }
 
 /** Hyphens and spaces are interchangeable in practice. */

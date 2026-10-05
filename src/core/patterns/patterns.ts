@@ -5,8 +5,9 @@
 import { extractIdentifiers, type IdentifierKind } from './identifiers.ts';
 import { bech32Valid, nirValid } from './checksums.ts';
 import { findDates } from '../dates.ts';
+import { extractRegional, type RegionalKind } from './regional.ts';
 
-export type PatternKind = IdentifierKind | 'nir' | 'email' | 'url' | 'ipv4' | 'ipv6' | 'btc' | 'eth' | 'amount' | 'date';
+export type PatternKind = IdentifierKind | RegionalKind | 'nir' | 'email' | 'url' | 'ipv4' | 'ipv6' | 'btc' | 'eth' | 'amount' | 'date';
 
 export interface PatternMatch {
   kind: PatternKind;
@@ -81,6 +82,7 @@ export function extractPatterns(text: string): PatternMatch[] {
     ...extractIdentifiers(text).map(({ kind, start, end, checksumOk }) => ({ kind, start, end, ...(checksumOk !== undefined ? { checksumOk } : {}) })),
     ...collect(text, PHONE_INTL, 'phone', intlDigits),
     ...collect(text, NIR, 'nir', (raw) => ({ checksumOk: nirValid(raw) })),
+    ...extractRegional(text),
     ...collect(text, EMAIL, 'email'),
     ...collect(text, URL, 'url'),
     ...collect(text, IPV4, 'ipv4'),

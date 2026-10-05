@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 (2026-10-05)
+
+**Suggestions : Belgique, Suisse, Luxembourg**
+- Belgique : numéro national et numéro BIS, numéro d'entreprise BCE (y compris en numéro de TVA BE et sous l'ancienne forme à 9 chiffres), téléphones fixes et GSM, plaques (1-ABC-234 et formes antérieures).
+- Suisse : numéro AVS, IDE (CHE), téléphones, plaques (canton et numéro), montants en francs suisses.
+- Luxembourg : matricule national, numéro de TVA, numéro RCS. Les téléphones luxembourgeois sont reconnus au format international.
+- Clés de contrôle vérifiées pour ces numéros. Un numéro écrit sans sa présentation habituelle n'est signalé que si sa clé est juste.
+- Septante, huitante, octante et nonante dans les dates écrites en toutes lettres.
+- Numéro de PV belge proposé comme référence de la pièce.
+- Les types de suggestion ajoutés par une nouvelle version reçoivent leur tag et leur propriété par défaut, sans modifier les réglages déjà enregistrés.
+
 ## 1.0.0 (2026-10-05)
 
 Première version. Documentation utilisateur dans `user_doc/`.

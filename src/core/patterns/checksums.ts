@@ -114,3 +114,102 @@ export function bech32Checksum(hrp: string, data: number[]): string {
   const mod = polymod([...hrpExpand(hrp), ...data, 0, 0, 0, 0, 0, 0]) ^ 1;
   return [0, 1, 2, 3, 4, 5].map((p) => BECH32_CHARSET[(mod >>> (5 * (5 - p))) & 31]).join('');
 }
+
+// ─── Belgium, Switzerland, Luxembourg ─────────────────────────
+
+const digitsOf = (value: string) => value.replace(/[\s.\-/]/g, '');
+
+/** Month of a Belgian national or BIS number: 0 when unknown, +20 or +40 for BIS numbers. */
+const beMonthPlausible = (m: number) => m <= 12 || (m >= 20 && m <= 32) || (m >= 40 && m <= 52);
+
+/** Birth date part of a Belgian national number is plausible (day 0 when unknown). */
+export function beNationalPlausible(value: string): boolean {
+  const d = digitsOf(value);
+  return /^\d{11}$/.test(d) && beMonthPlausible(Number(d.slice(2, 4))) && Number(d.slice(4, 6)) <= 31;
+}
+
+/**
+ * Belgian national number (registre national) or BIS number, 9 digits + key:
+ * key = 97 - (first 9 digits mod 97), the digits preceded by 2 for people born from 2000.
+ */
+export function beNationalValid(value: string): boolean {
+  const d = digitsOf(value);
+  if (!beNationalPlausible(d)) return false;
+  const key = Number(d.slice(9));
+  return [d.slice(0, 9), `2${d.slice(0, 9)}`].some((body) => 97 - Number(BigInt(body) % 97n) === key);
+}
+
+/** Belgian enterprise number (BCE/KBO, also the VAT number after BE): 8 digits + key mod 97. */
+export function beEnterpriseValid(value: string): boolean {
+  let d = digitsOf(value).toUpperCase().replace(/^BE/, '');
+  if (d.length === 9) d = `0${d}`; // former 9-digit form
+  if (!/^[01]\d{9}$/.test(d)) return false;
+  return (Number(d.slice(0, 8)) + Number(d.slice(8))) % 97 === 0;
+}
+
+/** Swiss AVS/AHV number: 756 then 9 digits and an EAN-13 check digit. */
+export function avsValid(value: string): boolean {
+  const d = digitsOf(value);
+  if (!/^756\d{10}$/.test(d)) return false;
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += (d.charCodeAt(i) - 48) * (i % 2 === 0 ? 1 : 3);
+  return (10 - (sum % 10)) % 10 === d.charCodeAt(12) - 48;
+}
+
+/** Swiss enterprise identification number (IDE/UID): CHE, 8 digits and a weighted mod-11 check digit. */
+export function ideValid(value: string): boolean {
+  const d = digitsOf(value).toUpperCase().replace(/^CHE/, '');
+  if (!/^\d{9}$/.test(d)) return false;
+  const weights = [5, 4, 3, 2, 7, 6, 5, 4];
+  const sum = weights.reduce((s, w, i) => s + w * (d.charCodeAt(i) - 48), 0);
+  // A remainder giving 10 is never issued.
+  return (11 - (sum % 11)) % 11 === d.charCodeAt(8) - 48;
+}
+
+/** Luxembourg VAT number: LU, 6 digits and their remainder mod 89. */
+export function luVatValid(value: string): boolean {
+  const d = digitsOf(value).toUpperCase().replace(/^LU/, '');
+  return /^\d{8}$/.test(d) && Number(d.slice(0, 6)) % 89 === Number(d.slice(6));
+}
+
+const VERHOEFF_D = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 0, 6, 7, 8, 9, 5], [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+  [3, 4, 0, 1, 2, 8, 9, 5, 6, 7], [4, 0, 1, 2, 3, 9, 5, 6, 7, 8], [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+  [6, 5, 9, 8, 7, 1, 0, 4, 3, 2], [7, 6, 5, 9, 8, 2, 1, 0, 4, 3], [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+  [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+];
+const VERHOEFF_P = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 5, 7, 6, 2, 8, 3, 0, 9, 4], [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+  [8, 9, 1, 6, 0, 4, 3, 5, 2, 7], [9, 4, 5, 3, 1, 2, 6, 8, 7, 0], [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+  [2, 7, 9, 3, 8, 0, 6, 4, 1, 5], [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+];
+
+/** Verhoeff check over a string of digits, check digit last. */
+export function verhoeffValid(digits: string): boolean {
+  if (!/^\d+$/.test(digits)) return false;
+  let c = 0;
+  for (let i = 0; i < digits.length; i++) {
+    c = VERHOEFF_D[c][VERHOEFF_P[i % 8][digits.charCodeAt(digits.length - 1 - i) - 48]];
+  }
+  return c === 0;
+}
+
+/** Birth date part (YYYYMMDD) of a Luxembourg national identification number is plausible. */
+export function luNationalPlausible(value: string): boolean {
+  const d = digitsOf(value);
+  if (!/^(?:19|20)\d{11}$/.test(d)) return false;
+  const month = Number(d.slice(4, 6));
+  const day = Number(d.slice(6, 8));
+  return month >= 1 && month <= 12 && day >= 1 && day <= 31;
+}
+
+/**
+ * Luxembourg national identification number (matricule), 13 digits: birth date
+ * YYYYMMDD, 3 digits, then a Luhn and a Verhoeff check digit, both computed
+ * over the first 11 digits.
+ */
+export function luNationalValid(value: string): boolean {
+  const d = digitsOf(value);
+  if (!luNationalPlausible(d)) return false;
+  return luhnValid(d.slice(0, 12)) && verhoeffValid(d.slice(0, 11) + d[12]);
+}

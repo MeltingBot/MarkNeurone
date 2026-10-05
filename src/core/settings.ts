@@ -6,6 +6,7 @@
 // setting added later gets its default value.
 
 import { DEFAULT_PROFILE, type ReadingProfile } from '../profiles/default.ts';
+import { SUGGESTION_KINDS, type SuggestionKind } from './suggestions.ts';
 
 export interface Settings {
   profile: ReadingProfile;
@@ -50,12 +51,19 @@ function uniqueNames(values: unknown[]): string[] {
   return out;
 }
 
-function cleanMap(value: unknown, fallback: Record<string, string | undefined>): Record<string, string> {
+// Kinds of the settings saved before the list was recorded (1.0.0).
+const FIRST_KINDS: string[] = ['phone', 'plate', 'iban', 'siret', 'nir', 'email', 'url', 'ipv4', 'ipv6', 'btc', 'eth', 'amount', 'date'];
+
+/** Stored names, plus the default of each kind unknown when they were saved. */
+function cleanMap(value: unknown, fallback: Record<string, string | undefined>, known: string[]): Record<string, string> {
   if (!value || typeof value !== 'object') return { ...fallback } as Record<string, string>;
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
     const name = clean(v);
     if (name) out[k] = name;
+  }
+  for (const [k, v] of Object.entries(fallback)) {
+    if (v && !known.includes(k) && !(k in out)) out[k] = v;
   }
   return out;
 }
@@ -72,6 +80,7 @@ export function normalizeSettings(stored: unknown): Settings {
     links?: Partial<Record<keyof Settings['links'], unknown>>;
   };
   const p: Partial<ReadingProfile> = s.profile ?? {};
+  const known = Array.isArray(p.suggestionKinds) ? p.suggestionKinds.filter((k) => typeof k === 'string') : FIRST_KINDS;
   const tags = Array.isArray(p.grid) ? uniqueNames(p.grid.map((g: unknown) => (g as { tag?: unknown } | null)?.tag)) : DEFAULT_PROFILE.grid.map((g) => g.tag);
   return {
     profile: {
@@ -79,8 +88,9 @@ export function normalizeSettings(stored: unknown): Settings {
       name: DEFAULT_PROFILE.name,
       grid: tags.slice(0, MAX_GRID).map((tag, i) => ({ tag, key: String(i + 1) })),
       aliasKeys: Array.isArray(p.aliasKeys) ? uniqueNames(p.aliasKeys) : [...DEFAULT_PROFILE.aliasKeys],
-      suggestionTags: cleanMap(p.suggestionTags, DEFAULT_PROFILE.suggestionTags),
-      suggestionKeys: cleanMap(p.suggestionKeys, DEFAULT_PROFILE.suggestionKeys),
+      suggestionTags: cleanMap(p.suggestionTags, DEFAULT_PROFILE.suggestionTags, known),
+      suggestionKeys: cleanMap(p.suggestionKeys, DEFAULT_PROFILE.suggestionKeys, known),
+      suggestionKinds: [...SUGGESTION_KINDS] as SuggestionKind[],
     },
     ocr: { dropColor: typeof s.ocr?.dropColor === 'boolean' ? s.ocr.dropColor : DEFAULT_SETTINGS.ocr.dropColor },
     labels: { uppercase: typeof s.labels?.uppercase === 'boolean' ? s.labels.uppercase : DEFAULT_SETTINGS.labels.uppercase },

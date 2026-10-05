@@ -13,6 +13,16 @@ describe('numberValue', () => {
     expect(numberValue('quatre vingt dix neuf')).toBe(99);
   });
 
+  it('reads the Belgian and Swiss tens', () => {
+    expect(numberValue('septante')).toBe(70);
+    expect(numberValue('septante et un')).toBe(71);
+    expect(numberValue('septante-cinq')).toBe(75);
+    expect(numberValue('huitante')).toBe(80);
+    expect(numberValue('octante-deux')).toBe(82);
+    expect(numberValue('nonante-neuf')).toBe(99);
+    expect(yearValue('mille neuf cent septante-cinq')).toBe(1975);
+  });
+
   it('rejects anything else', () => {
     expect(numberValue('cent')).toBeNull();
     expect(numberValue('vingtaine')).toBeNull();

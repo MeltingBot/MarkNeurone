@@ -24,6 +24,10 @@ describe('detectReference', () => {
     expect(detectReference('PROCES-VERBAL\nN°\n1234/2025\nDate')).toBe('PV n° 1234/2025');
   });
 
+  it('reads a Belgian report number', () => {
+    expect(detectReference('POLICE FÉDÉRALE PROCÈS-VERBAL N° BR.12.L1.012345/2024 Audition')).toBe('PV n° BR.12.L1.012345/2024');
+  });
+
   it('proposes nothing for another kind of document', () => {
     expect(detectReference('Relevé de compte n° 123456')).toBeNull();
     expect(detectReference('PROCÈS-VERBAL sans numéro')).toBeNull();

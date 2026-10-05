@@ -40,7 +40,7 @@ Une nouvelle propriété est enregistrée dans le dossier et associée aux tags 
 
 ## Événement
 
-Le libellé est prérempli avec le passage, la date et l'heure avec celles lues dans le passage ou, à défaut, dans la phrase. Les dates écrites en toutes lettres sont reconnues (« le vingt-quatre mars deux mille vingt-cinq »). Lorsque l'année manque, celle de la page est reprise et le formulaire le signale : vérifiez-la.
+Le libellé est prérempli avec le passage, la date et l'heure avec celles lues dans le passage ou, à défaut, dans la phrase. Les dates écrites en toutes lettres sont reconnues (« le vingt-quatre mars deux mille vingt-cinq »), y compris avec septante, huitante, octante et nonante. Lorsque l'année manque, celle de la page est reprise et le formulaire le signale : vérifiez-la.
 
 « Éléments concernés » propose l'élément affiché et les éléments déjà surlignés dans la même phrase. Cochez ceux auxquels l'événement doit être ajouté. « Ajouter un élément... » permet d'en ajouter d'autres.
 

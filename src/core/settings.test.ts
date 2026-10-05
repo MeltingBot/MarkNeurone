@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, MAX_GRID, normalizeSettings } from './settings.ts';
+import { SUGGESTION_KINDS } from './suggestions.ts';
 
 describe('normalizeSettings', () => {
   it('gives the defaults when nothing is stored', () => {
@@ -21,7 +22,12 @@ describe('normalizeSettings', () => {
 
   it('keeps the stored values and drops empty ones', () => {
     const s = normalizeSettings({
-      profile: { aliasKeys: ['Surnom', ' ', 'surnom'], suggestionTags: { phone: 'Ligne', iban: '' }, suggestionKeys: { phone: 'Numéro' } },
+      profile: {
+        aliasKeys: ['Surnom', ' ', 'surnom'],
+        suggestionTags: { phone: 'Ligne', iban: '' },
+        suggestionKeys: { phone: 'Numéro' },
+        suggestionKinds: SUGGESTION_KINDS,
+      },
       ocr: { dropColor: false },
       labels: { uppercase: true },
     });
@@ -30,6 +36,22 @@ describe('normalizeSettings', () => {
     expect(s.profile.suggestionKeys).toEqual({ phone: 'Numéro' });
     expect(s.ocr.dropColor).toBe(false);
     expect(s.labels.uppercase).toBe(true);
+  });
+});
+
+describe('suggestion kinds added after the settings were saved', () => {
+  it('get their default tag and key, and the choices made stay', () => {
+    // Saved with 1.0.0: no list of kinds, the Belgian number did not exist.
+    const s = normalizeSettings({ profile: { suggestionTags: { phone: 'Ligne' }, suggestionKeys: { phone: 'Numéro' } } });
+    expect(s.profile.suggestionTags).toEqual({ phone: 'Ligne', be_bce: 'Entreprise', ch_ide: 'Entreprise', lu_rcs: 'Entreprise', lu_tva: 'Entreprise' });
+    expect(s.profile.suggestionKeys.be_nn).toBe('Numéro national');
+    expect(s.profile.suggestionKeys.iban).toBeUndefined();
+  });
+
+  it('stay empty once the user has emptied them', () => {
+    const s = normalizeSettings({ profile: { suggestionTags: {}, suggestionKeys: {}, suggestionKinds: SUGGESTION_KINDS } });
+    expect(s.profile.suggestionTags).toEqual({});
+    expect(s.profile.suggestionKeys).toEqual({});
   });
 });
 

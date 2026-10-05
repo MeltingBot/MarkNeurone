@@ -31,6 +31,6 @@ Le lecteur s'ouvre dans une grande fenêtre. Il comporte le document à gauche e
 
 En haut du lecteur, un champ permet de saisir la référence de la pièce, par exemple « PV n° 00347/2026, pièce n° 2 ». Cette référence remplace le nom du fichier dans la source des objets créés, dans le titre du lecteur et dans l'onglet « Marqueur ».
 
-MarkNeurone propose la référence qu'il lit en tête de la première page, lorsqu'il en trouve une. Elle n'est utilisée qu'après un clic sur « Utiliser cette référence ».
+MarkNeurone propose la référence qu'il lit en tête de la première page d'un procès-verbal, lorsqu'il en trouve une, y compris un numéro de PV belge (« BR.12.L1.012345/2024 »). Elle n'est utilisée qu'après un clic sur « Utiliser cette référence ».
 
 Si vous modifiez la référence après avoir créé des objets, MarkNeurone propose de mettre à jour leur source. Le texte que vous avez vous-même ajouté dans la source n'est pas modifié. « Laisser » conserve les sources telles quelles.

@@ -21,7 +21,8 @@ export function cleanReference(raw: unknown): string {
 }
 
 const PV_TITLE = /PROC[ÈE]S[\s-]*VERBAL/i;
-const NUMBER = /N\s*[°º]\s*:?\s*(\d[\dA-Za-z/.-]*\d|\d)/;
+// Digits first (00347/2026), or the Belgian form with its arrondissement code (BR.12.L1.012345/2024).
+const NUMBER = /N\s*[°º]\s*:?\s*(\d[\dA-Za-z/.-]*\d|\d|[A-Z]{2}\.[\dA-Za-z/.-]*\d)/;
 const ITEM = /Pi[èe]ce\s*n\s*[°º]\s*:?\s*(\d+)/i;
 
 /**

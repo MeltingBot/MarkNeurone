@@ -6,7 +6,7 @@ La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la 
 
 - **Tags proposés** à la création d'un élément, choisis parmi ceux du gestionnaire de tags de ZeroNeurone, neuf au plus. Leur ordre donne les raccourcis Alt+1 à Alt+9. Leur couleur est celle du tag dans ZeroNeurone.
 - **Propriétés de surnom** : la valeur de ces propriétés est cherchée dans les documents comme un autre nom de l'élément. Par défaut « Alias ». Par exemple, une propriété « Alias » valant « Le Grand » sur l'élément Jules TERRIER fait signaler « Le Grand » dans les documents.
-- **Tag et propriété par type de suggestion** : le tag ou le nom de propriété proposé lorsqu'une suggestion est traitée (téléphone, plaque, IBAN...).
+- **Tag et propriété par type de suggestion** : le tag ou le nom de propriété proposé lorsqu'une suggestion est traitée (téléphone, plaque, IBAN...). Lorsqu'une nouvelle version ajoute un type, il reçoit ses valeurs par défaut, sans modifier vos choix pour les types existants.
 - **Nom des nouveaux éléments en majuscules.**
 
 ## Onglet « Reconnaissance »

@@ -6,14 +6,22 @@ Le bouton « Afficher les suggestions » de la barre d'outils signale dans le do
 
 **Les identifiants de forme connue :**
 
-- téléphones français et internationaux ;
-- plaques d'immatriculation françaises ;
-- IBAN, SIRET et NIR, avec vérification de la clé de contrôle ;
+- téléphones français, belges et suisses, et tous les numéros au format international (+352 pour le Luxembourg) ;
+- plaques d'immatriculation françaises, belges et suisses ;
+- IBAN de tous les pays ;
+- identifiants d'entreprise : SIRET, numéro d'entreprise belge (BCE, y compris sous la forme d'un numéro de TVA BE), IDE suisse (CHE), numéro de TVA et numéro RCS luxembourgeois ;
+- numéros d'identification des personnes : NIR, numéro national belge (et numéro BIS), numéro AVS suisse, matricule national luxembourgeois ;
 - adresses e-mail et URL ;
 - adresses IPv4 et IPv6 ;
 - adresses Bitcoin et Ethereum ;
-- montants en euros ;
+- montants en euros et en francs suisses ;
 - dates.
+
+La clé de contrôle est vérifiée pour tous ces numéros, sauf les téléphones, les plaques et le numéro RCS, qui n'en ont pas. Une clé fausse est signalée comme une erreur de lecture probable.
+
+Trois numéros n'ont pas de préfixe qui les distingue d'un nombre quelconque : le numéro national belge, le matricule luxembourgeois et le numéro d'entreprise belge écrit sans « BE ». Ils sont signalés avec une clé fausse seulement lorsqu'ils sont écrits dans leur présentation habituelle, par exemple 85.07.30-033.28 pour un numéro national belge ou 0403.019.261 pour un numéro d'entreprise. Écrits autrement, par exemple en une suite de chiffres, ils ne sont signalés que si leur clé est juste.
+
+Quelques cas restent ambigus. Un numéro belge comme 0456 789 034 peut être un numéro d'entreprise ou un numéro de GSM : il est alors signalé comme téléphone. Les plaques luxembourgeoises (deux lettres et quatre chiffres) et les numéros de téléphone luxembourgeois écrits sans indicatif ne sont pas signalés, car leur forme est trop courante pour être reconnue sans erreur.
 
 ## Traiter une suggestion
 
@@ -23,7 +31,7 @@ Pour un nom déjà présent dans le dossier, la barre l'indique (« Déjà dans 
 
 Chaque suggestion se traite séparément : il n'existe pas de validation groupée. Les objets créés à partir d'une suggestion gardent l'indication de leur origine (identifiant reconnu ou nom du dossier).
 
-Lorsque la clé de contrôle d'un IBAN, d'un SIRET ou d'un NIR est fausse, le formulaire signale une erreur de lecture probable. Sur un document numérisé, vérifiez le numéro sur l'image.
+Lorsque la clé de contrôle d'un numéro est fausse, le formulaire signale une erreur de lecture probable. Sur un document numérisé, vérifiez le numéro sur l'image.
 
 ## Première lecture
 

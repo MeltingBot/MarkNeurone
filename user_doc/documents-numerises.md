@@ -18,7 +18,7 @@ Le texte reconnu est enregistré avec le dossier. Il n'est calculé qu'une fois 
 
 Lorsqu'un mot du passage sélectionné a été lu avec une faible confiance, le formulaire affiche l'image du passage au-dessus des champs. Comparez le texte proposé avec l'image et corrigez-le avant de valider. Le texte tel que lu par l'OCR reste enregistré à côté du texte validé.
 
-Pour les numéros comportant une clé de contrôle (IBAN, SIRET, NIR), le formulaire signale une clé invalide comme une erreur de lecture probable. Il signale aussi une adresse Bitcoin dont le préfixe a probablement été mal lu (« bcl » pour « bc1 »).
+Pour les numéros comportant une clé de contrôle (IBAN, SIRET, NIR, numéros belges, suisses et luxembourgeois), le formulaire signale une clé invalide comme une erreur de lecture probable. Il signale aussi une adresse Bitcoin dont le préfixe a probablement été mal lu (« bcl » pour « bc1 »).
 
 ## Relire une sélection
 

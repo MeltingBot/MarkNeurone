@@ -14,6 +14,13 @@ import { extractPatterns, type PatternKind } from './patterns/patterns.ts';
 
 export type SuggestionKind = PatternKind | 'name';
 
+/** Pattern kinds in the order of the settings, those of one country together. */
+export const SUGGESTION_KINDS: SuggestionKind[] = [
+  'phone', 'plate', 'iban', 'siret', 'nir',
+  'be_bce', 'be_nn', 'ch_ide', 'ch_avs', 'lu_rcs', 'lu_tva', 'lu_nin',
+  'email', 'url', 'ipv4', 'ipv6', 'btc', 'eth', 'amount', 'date',
+];
+
 export interface Suggestion {
   /** Stable for a given text: page:start:end:kind. */
   key: string;

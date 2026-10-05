@@ -8,7 +8,7 @@ import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import { DEFAULT_SETTINGS, MAX_GRID, normalizeSettings, type Settings } from '../core/settings.ts';
 import type { CooccurrenceScope } from '../core/settings.ts';
-import type { SuggestionKind } from '../core/suggestions.ts';
+import { SUGGESTION_KINDS } from '../core/suggestions.ts';
 import { getSettings, saveSettings } from '../services/settingsStore.ts';
 import { setTagColor } from '../services/graphWriter.ts';
 import type { ZnTagSet } from '../services/znTypes.ts';
@@ -16,7 +16,6 @@ import { ColorDot } from './ColorDot.tsx';
 import { TagSetPicker } from './TagSetPicker.tsx';
 import * as S from './znStyles.ts';
 
-const KINDS: SuggestionKind[] = ['phone', 'plate', 'iban', 'siret', 'nir', 'email', 'url', 'ipv4', 'ipv6', 'btc', 'eth', 'amount', 'date'];
 
 const INPUT = 'w-full px-2 py-1 text-xs rounded border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:border-accent';
 const BUTTON_PRIMARY = 'bg-accent text-white hover:bg-accent-hover px-3 py-1.5 text-sm font-medium rounded sketchy-border disabled:opacity-50';
@@ -170,7 +169,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             h('span', null),
             h('span', { className: S.SMALL_LABEL }, t('settings_col_tag')),
             h('span', { className: S.SMALL_LABEL }, t('field_key')),
-            KINDS.flatMap((kind) => [
+            SUGGESTION_KINDS.flatMap((kind) => [
               h('span', { key: `${kind}-l`, className: 'text-xs text-text-secondary' }, t(`suggestion_kind_${kind}`)),
               h(TagSetPicker, {
                 key: `${kind}-t`,

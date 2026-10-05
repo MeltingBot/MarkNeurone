@@ -24,6 +24,11 @@ export interface ReadingProfile {
   suggestionTags: Partial<Record<SuggestionKind, string>>;
   /** Pre-highlighting: key proposed when a suggestion becomes a property. */
   suggestionKeys: Partial<Record<SuggestionKind, string>>;
+  /**
+   * Kinds the settings were saved with: a kind added since then gets its
+   * default tag and key, while an empty one the user chose stays empty.
+   */
+  suggestionKinds?: SuggestionKind[];
 }
 
 // Built-in ZN TagSets most frequent in hearing reports.
@@ -40,6 +45,10 @@ export const DEFAULT_PROFILE: ReadingProfile = {
     email: 'Email',
     plate: 'Véhicule',
     siret: 'Entreprise',
+    be_bce: 'Entreprise',
+    ch_ide: 'Entreprise',
+    lu_rcs: 'Entreprise',
+    lu_tva: 'Entreprise',
     url: 'Site web',
     btc: 'Wallet crypto',
     eth: 'Wallet crypto',
@@ -51,6 +60,13 @@ export const DEFAULT_PROFILE: ReadingProfile = {
     plate: 'Immatriculation',
     siret: 'SIRET',
     nir: 'NIR',
+    be_bce: "Numéro d'entreprise",
+    be_nn: 'Numéro national',
+    ch_ide: 'IDE',
+    ch_avs: 'Numéro AVS',
+    lu_rcs: 'RCS',
+    lu_tva: 'Numéro de TVA',
+    lu_nin: 'Matricule',
     url: 'URL',
     ipv4: 'Adresse IP',
     ipv6: 'Adresse IP',
