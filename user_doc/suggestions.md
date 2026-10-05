@@ -4,7 +4,7 @@ Le bouton « Afficher les suggestions » de la barre d'outils signale dans le do
 
 **Les noms déjà présents dans le dossier.** Les libellés des éléments et la valeur de leurs propriétés de surnom (par défaut « Alias ») sont recherchés dans le document, sans tenir compte de la casse ni des accents. Les variantes simples sont reconnues : ordre inversé (« MARTIN Jean » pour « Jean MARTIN ») et initiale du prénom (« J. MARTIN »). Le passage est surligné dans la couleur du tag de l'élément, ce qui fait apparaître les recoupements avec les autres pièces.
 
-**Les identifiants de forme connue :**
+**Les identifiants de forme connue.** Les identifiants français sont toujours recherchés. Ceux de la Belgique, de la Suisse et du Luxembourg ne le sont que si le pays est coché dans l'onglet « Reconnaissance » des [réglages](reglages.md) ; ils sont désactivés par défaut.
 
 - téléphones français, belges et suisses, et tous les numéros au format international (+352 pour le Luxembourg) ;
 - plaques d'immatriculation françaises, belges et suisses ;

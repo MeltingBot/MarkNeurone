@@ -18,6 +18,14 @@ import {
 
 export type RegionalKind = 'be_nn' | 'be_bce' | 'ch_avs' | 'ch_ide' | 'lu_nin' | 'lu_tva' | 'lu_rcs';
 
+/** Countries whose identifiers are looked for besides the French ones, on the user's choice. */
+export type Country = 'be' | 'ch' | 'lu';
+export const COUNTRIES: Country[] = ['be', 'ch', 'lu'];
+
+export const KIND_COUNTRY: Record<RegionalKind, Country> = {
+  be_nn: 'be', be_bce: 'be', ch_avs: 'ch', ch_ide: 'ch', lu_nin: 'lu', lu_tva: 'lu', lu_rcs: 'lu',
+};
+
 export interface RegionalMatch {
   kind: RegionalKind | 'phone' | 'plate' | 'amount';
   start: number;
@@ -47,9 +55,10 @@ const CH_PHONE = new RegExp(`(?<![\\d+./])0[1-9]\\d${SEP}\\d{3}${SEP}\\d{2}${SEP
 const BE_PLATE = /(?<![A-Z0-9-])[1-9][\s-]?[A-Z]{3}[\s-]?\d{3}(?![A-Z0-9])/g;
 const BE_PLATE_OLD = /(?<![A-Z0-9-])(?:[A-Z]{3}-\d{3}|\d{3}-[A-Z]{3})(?![A-Z0-9-])/g;
 // Swiss plates: canton code, a space and up to 6 digits (VD 123 456, GE 12345).
-// The space is required: FR42 or BE68 begin an IBAN.
+// The space is required: FR42 or BE68 begin an IBAN. No further group of
+// digits: LU 150 274 42 is a Luxembourg VAT number, not a Lucerne plate.
 const CANTONS = 'AG|AI|AR|BE|BL|BS|FR|GE|GL|GR|JU|LU|NE|NW|OW|SG|SH|SO|SZ|TG|TI|UR|VD|VS|ZG|ZH';
-const CH_PLATE = new RegExp(`(?<![A-Za-z0-9])(?:${CANTONS})[  ]\\d{1,3}(?:[\\s']?\\d{3})?(?![\\d.,'’A-Za-z])`, 'g');
+const CH_PLATE = new RegExp(`(?<![A-Za-z0-9])(?:${CANTONS})[  ]\\d{1,3}(?:[\\s']?\\d{3})?(?![\\d.,'’A-Za-z]|[\\s']\\d)`, 'g');
 
 // Swiss AVS number 756.1234.5678.97, IDE CHE-123.456.788.
 const CH_AVS = /(?<![\d.])756[.\s]?\d{4}[.\s]?\d{4}[.\s]?\d{2}(?!\d)/g;
@@ -94,25 +103,37 @@ function keyed(plausible: (raw: string) => boolean, valid: (raw: string) => bool
   };
 }
 
-export function extractRegional(text: string): RegionalMatch[] {
-  return [
-    ...collect(text, BE_NN, 'be_nn', keyed(beNationalPlausible, beNationalValid, BE_NN_GROUPING)),
-    ...collect(text, BE_BCE_PREFIXED, 'be_bce', (raw) => ({ checksumOk: beEnterpriseValid(raw) })),
-    ...collect(text, BE_BCE_DOTTED, 'be_bce', (raw) => ({ checksumOk: beEnterpriseValid(raw) })),
-    ...collect(text, BE_PHONE_ZONE1, 'phone'),
-    ...collect(text, BE_PHONE_ZONE2, 'phone'),
-    ...collect(text, BE_MOBILE, 'phone'),
-    ...collect(text, CH_PHONE, 'phone'),
-    ...collect(text, BE_BCE_SPACED, 'be_bce', (raw) => (beEnterpriseValid(raw) ? { checksumOk: true } : false)),
-    ...collect(text, BE_PLATE, 'plate'),
-    ...collect(text, BE_PLATE_OLD, 'plate'),
-    ...collect(text, CH_PLATE, 'plate'),
-    ...collect(text, CH_AVS, 'ch_avs', (raw) => ({ checksumOk: avsValid(raw) })),
-    ...collect(text, CH_IDE, 'ch_ide', (raw) => ({ checksumOk: ideValid(raw) })),
-    ...collect(text, CHF_AFTER, 'amount'),
-    ...collect(text, CHF_BEFORE, 'amount'),
-    ...collect(text, LU_NIN, 'lu_nin', keyed(luNationalPlausible, luNationalValid, LU_NIN_GROUPING)),
-    ...collect(text, LU_TVA, 'lu_tva', (raw) => ({ checksumOk: luVatValid(raw) })),
-    ...collect(text, LU_RCS, 'lu_rcs'),
-  ];
+export function extractRegional(text: string, countries: readonly Country[]): RegionalMatch[] {
+  const out: RegionalMatch[] = [];
+  if (countries.includes('be')) {
+    out.push(
+      ...collect(text, BE_NN, 'be_nn', keyed(beNationalPlausible, beNationalValid, BE_NN_GROUPING)),
+      ...collect(text, BE_BCE_PREFIXED, 'be_bce', (raw) => ({ checksumOk: beEnterpriseValid(raw) })),
+      ...collect(text, BE_BCE_DOTTED, 'be_bce', (raw) => ({ checksumOk: beEnterpriseValid(raw) })),
+      ...collect(text, BE_PHONE_ZONE1, 'phone'),
+      ...collect(text, BE_PHONE_ZONE2, 'phone'),
+      ...collect(text, BE_MOBILE, 'phone'),
+      ...collect(text, BE_BCE_SPACED, 'be_bce', (raw) => (beEnterpriseValid(raw) ? { checksumOk: true } : false)),
+      ...collect(text, BE_PLATE, 'plate'),
+      ...collect(text, BE_PLATE_OLD, 'plate'),
+    );
+  }
+  if (countries.includes('ch')) {
+    out.push(
+      ...collect(text, CH_PHONE, 'phone'),
+      ...collect(text, CH_PLATE, 'plate'),
+      ...collect(text, CH_AVS, 'ch_avs', (raw) => ({ checksumOk: avsValid(raw) })),
+      ...collect(text, CH_IDE, 'ch_ide', (raw) => ({ checksumOk: ideValid(raw) })),
+      ...collect(text, CHF_AFTER, 'amount'),
+      ...collect(text, CHF_BEFORE, 'amount'),
+    );
+  }
+  if (countries.includes('lu')) {
+    out.push(
+      ...collect(text, LU_NIN, 'lu_nin', keyed(luNationalPlausible, luNationalValid, LU_NIN_GROUPING)),
+      ...collect(text, LU_TVA, 'lu_tva', (raw) => ({ checksumOk: luVatValid(raw) })),
+      ...collect(text, LU_RCS, 'lu_rcs'),
+    );
+  }
+  return out;
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 (2026-10-05)
+
+- Identifiants belges, suisses et luxembourgeois activés pays par pays dans l'onglet « Reconnaissance » des réglages, désactivés par défaut. Les identifiants français restent toujours recherchés.
+- Le tableau des tags et propriétés par type de suggestion ne montre que les types des pays cochés.
+- Une plaque suisse n'est plus reconnue dans un numéro suivi d'autres chiffres (« LU 150 274 42 », numéro de TVA luxembourgeois).
+- Documentation : MarkNeurone est présenté pour tout document rédigé, le procès-verbal étant un cas d'usage parmi d'autres. Le champ « Référence de la pièce » devient « Référence du document ».
+
 ## 1.1.0 (2026-10-05)
 
 **Suggestions : Belgique, Suisse, Luxembourg**

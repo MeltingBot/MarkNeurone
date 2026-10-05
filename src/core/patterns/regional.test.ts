@@ -15,7 +15,21 @@ import {
 } from './checksums.ts';
 
 const found = (text: string) =>
-  extractPatterns(text).map((m) => ({ kind: m.kind, text: text.slice(m.start, m.end), ...(m.checksumOk !== undefined ? { ok: m.checksumOk } : {}) }));
+  extractPatterns(text, ['be', 'ch', 'lu']).map((m) => ({ kind: m.kind, text: text.slice(m.start, m.end), ...(m.checksumOk !== undefined ? { ok: m.checksumOk } : {}) }));
+
+describe('countries chosen in the settings', () => {
+  const text = 'NN 85.07.30-033.28, AVS 756.1234.5678.97, TVA LU 150 274 42';
+  const kindsFor = (countries: Parameters<typeof extractPatterns>[1]) => extractPatterns(text, countries).map((m) => m.kind);
+
+  it('leave out every foreign identifier by default', () => {
+    expect(kindsFor(undefined)).toEqual([]);
+  });
+
+  it('bring in the identifiers of each country chosen only', () => {
+    expect(kindsFor(['ch'])).toEqual(['ch_avs']);
+    expect(kindsFor(['be', 'lu'])).toEqual(['be_nn', 'lu_tva']);
+  });
+});
 
 describe('Belgian check digits', () => {
   it('checks national and BIS numbers, before and after 2000', () => {

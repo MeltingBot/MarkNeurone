@@ -7,6 +7,7 @@
 
 import { DEFAULT_PROFILE, type ReadingProfile } from '../profiles/default.ts';
 import { SUGGESTION_KINDS, type SuggestionKind } from './suggestions.ts';
+import { COUNTRIES, type Country } from './patterns/regional.ts';
 
 export interface Settings {
   profile: ReadingProfile;
@@ -17,6 +18,10 @@ export interface Settings {
   labels: {
     /** Offer the passage in capitals as the name of a new element. */
     uppercase: boolean;
+  };
+  /** Countries whose identifiers are recognized besides the French ones, none by default. */
+  identifiers: {
+    countries: Country[];
   };
   /** Link assistance, off by default (analysis, sections 3 and 6). */
   links: {
@@ -37,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   profile: DEFAULT_PROFILE,
   ocr: { dropColor: true },
   labels: { uppercase: false },
+  identifiers: { countries: [] },
   links: { verb: false, cooccurrence: 'off' },
 };
 
@@ -77,6 +83,7 @@ export function normalizeSettings(stored: unknown): Settings {
     profile?: Partial<ReadingProfile>;
     ocr?: Partial<Settings['ocr']>;
     labels?: Partial<Settings['labels']>;
+    identifiers?: { countries?: unknown };
     links?: Partial<Record<keyof Settings['links'], unknown>>;
   };
   const p: Partial<ReadingProfile> = s.profile ?? {};
@@ -94,6 +101,9 @@ export function normalizeSettings(stored: unknown): Settings {
     },
     ocr: { dropColor: typeof s.ocr?.dropColor === 'boolean' ? s.ocr.dropColor : DEFAULT_SETTINGS.ocr.dropColor },
     labels: { uppercase: typeof s.labels?.uppercase === 'boolean' ? s.labels.uppercase : DEFAULT_SETTINGS.labels.uppercase },
+    identifiers: {
+      countries: Array.isArray(s.identifiers?.countries) ? COUNTRIES.filter((c) => (s.identifiers!.countries as unknown[]).includes(c)) : [],
+    },
     links: {
       verb: typeof s.links?.verb === 'boolean' ? s.links.verb : DEFAULT_SETTINGS.links.verb,
       cooccurrence: SCOPES.includes(s.links?.cooccurrence as CooccurrenceScope) ? (s.links!.cooccurrence as CooccurrenceScope) : DEFAULT_SETTINGS.links.cooccurrence,

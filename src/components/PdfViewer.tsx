@@ -1533,8 +1533,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   );
 
   const suggestions = React.useMemo<Suggestion[]>(
-    () => (suggestionsOn ? buildSuggestions(effectiveTexts.map((p) => p.text), named, annotations) : []),
-    [suggestionsOn, effectiveTexts, named, annotations],
+    () => (suggestionsOn ? buildSuggestions(effectiveTexts.map((p) => p.text), named, annotations, getSettings().identifiers.countries) : []),
+    [suggestionsOn, effectiveTexts, named, annotations, settingsVersion],
   );
 
   const suggestionsByPage = React.useMemo(() => {

@@ -11,6 +11,7 @@
 import type { Annotation } from './model.ts';
 import type { MatchKind, NamedElement } from './dictionary.ts';
 import { extractPatterns, type PatternKind } from './patterns/patterns.ts';
+import type { Country } from './patterns/regional.ts';
 
 export type SuggestionKind = PatternKind | 'name';
 
@@ -132,7 +133,7 @@ const overlaps = (a: [number, number], b: [number, number]) => a[0] < b[1] && b[
  * Suggestions of every page, without what the user already answered: a
  * passage already highlighted, or a suggestion already rejected.
  */
-export function buildSuggestions(pages: string[], elements: NamedElement[], annotations: Annotation[]): Suggestion[] {
+export function buildSuggestions(pages: string[], elements: NamedElement[], annotations: Annotation[], countries: readonly Country[] = []): Suggestion[] {
   const out: Suggestion[] = [];
   pages.forEach((text, i) => {
     const page = i + 1;
@@ -146,7 +147,7 @@ export function buildSuggestions(pages: string[], elements: NamedElement[], anno
       if (answered([n.start, n.end])) continue;
       out.push({ key: `${page}:${n.start}:${n.end}:name`, page, start: n.start, end: n.end, source: 'dictionary', kind: 'name', elementIds: n.elementIds, match: n.match });
     }
-    for (const p of extractPatterns(text)) {
+    for (const p of extractPatterns(text, countries)) {
       // A known element (a phone number already in the graph) says more than its pattern.
       if (names.some((n) => overlaps([n.start, n.end], [p.start, p.end]))) continue;
       if (answered([p.start, p.end])) continue;

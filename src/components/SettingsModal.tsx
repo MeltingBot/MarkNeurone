@@ -9,6 +9,7 @@ import { I18N_NS } from '../constants.ts';
 import { DEFAULT_SETTINGS, MAX_GRID, normalizeSettings, type Settings } from '../core/settings.ts';
 import type { CooccurrenceScope } from '../core/settings.ts';
 import { SUGGESTION_KINDS } from '../core/suggestions.ts';
+import { COUNTRIES, KIND_COUNTRY, type Country, type RegionalKind } from '../core/patterns/regional.ts';
 import { getSettings, saveSettings } from '../services/settingsStore.ts';
 import { setTagColor } from '../services/graphWriter.ts';
 import type { ZnTagSet } from '../services/znTypes.ts';
@@ -78,6 +79,20 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     { id: 'links' as const, label: t('settings_tab_links'), icon: api.icons.Link2 },
   ];
   const scopes: CooccurrenceScope[] = ['off', 'sentence', 'paragraph'];
+  const countries = draft.identifiers.countries;
+  const toggleCountry = (c: Country, on: boolean) =>
+    setDraft({ ...draft, identifiers: { countries: COUNTRIES.filter((x) => (x === c ? on : countries.includes(x))) } });
+  // Kinds of a country left out are not offered.
+  const kinds = SUGGESTION_KINDS.filter((k) => !(k in KIND_COUNTRY) || countries.includes(KIND_COUNTRY[k as RegionalKind]));
+  const checkbox = (label: string, checked: boolean, onChange: ((on: boolean) => void) | null) =>
+    h('label', { key: label, className: `flex items-center gap-1.5 text-xs ${onChange ? 'text-text-primary' : 'text-text-tertiary'}` },
+      h('input', {
+        type: 'checkbox',
+        checked,
+        disabled: !onChange,
+        onChange: onChange ? (e: ReactTypes.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked) : undefined,
+      }),
+      label);
   /** A labelled block of the recognition tab, labelled like ZN's fields. */
   const block = (label: string, hint: string | null, content: ReactTypes.ReactNode) =>
     h('div', { className: 'space-y-1.5' }, h('label', { className: S.LABEL, title: hint ?? undefined }, label), content);
@@ -165,11 +180,16 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               onBlur: addAlias,
             }))),
 
+          // French identifiers are always looked for.
+          block(t('settings_identifiers'), null, h('div', { className: 'flex flex-wrap items-center gap-4' },
+            checkbox(t('settings_country_fr'), true, null),
+            COUNTRIES.map((c) => checkbox(t(`settings_country_${c}`), countries.includes(c), (on) => toggleCountry(c, on))))),
+
           h('div', { className: 'grid gap-x-2 gap-y-1 items-center', style: { gridTemplateColumns: '120px 1fr 1fr' } },
             h('span', null),
             h('span', { className: S.SMALL_LABEL }, t('settings_col_tag')),
             h('span', { className: S.SMALL_LABEL }, t('field_key')),
-            SUGGESTION_KINDS.flatMap((kind) => [
+            kinds.flatMap((kind) => [
               h('span', { key: `${kind}-l`, className: 'text-xs text-text-secondary' }, t(`suggestion_kind_${kind}`)),
               h(TagSetPicker, {
                 key: `${kind}-t`,

@@ -11,6 +11,7 @@ La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la 
 
 ## Onglet « Reconnaissance »
 
+- **Identifiants reconnus** : la France est toujours active. Cochez la Belgique, la Suisse ou le Luxembourg pour rechercher aussi leurs identifiants dans les suggestions (numéros nationaux, numéros d'entreprise, téléphones, plaques, francs suisses). Ces pays sont désactivés par défaut. Le tableau des tags et propriétés par type de suggestion ne montre que les types des pays cochés.
 - **Retirer l'encre de couleur (tampons) avant la reconnaissance.** Activé par défaut. À désactiver si les documents comportent du texte utile imprimé en couleur. Le changement s'applique aux pages reconnues ensuite. Pour l'appliquer à un document déjà traité, effacez son texte reconnu depuis le lecteur.
 
 ## Onglet « Liens »

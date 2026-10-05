@@ -55,6 +55,14 @@ describe('suggestion kinds added after the settings were saved', () => {
   });
 });
 
+describe('recognized countries', () => {
+  it('are none by default, and keep known countries only, in order', () => {
+    expect(normalizeSettings(null).identifiers.countries).toEqual([]);
+    expect(normalizeSettings({ identifiers: { countries: ['lu', 'xx', 'be', 'be'] } }).identifiers.countries).toEqual(['be', 'lu']);
+    expect(normalizeSettings({ identifiers: { countries: 'be' } }).identifiers.countries).toEqual([]);
+  });
+});
+
 describe('link assistance settings', () => {
   it('are off by default', () => {
     expect(normalizeSettings(null).links).toEqual({ verb: false, cooccurrence: 'off' });

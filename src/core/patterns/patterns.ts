@@ -5,7 +5,7 @@
 import { extractIdentifiers, type IdentifierKind } from './identifiers.ts';
 import { bech32Valid, nirValid } from './checksums.ts';
 import { findDates } from '../dates.ts';
-import { extractRegional, type RegionalKind } from './regional.ts';
+import { extractRegional, type Country, type RegionalKind } from './regional.ts';
 
 export type PatternKind = IdentifierKind | RegionalKind | 'nir' | 'email' | 'url' | 'ipv4' | 'ipv6' | 'btc' | 'eth' | 'amount' | 'date';
 
@@ -77,12 +77,13 @@ function dropOverlaps(matches: PatternMatch[]): PatternMatch[] {
   return out;
 }
 
-export function extractPatterns(text: string): PatternMatch[] {
+/** French identifiers always, those of `countries` on the user's choice. */
+export function extractPatterns(text: string, countries: readonly Country[] = []): PatternMatch[] {
   return dropOverlaps([
     ...extractIdentifiers(text).map(({ kind, start, end, checksumOk }) => ({ kind, start, end, ...(checksumOk !== undefined ? { checksumOk } : {}) })),
     ...collect(text, PHONE_INTL, 'phone', intlDigits),
     ...collect(text, NIR, 'nir', (raw) => ({ checksumOk: nirValid(raw) })),
-    ...extractRegional(text),
+    ...extractRegional(text, countries),
     ...collect(text, EMAIL, 'email'),
     ...collect(text, URL, 'url'),
     ...collect(text, IPV4, 'ipv4'),

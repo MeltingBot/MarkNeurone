@@ -437,7 +437,7 @@ const passageKey = (p: Passage) => `${p.page}-${(p.textRange ?? p.quads[0] ?? []
 /** A check digit that fails, or characters typical of OCR confusions: probable misreading. */
 function ChecksumWarning(p: { env: Env; passage: Passage }) {
   const { h } = host();
-  const found = extractPatterns(p.passage.text);
+  const found = extractPatterns(p.passage.text, getSettings().identifiers.countries);
   const invalid = p.passage.suggestion?.checksumOk === false || found.some((m) => m.checksumOk === false);
   const suspect = p.passage.suggestion?.suspect || found.some((m) => m.suspect);
   if (!invalid && !suspect) return null;

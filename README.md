@@ -20,7 +20,7 @@ Il convient à tout document rédigé dont on veut tirer des éléments du graph
 - Relecture d'une sélection à haute résolution, passage encadré à la souris pour l'écriture manuscrite, retrait de l'encre des tampons avant la reconnaissance.
 - Création d'éléments, de propriétés (les huit types de ZeroNeurone), d'événements datés et de localisations à partir d'un passage, par une touche (E, P, V, G).
 - Liens entre deux passages surlignés, et, en option, mode verbe et liens possibles signalés dans la marge.
-- Suggestions : noms des éléments du dossier et identifiants français, belges, suisses et luxembourgeois (téléphones, plaques, IBAN, identifiants d'entreprise et de personne), e-mails, URL, IP, adresses Bitcoin et Ethereum, montants en euros et en francs suisses, dates, avec contrôle des clés.
+- Suggestions : noms des éléments du dossier et identifiants français, et en option belges, suisses et luxembourgeois (téléphones, plaques, IBAN, identifiants d'entreprise et de personne), e-mails, URL, IP, adresses Bitcoin et Ethereum, montants en euros et en francs suisses, dates, avec contrôle des clés.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, cotation comprise.
 - Onglet « Marqueur » dans le panneau de ZeroNeurone : passages de l'élément sélectionné dans tous les documents du dossier.
 - Référence du document (par exemple un numéro de PV ou de rapport) reprise dans la source des objets créés.
@@ -82,7 +82,7 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 ## État du projet
 
-Version 1.1.0. Les fonctions de la première version sont en place. Elles ont été mesurées sur des procès-verbaux fictifs dégradés et restent à éprouver sur des pièces réelles. Voir le [changelog](CHANGELOG.md).
+Version 1.1.1. Les fonctions de la première version sont en place. Elles ont été mesurées sur des procès-verbaux fictifs dégradés et restent à éprouver sur des pièces réelles. Voir le [changelog](CHANGELOG.md).
 
 ## Licence
 
