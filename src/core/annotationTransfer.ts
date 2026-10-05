@@ -96,6 +96,7 @@ export function sanitizeAnnotation(raw: unknown, hash: string): Annotation | nul
   if (linkEnds) a.linkEnds = linkEnds;
   const linkAnchors = asPair(x.linkAnchors, isStringOrNull);
   if (linkAnchors) a.linkAnchors = linkAnchors;
+  if (x.relationWords === true) a.relationWords = true;
   const eventIds = asEventIds(x.eventIds);
   if (eventIds) a.eventIds = eventIds;
   const ocr = asOcr(x.ocr);

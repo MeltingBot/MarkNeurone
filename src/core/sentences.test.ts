@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { betweenRange, cleanSelection, sentenceAt, trimPunctuation } from './sentences.ts';
+import { cleanSelection, sentenceAt, trimPunctuation } from './sentences.ts';
 
 const PAGE = 'Le gérant a rencontré M. Duval le 4 mai.\nIl lui a ensuite\nremis une enveloppe. Fin du PV.';
 
@@ -50,24 +50,3 @@ describe('trimPunctuation', () => {
   });
 });
 
-describe('betweenRange', () => {
-  const text = 'La société Arvalis a versé 15 000 € à\nM. Duval, son gérant. Fin.';
-  const arvalis: [number, number] = [text.indexOf('Arvalis'), text.indexOf('Arvalis') + 7];
-  const duval: [number, number] = [text.indexOf('M. Duval'), text.indexOf('M. Duval') + 8];
-
-  it('returns the words between two passages of one sentence', () => {
-    const r = betweenRange(text, arvalis, duval)!;
-    expect(text.slice(r[0], r[1]).replace(/\s+/g, ' ')).toBe('a versé 15 000 € à');
-  });
-
-  it('does not depend on click order', () => {
-    expect(betweenRange(text, duval, arvalis)).toEqual(betweenRange(text, arvalis, duval));
-  });
-
-  it('returns null across sentences or for adjacent passages', () => {
-    const fin: [number, number] = [text.indexOf('Fin'), text.indexOf('Fin') + 3];
-    expect(betweenRange(text, arvalis, fin)).toBeNull();
-    const versé: [number, number] = [text.indexOf('a versé'), text.indexOf('a versé') + 7];
-    expect(betweenRange(text, [arvalis[0], versé[0] - 1], versé)).toBeNull();
-  });
-});

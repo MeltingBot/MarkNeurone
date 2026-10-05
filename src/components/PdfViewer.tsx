@@ -19,11 +19,10 @@ import {
   capturePassage,
   rangeBoxes,
   passageFromOffsets,
-  renderedPageText,
   type PageInfo,
   type Passage,
 } from '../services/selectionCapture.ts';
-import { betweenRange, trimPunctuation } from '../core/sentences.ts';
+import { trimPunctuation } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
 import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
 import { deleteOcr, loadOcr, saveOcrPage } from '../services/ocrStore.ts';
@@ -109,6 +108,13 @@ interface LinkArcInfo {
 const ORPHAN_COLOR = '#9ca3af';
 const LINK_COLOR = 'var(--color-text-secondary)';
 const EVENT_FALLBACK_COLOR = '#a855f7';
+
+/**
+ * A link whose passage was deduced, in earlier versions, from the text
+ * between its two highlights: neither drawn nor clickable, the arc between
+ * the highlights shows it. Only the verb mode gives a link its own passage.
+ */
+const isDeducedLinkPassage = (a: Annotation) => a.kind === 'link' && a.quads.length > 0 && !a.relationWords;
 
 // ─── Single page ─────────────────────────────────────────────
 
@@ -758,6 +764,9 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     });
   }, [annotations, textDoc, root, layoutVersion, scale]);
 
+  /** Highlights a click can hit: what is drawn. */
+  const clickable = React.useMemo(() => placed.filter((a) => !isDeducedLinkPassage(a)), [placed]);
+
   // Tag colors can change from the sheet or from ZN: highlights follow.
   const tagSetMap = api.stores.useTagSetStore((s: { tagSets: Map<string, ZnTagSet> }) => s.tagSets);
   const highlightsByPage = React.useMemo(() => {
@@ -767,6 +776,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     const byPage = new Map<number, Highlight[]>();
     for (const a of placed) {
       if (a.status === 'rejected') continue;
+      if (isDeducedLinkPassage(a)) continue;
       const target = a.targetId ? elements.find((el) => el.id === a.targetId) : undefined;
       let color: string;
       if (a.kind === 'link') color = links.some((l) => l.id === a.targetId) ? LINK_COLOR : ORPHAN_COLOR;
@@ -856,24 +866,17 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const elementOf = (a: Annotation): string | null => (a.kind !== 'link' && a.targetId ? a.targetId : null);
 
   /**
-   * Link draft between two elements. The words between their passages become
-   * the proposed label when both sit in one sentence of the same page.
+   * Link draft between two elements. Nothing is deduced from the text between
+   * their passages: the label is typed, and the link shows as the arc between
+   * both highlights.
    */
   const buildLinkDraft = (fromId: string, from: Annotation | null, toId: string, to: Annotation): LinkDraft => {
-    let between: Passage | null = null;
-    if (root && from && from.page === to.page && from.textRange && to.textRange) {
-      const text = renderedPageText(root, to.page);
-      const range = text ? betweenRange(text, from.textRange, to.textRange) : null;
-      if (range) between = passageFromOffsets(root, to.page, range[0], range[1], sizes, scale);
-    }
     const name = (id: string) => elements.find((el) => el.id === id)?.label ?? '';
     return {
       fromId,
       toId,
-      place: between
-        ? { passage: between }
-        : { page: from?.page ?? to.page, text: `${name(fromId)} → ${name(toId)}`, ...(to.context ? { context: to.context } : {}) },
-      label: between?.text ?? '',
+      place: { page: from?.page ?? to.page, text: `${name(fromId)} → ${name(toId)}`, ...(to.context ? { context: to.context } : {}) },
+      label: '',
       anchorsByElement: Object.fromEntries([...(from ? [from] : []), to].filter((a) => a.targetId).map((a) => [a.targetId!, a.id])),
     };
   };
@@ -1078,7 +1081,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     if (e.target instanceof Element && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
-      const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, placed);
+      const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, clickable);
       if (hit) {
         selectHighlight(hit, e.ctrlKey || e.metaKey);
         return;
@@ -1133,7 +1136,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setSelectedAnnotationId(annotation.id);
     // A link drawn between two highlights has no passage of its own: go to the first of them.
     const own = placed.find((x) => x.id === annotation.id) ?? annotation;
-    const a = own.quads.length
+    const a = own.quads.length && !isDeducedLinkPassage(own)
       ? own
       : (annotation.linkAnchors ?? []).map((id) => placed.find((x) => x.id === id)).find((x): x is Annotation => !!x) ?? annotation;
     if (!root || !sizes[a.page - 1]) return;
@@ -1244,7 +1247,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         return;
       }
     }
-    const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, placed);
+    const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, clickable);
     if (hit) {
       if (hit.orphan) {
         // Quick reattachment onto the element shown in the sheet, when there is one.

@@ -66,23 +66,6 @@ export function trimPunctuation(text: string): string {
   return text.replace(/^[\s"'«»“”‘’(\[,;:.!?-]+/u, '').replace(/[\s"'«»“”‘’)\],;:.!?-]+$/u, '');
 }
 
-/**
- * Text between two passages of the same sentence, as offsets in the page
- * text, trimmed of spaces and edge punctuation. Null when the passages are
- * in different sentences or touch each other.
- */
-export function betweenRange(text: string, a: [number, number], b: [number, number]): [number, number] | null {
-  const [first, second] = a[0] <= b[0] ? [a, b] : [b, a];
-  const sentence = sentenceAt(text, first[0], first[1]);
-  if (!sentence || second[0] >= sentence.end || second[0] < first[1]) return null;
-  let start = first[1];
-  let end = second[0];
-  const edge = /[\s"'«»“”‘’,;:.()]/u;
-  while (start < end && edge.test(text[start])) start++;
-  while (end > start && edge.test(text[end - 1])) end--;
-  return end > start ? [start, end] : null;
-}
-
 /** Every sentence of a page text, with offsets into it. */
 export function sentenceRanges(text: string): [number, number][] {
   return sentences(flattenLines(text)).map((s) => [s.start, s.end]);

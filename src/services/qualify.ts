@@ -134,7 +134,8 @@ export async function qualifyAsLink(
           createdAt: new Date().toISOString(),
         };
   const link = await graph.createLink(fromId, toId, label, anchorOf(ctx, a));
-  await saveAnnotation(ctx.dossierId, { ...a, targetId: link.id, linkEnds: [fromId, toId], linkAnchors: anchors });
+  // A passage comes only from the verb mode: the words the user selected as the relation.
+  await saveAnnotation(ctx.dossierId, { ...a, targetId: link.id, linkEnds: [fromId, toId], linkAnchors: anchors, ...('passage' in place ? { relationWords: true } : {}) });
   return link.id;
 }
 

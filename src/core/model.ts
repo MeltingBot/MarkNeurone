@@ -38,6 +38,8 @@ export interface Annotation {
   propertyKey?: string;
   /** Link ends [from, to], for kind 'link'; the anchor is on the link itself. */
   linkEnds?: [string, string];
+  /** Link: its passage is the words of the relation, selected by the user (verb mode). */
+  relationWords?: boolean;
   /** Highlights the link was drawn between [from, to], to show it in the document. */
   linkAnchors?: [string | null, string | null];
   /** ElementEvent ids per element, for kind 'event'; for kind 'property', the event the property belongs to. */

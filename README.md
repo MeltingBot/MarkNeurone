@@ -34,7 +34,7 @@ Après sélection d'un passage, une touche (ou le menu du clic droit) indique ce
 | V | Événement | Ajoute un événement daté à un ou plusieurs éléments. La date et l'heure sont lues dans la phrase lorsqu'elles y figurent. |
 | G | Localisation | Renseigne les coordonnées de l'élément avec le sélecteur de carte de ZeroNeurone |
 
-Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en appuyant sur L. Lorsque les deux passages appartiennent à la même phrase, le texte qui les sépare est proposé comme libellé du lien.
+Un lien se crée en sélectionnant deux passages surlignés (Ctrl+clic) puis en appuyant sur L, et en saisissant son libellé. Le lien sélectionné apparaît dans le document comme un arc entre les deux passages.
 
 ### Aide à la création de liens (facultative)
 

@@ -154,12 +154,6 @@ function positionAt(textLayer: HTMLElement, offset: number): [Node, number] {
   return [textLayer, textLayer.childNodes.length];
 }
 
-/** Text of a rendered page, or null when the page is not rendered. */
-export function renderedPageText(root: HTMLElement, page: number): string | null {
-  const textLayer = root.querySelector(`.mn-page[data-page-number="${page}"] .textLayer`) as HTMLElement | null;
-  return textLayer && textLayer.childNodes.length ? pageText(textLayer) : null;
-}
-
 /** Passage for character offsets of a rendered page (e.g. the words between two highlights). */
 export function passageFromOffsets(root: HTMLElement, page: number, start: number, end: number, pages: PageInfo[], scale: number): Passage | null {
   const pageEl = root.querySelector(`.mn-page[data-page-number="${page}"]`) as HTMLElement | null;
