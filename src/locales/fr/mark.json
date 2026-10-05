@@ -167,7 +167,7 @@
   "ocr_starting": "OCR en préparation ({{done}} / {{total}} pages)",
   "ocr_running": "OCR : {{done}} / {{total}} pages",
   "ocr_page_progress": "Page {{page}} : {{percent}} %",
-  "reference_label": "Référence de la pièce, reprise dans la source des objets créés",
+  "reference_label": "Référence du document, reprise dans la source des objets créés",
   "reference_use": "Utiliser cette référence",
   "reference_error": "Impossible d'enregistrer la référence.",
   "reference_relabel_one": "Mettre à jour la source de l'objet déjà créé depuis ce document ?",

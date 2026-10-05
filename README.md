@@ -2,7 +2,7 @@
 
 Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zeroneurone). MarkNeurone affiche un document (PDF, DOCX, ODT, TXT, Markdown) dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé conserve une référence vers le passage d'origine.
 
-Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'audition, que les analystes traitent habituellement par surlignage avant de construire le graphe.
+Il convient à tout document rédigé dont on veut tirer des éléments du graphe : rapports, articles de presse, statuts de société, décisions de justice, courriels, auditions. Il reprend en particulier la pratique des analystes qui surlignent les procès-verbaux avant de construire le graphe, d'où la reconnaissance du texte des documents numérisés et la lecture des en-têtes de PV. Les tableaux (relevés bancaires, fadettes) relèvent plutôt d'un import structuré.
 
 **Documentation utilisateur : [`user_doc/`](user_doc/README.md).**
 
@@ -23,7 +23,7 @@ Le plugin s'adresse en particulier à l'exploitation de procès-verbaux d'auditi
 - Suggestions : noms des éléments du dossier et identifiants français, belges, suisses et luxembourgeois (téléphones, plaques, IBAN, identifiants d'entreprise et de personne), e-mails, URL, IP, adresses Bitcoin et Ethereum, montants en euros et en francs suisses, dates, avec contrôle des clés.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, cotation comprise.
 - Onglet « Marqueur » dans le panneau de ZeroNeurone : passages de l'élément sélectionné dans tous les documents du dossier.
-- Référence de la pièce reprise dans la source des objets créés.
+- Référence du document (par exemple un numéro de PV ou de rapport) reprise dans la source des objets créés.
 - Annotations et texte reconnu inclus dans l'export ZIP de ZeroNeurone et rattachés à l'import. Suivi des fusions et des suppressions d'éléments.
 
 ## Prise en main

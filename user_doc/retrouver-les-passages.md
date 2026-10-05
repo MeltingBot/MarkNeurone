@@ -5,10 +5,11 @@
 Chaque élément, lien et événement créé avec MarkNeurone reçoit dans son champ « Source » une ligne qui désigne le document et la page, par exemple :
 
 ```
-PV n° 00347/2026, pièce n° 2 p.3 [mn:1a2b3c4d]
+Rapport annuel 2024 p.12 [mn:1a2b3c4d]
+PV n° 00347/2026, pièce n° 2 p.3 [mn:5e6f7a8b]
 ```
 
-Le document est désigné par sa référence de pièce si vous en avez saisi une, sinon par le nom du fichier. Le code entre crochets permet à MarkNeurone de retrouver le passage après une fusion d'éléments ou l'import d'une archive. Ne le supprimez pas. Le reste du champ peut être complété librement.
+Le document est désigné par sa référence si vous en avez saisi une, sinon par le nom du fichier. Le code entre crochets permet à MarkNeurone de retrouver le passage après une fusion d'éléments ou l'import d'une archive. Ne le supprimez pas. Le reste du champ peut être complété librement.
 
 Un même élément peut cumuler plusieurs lignes de source, issues de plusieurs documents.
 
@@ -24,7 +25,7 @@ Le clic droit sur un passage surligné propose « Passages identiques », qui re
 
 Dans le panneau de droite de ZeroNeurone, l'onglet « Marqueur » liste les passages de l'élément sélectionné sur le canvas, ou ceux du lien sélectionné, dans tous les documents du dossier. Chaque document occupe une section repliable. Les passages identiques n'occupent qu'une ligne, suivie de leurs numéros de page. Un clic ouvre le document sur le passage.
 
-C'est le moyen le plus direct de voir dans quelles pièces un élément apparaît.
+C'est le moyen le plus direct de voir dans quels documents un élément apparaît.
 
 ## Fusion et suppression d'éléments
 

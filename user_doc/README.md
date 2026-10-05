@@ -2,6 +2,8 @@
 
 MarkNeurone est un plugin de ZeroNeurone. Il affiche un document dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé garde une référence vers le passage d'origine, ce qui permet de revenir au texte à tout moment.
 
+MarkNeurone s'utilise avec tout document rédigé : rapport, article de presse, statuts de société, décision de justice, courriel, procès-verbal d'audition. Les PDF numérisés, fréquents pour les procès-verbaux, sont pris en charge par la reconnaissance du texte.
+
 Cette documentation s'adresse aux utilisateurs du plugin. Les informations destinées aux développeurs se trouvent dans le [README du dépôt](../README.md).
 
 ## Sommaire

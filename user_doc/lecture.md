@@ -27,10 +27,10 @@ Le lecteur s'ouvre dans une grande fenêtre. Il comporte le document à gauche e
 
 Échap, ou le bouton « Réduire », ferme le lecteur et laisse une pastille sur l'écran de ZeroNeurone. Elle permet de revenir au canvas, puis de reprendre la lecture à la même position. Le bouton « Fermer » ferme le lecteur.
 
-## Référence de la pièce
+## Référence du document
 
-En haut du lecteur, un champ permet de saisir la référence de la pièce, par exemple « PV n° 00347/2026, pièce n° 2 ». Cette référence remplace le nom du fichier dans la source des objets créés, dans le titre du lecteur et dans l'onglet « Marqueur ».
+En haut du lecteur, un champ permet de saisir la référence du document, telle que vous la citez : « PV n° 00347/2026, pièce n° 2 », « Rapport annuel 2024 », « Le Monde, 12 mars 2026 ». Cette référence remplace le nom du fichier dans la source des objets créés, dans le titre du lecteur et dans l'onglet « Marqueur ».
 
-MarkNeurone propose la référence qu'il lit en tête de la première page d'un procès-verbal, lorsqu'il en trouve une, y compris un numéro de PV belge (« BR.12.L1.012345/2024 »). Elle n'est utilisée qu'après un clic sur « Utiliser cette référence ».
+Pour un procès-verbal, MarkNeurone propose la référence qu'il lit en tête de la première page, lorsqu'il en trouve une, y compris un numéro de PV belge (« BR.12.L1.012345/2024 »). Elle n'est utilisée qu'après un clic sur « Utiliser cette référence ».
 
 Si vous modifiez la référence après avoir créé des objets, MarkNeurone propose de mettre à jour leur source. Le texte que vous avez vous-même ajouté dans la source n'est pas modifié. « Laisser » conserve les sources telles quelles.
