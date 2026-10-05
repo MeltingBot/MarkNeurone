@@ -5,15 +5,66 @@
 //
 // Usage:  vite build --config vite.config.plugin.ts
 
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readFileSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 const isDev = process.argv.includes('--minify') && process.argv.includes('false');
 
+// ─── Licence notices ─────────────────────────────────────────
+//
+// Terser drops every comment, including the licence headers of the
+// bundled libraries. Apache-2.0 and MIT require their notices to travel
+// with the distributed file, so they are written at its head once
+// minification is done (generateBundle runs after renderChunk).
+
+function licenseBanner(): string {
+  const read = (path: string) => readFileSync(path, 'utf-8').trim();
+  // JSZip is used under MIT: keep that part of its dual licence only.
+  const jszipMit = read('LICENSES/jszip.md').split(/\n\s*GPL version 3/)[0].trim();
+  const body = [
+    `MarkNeurone ${pkg.version}\n\n${read('LICENSE')}`,
+    [
+      'Third-party components bundled in this file (details in THIRD-PARTY-LICENSES.md):',
+      '- PDF.js (pdfjs-dist), Mozilla Foundation: Apache-2.0',
+      '- Tesseract.js and Tesseract.js Core: Apache-2.0',
+      '- Tesseract OCR and the "fra" fast model (tesseract-ocr/tessdata_fast): Apache-2.0',
+      '- JSZip, Stuart Knightley and contributors: MIT',
+      '- pako, regenerator-runtime, buffer, base64-js, zlib.js: MIT',
+      '- ieee754: BSD-3-Clause',
+      '- Compiled into the Tesseract.js Core WebAssembly: Leptonica (BSD-2-Clause), zlib (Zlib),',
+      '  libpng (PNG Reference Library License), libjpeg (IJG), libtiff (libtiff License), libwebp (BSD-3-Clause)',
+      'This software is based in part on the work of the Independent JPEG Group.',
+    ].join('\n'),
+    `Apache License 2.0 (PDF.js, Tesseract.js, Tesseract.js Core, Tesseract OCR, fra model)\n\n${read('LICENSES/Apache-2.0.txt')}`,
+    `JSZip\n\n${jszipMit}`,
+    `pako\n\n${read('LICENSES/pako.txt')}`,
+    `regenerator-runtime\n\n${read('LICENSES/regenerator-runtime.txt')}`,
+    `buffer\n\n${read('LICENSES/buffer.txt')}`,
+    `base64-js\n\n${read('LICENSES/base64-js.txt')}`,
+    `ieee754\n\n${read('LICENSES/ieee754.txt')}`,
+  ].join('\n\n----------------------------------------------------------------\n\n');
+  return `/*!\n${body.replace(/\*\//g, '* /')}\n*/\n`;
+}
+
+function licenseNotices(): Plugin {
+  return {
+    name: 'markneurone-license-notices',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_options, bundle) {
+      const banner = licenseBanner();
+      for (const file of Object.values(bundle)) {
+        if (file.type === 'chunk' && file.isEntry) file.code = banner + file.code;
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  // Unminified builds keep the libraries' own headers; the banner would only shift their source map.
+  plugins: [react(), ...(isDev ? [] : [licenseNotices()])],
 
   // Tesseract's model, inlined in the bundle (?inline): never downloaded.
   assetsInclude: ['**/*.traineddata'],
