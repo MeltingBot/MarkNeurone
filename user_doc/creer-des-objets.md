@@ -44,7 +44,7 @@ Si l'élément, ou l'événement choisi, a déjà des propriétés, « Existante
 
 Le libellé est prérempli avec le passage, la date et l'heure avec celles lues dans le passage ou, à défaut, dans la phrase. Les dates écrites en toutes lettres sont reconnues (« le vingt-quatre mars deux mille vingt-cinq »), y compris avec septante, huitante, octante et nonante. Lorsque l'année manque, celle de la page est reprise et le formulaire le signale : vérifiez-la.
 
-« De » et « À » donnent le début et la fin de l'événement. Lorsque le passage contient deux dates et que la seconde est postérieure à la première, elle remplit « À ». La fin est facultative ; une fin antérieure au début est refusée. Elle se modifie ensuite dans la fiche de l'événement.
+« De » et « À » donnent le début et la fin de l'événement. Lorsque le passage contient deux dates et que la seconde est postérieure à la première, elle remplit « À ». Sans heure, l'événement porte sur la journée entière, comme dans ZeroNeurone. La fin est facultative ; une fin antérieure au début est refusée. Elle se modifie ensuite dans la fiche de l'événement.
 
 Le nom de ville affiché à côté de l'heure de début (par défaut celle du fuseau du poste) indique le fuseau dans lequel les heures sont écrites dans le document. Un clic permet d'en choisir un autre, par recherche : pour un document qui donne les heures de Beyrouth, choisissez « Asia/Beirut » et saisissez les heures telles qu'elles sont écrites. Le fuseau vaut pour le début et la fin, et ZeroNeurone le conserve avec l'événement. Changer de fuseau dans la fiche d'un événement garde les heures affichées et les rapporte au nouveau fuseau.
 

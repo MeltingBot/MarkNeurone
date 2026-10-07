@@ -852,8 +852,8 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   const listed = [...new Set([...initial, ...extra])];
 
   const toggle = (id: string) => setChecked(checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id]);
-  const date = day ? dateFromInputKeys(day, time || '12:00', timeZone) : null;
-  const dateEnd = endDay ? dateFromInputKeys(endDay, endTime || '12:00', timeZone) : null;
+  const date = day ? dateFromInputKeys(day, time || '00:00', timeZone) : null;
+  const dateEnd = endDay ? dateFromInputKeys(endDay, endTime || '00:00', timeZone) : null;
   const endBeforeStart = !!(date && dateEnd && dateEnd.getTime() < date.getTime());
   const valid = label.trim() && date && !endBeforeStart && checked.length > 0;
   const submit = async () => {
@@ -1252,7 +1252,7 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
       const zone = ev.timeZone;
       const start = dateInputKeys(new Date(ev.date), zone);
       const end = ev.dateEnd ? dateInputKeys(new Date(ev.dateEnd), zone) : null;
-      const at = (day: string, time: string) => dateFromInputKeys(day, time || '12:00', zone);
+      const at = (day: string, time: string) => dateFromInputKeys(day, time || '00:00', zone);
       // A new zone keeps the typed wall clock: "03:12" now means 03:12 there.
       const changeZone = (next: string | undefined) =>
         update(ev.id, { timeZone: next, date: dateFromInputKeys(start.date, start.time, next), ...(end ? { dateEnd: dateFromInputKeys(end.date, end.time, next) } : {}) });
@@ -1723,7 +1723,7 @@ function OrphanSheet(p: {
     if (a.kind === 'link') {
       if (fromId && toId && fromId !== toId) run(() => reattachLink(env.ctx, a, fromId, toId, linkLabel.trim()), fromId);
     } else if (a.kind === 'event') {
-      if (elementId && day) run(() => reattachEvent(env.ctx, a, [elementId], new Date(`${day}T${time || '12:00'}:00`)), elementId);
+      if (elementId && day) run(() => reattachEvent(env.ctx, a, [elementId], new Date(`${day}T${time || '00:00'}:00`)), elementId);
     } else if (elementId) {
       const recreateProperty = lacksKey && recreate && a.propertyKey ? { key: a.propertyKey, value: trimPunctuation(a.text) } : undefined;
       run(() => reattachToElement(env.ctx, a, elementId, { recreateProperty }), elementId);

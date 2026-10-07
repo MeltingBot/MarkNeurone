@@ -42,7 +42,7 @@ const REPORT_HEADER = new RegExp(
 
 function build(year: number | null, month: number, day: number | null, hour?: string, minute?: string): Date | null {
   if (year === null || day === null || month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const h = hour !== undefined ? numberValue(hour) : 12;
+  const h = hour !== undefined ? numberValue(hour) : 0;
   const m = minute !== undefined ? numberValue(minute) : 0;
   if (h === null || m === null || h > 23 || m > 59) return null;
   const date = new Date(year, month - 1, day, h, m);
