@@ -153,6 +153,7 @@
   "search_next": "Next result (Enter)",
   "search_close": "Close search (Esc)",
   "import_orphans": "MarkNeurone: {{count}} highlight(s) imported without a matching element or link.",
+  "source_link_missing": "Passage not found: the highlight or its document is no longer in the dossier.",
   "import_error": "MarkNeurone: the archive's annotations could not be imported.",
   "orphan_title": "Orphan highlight",
   "orphan_section": "Reattachment",

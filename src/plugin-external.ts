@@ -21,6 +21,8 @@ export async function register(api: any): Promise<void> {
     registerPlugins: api.registerPlugins,
     unregisterPlugin: api.unregisterPlugin,
     isPluginDisabled: api.isPluginDisabled,
+    version: api.version,
+    features: api.features,
     React: api.React,
     icons: api.icons,
     i18n: api.i18n,

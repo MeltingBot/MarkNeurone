@@ -21,6 +21,15 @@ export interface MarkHostAPI {
   unregisterPlugin: (slot: string, predicate: (ext: any) => boolean) => void;
   isPluginDisabled: (id: string) => boolean;
 
+  // ─── Host version and capabilities (ZN 2.62 and later) ────
+  version?: string;
+  features?: {
+    /** Source fields show Markdown links */
+    sourceLinks?: boolean;
+    /** Slot `source:scheme` */
+    sourceSchemes?: boolean;
+  };
+
   // ─── i18n ─────────────────────────────────────────────────
   i18n: I18nInstance;
 

@@ -44,3 +44,8 @@ export function readableAssetsOfElements(elementIds: string[]): DocumentAsset[] 
 export function findAsset(assetId: string): DocumentAsset | undefined {
   return getHostAPI().stores.useDossierStore.getState().assets.find((a: DocumentAsset) => a.id === assetId);
 }
+
+/** Asset of the current dossier with this SHA-256. */
+export function findAssetByHash(hash: string): DocumentAsset | undefined {
+  return getHostAPI().stores.useDossierStore.getState().assets.find((a: DocumentAsset) => a.hash === hash);
+}

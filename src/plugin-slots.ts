@@ -13,6 +13,7 @@ import { openReader, setReaderOpener, type ReaderTarget } from './readerLauncher
 import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
 import { onDocumentDeleted } from './services/documentData.ts';
+import { registerSourceScheme } from './services/sourceLinks.ts';
 
 export async function registerSlots(): Promise<void> {
   const api = getHostAPI();
@@ -107,6 +108,10 @@ export async function registerSlots(): Promise<void> {
       })
       .catch((err: unknown) => console.error('MarkNeurone: cannot clean up a deleted document', err));
   });
+
+  // ─── source:scheme ───────────────────────────────────────
+  // Anchors in Source fields open the reader on their passage.
+  registerSourceScheme();
 
   // ─── export:hooks / import:hooks ─────────────────────────
   // annotations.json travels in the dossier ZIP, next to dossier.json.

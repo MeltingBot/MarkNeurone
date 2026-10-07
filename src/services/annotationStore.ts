@@ -7,6 +7,7 @@
 
 import { getHostAPI } from '../hostAPI.ts';
 import type { Annotation } from '../core/model.ts';
+import { shortId } from '../core/anchors.ts';
 
 const INDEX_KEY = 'ann-index';
 const docKey = (hash: string) => `ann:${hash}`;
@@ -92,13 +93,11 @@ export async function readDocument(dossierId: string, hash: string): Promise<Ann
   return Array.isArray(stored) ? stored : [];
 }
 
-/** Replaces a document's annotations, and refreshes any open view of it. */
+/** Replaces a document's annotations, and refreshes any view of it. */
 export async function writeDocument(dossierId: string, hash: string, list: Annotation[]): Promise<void> {
   await persist(dossierId, hash, list);
-  if (cache.has(cacheKey(dossierId, hash))) {
-    cache.set(cacheKey(dossierId, hash), list);
-    notify();
-  }
+  cache.set(cacheKey(dossierId, hash), list);
+  notify();
 }
 
 export async function removeAnnotation(dossierId: string, hash: string, annotationId: string): Promise<void> {
@@ -117,4 +116,48 @@ export async function deleteDocument(dossierId: string, hash: string): Promise<v
   if (index.includes(hash)) await api.pluginData.set(dossierId, INDEX_KEY, index.filter((h) => h !== hash));
   cache.delete(cacheKey(dossierId, hash));
   notify();
+}
+
+// ─── Lookup by anchor ────────────────────────────────────────
+// Source links (`[pv.pdf p.3](mn:1a2b3c4d)`) are resolved synchronously, on
+// every render of a Source field: all documents of the dossier are loaded
+// once, then looked up in a map rebuilt when the cache changes.
+
+const dossierLoads = new Map<string, Promise<void>>();
+const loadedDossiers = new Set<string>();
+let byAnchor: { version: number; map: Map<string, Annotation> } | null = null;
+
+/** Loads the annotations of every annotated document of a dossier. */
+export function loadDossier(dossierId: string): Promise<void> {
+  let pending = dossierLoads.get(dossierId);
+  if (!pending) {
+    pending = annotatedDocuments(dossierId)
+      .then((hashes) => Promise.all(hashes.map((hash) => loadAnnotations(dossierId, hash))))
+      .then(() => {
+        loadedDossiers.add(dossierId);
+      })
+      .catch((err: unknown) => {
+        dossierLoads.delete(dossierId);
+        throw err;
+      });
+    dossierLoads.set(dossierId, pending);
+  }
+  return pending;
+}
+
+export function isDossierLoaded(dossierId: string): boolean {
+  return loadedDossiers.has(dossierId);
+}
+
+/** Annotation of a dossier whose anchor carries this short id. */
+export function findByAnchor(dossierId: string, anchorId: string): Annotation | undefined {
+  if (byAnchor?.version !== version) {
+    const map = new Map<string, Annotation>();
+    for (const [key, list] of cache) {
+      const dossier = key.slice(0, key.indexOf('|'));
+      for (const a of list) map.set(`${dossier}|${shortId(a.id)}`, a);
+    }
+    byAnchor = { version, map };
+  }
+  return byAnchor.map.get(`${dossierId}|${anchorId.toLowerCase()}`);
 }

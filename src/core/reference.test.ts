@@ -4,7 +4,8 @@ import { cleanReference, detectReference, MAX_REFERENCE } from './reference.ts';
 describe('cleanReference', () => {
   it('keeps out the anchor separator and token, and extra spaces', () => {
     expect(cleanReference('  PV  00347 ; pièce 2 ')).toBe('PV 00347 , pièce 2');
-    expect(cleanReference('PV [mn:1a2b3c4d]')).toBe('PV (mn:1a2b3c4d]');
+    expect(cleanReference('PV [mn:1a2b3c4d]')).toBe('PV (mn:1a2b3c4d)');
+    expect(cleanReference('PV [1](mn:1a2b3c4d)')).toBe('PV (1)(mn:1a2b3c4d)');
     expect(cleanReference(42)).toBe('');
     expect(cleanReference('x'.repeat(300))).toHaveLength(MAX_REFERENCE);
   });

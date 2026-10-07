@@ -153,6 +153,7 @@
   "search_next": "Résultat suivant (Entrée)",
   "search_close": "Fermer la recherche (Échap)",
   "import_orphans": "MarkNeurone : {{count}} surlignage(s) importé(s) sans élément ou lien correspondant.",
+  "source_link_missing": "Passage introuvable : le surlignage ou son document n'est plus dans le dossier.",
   "import_error": "MarkNeurone : les annotations de l'archive n'ont pas pu être importées.",
   "orphan_title": "Surlignage orphelin",
   "orphan_section": "Rattachement",

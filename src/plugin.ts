@@ -47,6 +47,8 @@ export async function initMarkNeurone(): Promise<void> {
     registerPlugins: _registerPlugins as any,
     unregisterPlugin: _unregisterPlugin as any,
     isPluginDisabled: _pluginAPI.isPluginDisabled,
+    version: _pluginAPI.version,
+    features: _pluginAPI.features,
     i18n: _i18n,
     React: _pluginAPI.React,
     icons: _pluginAPI.icons,

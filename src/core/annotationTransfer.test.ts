@@ -134,6 +134,18 @@ describe('rewire', () => {
     expect(link).toMatchObject({ targetId: 'new-link', linkEnds: ['new-el', 'other-el'] });
   });
 
+  it('reads the anchors of a dossier exported before anchors were links', () => {
+    const legacy = {
+      elements: [{ id: 'new-el', source: 'pv.pdf p.1 [mn:11111111] ; [pv.pdf p.2](mn:22222222)', events: [] }],
+      links: [{ id: 'new-link', source: 'pv.pdf p.1 [mn:44444444]', fromId: 'new-el', toId: 'new-el' }],
+      assets: [{ id: 'new-asset', hash: HASH }],
+    };
+    const [el, prop, link] = rewire([ann(ELEMENT, 'element'), ann(PROPERTY, 'property'), ann(LINK, 'link')], legacy);
+    expect(el.targetId).toBe('new-el');
+    expect(prop.targetId).toBe('new-el');
+    expect(link.targetId).toBe('new-link');
+  });
+
   it('keeps an annotation whose object was not imported, flagged orphan', () => {
     const [lost] = rewire([ann(LOST, 'element')], graph);
     expect(lost.orphan).toBe(true);
