@@ -38,6 +38,8 @@ Choisissez ou saisissez le nom de la propriété. Les noms déjà utilisés dans
 
 Une nouvelle propriété est enregistrée dans le dossier et associée aux tags de l'élément, comme lorsqu'elle est créée dans ZeroNeurone.
 
+Si l'élément, ou l'événement choisi, a déjà des propriétés, « Existante » permet de rattacher le passage à l'une d'elles plutôt que d'en créer une nouvelle. La valeur de la propriété n'est pas modifiée : le passage devient sa source. Lorsqu'une propriété a la même valeur que le passage, « Existante » est proposé d'emblée avec cette propriété sélectionnée ; le rattachement n'a lieu qu'après « Rattacher ».
+
 ## Événement
 
 Le libellé est prérempli avec le passage, la date et l'heure avec celles lues dans le passage ou, à défaut, dans la phrase. Les dates écrites en toutes lettres sont reconnues (« le vingt-quatre mars deux mille vingt-cinq »), y compris avec septante, huitante, octante et nonante. Lorsque l'année manque, celle de la page est reprise et le formulaire le signale : vérifiez-la.

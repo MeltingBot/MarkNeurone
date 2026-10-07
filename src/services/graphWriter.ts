@@ -120,6 +120,16 @@ export async function addEventProperty(elementId: string, eventId: string, prope
   });
 }
 
+/** Anchor on one of the element's events, and on the element, as for a property of the event. */
+export async function attachEventAnchor(elementId: string, eventId: string, anchor: string): Promise<void> {
+  const el = getElement(elementId);
+  if (!el?.events.some((e) => e.id === eventId)) throw new Error('event not found');
+  await store().updateElement(elementId, {
+    events: el.events.map((e) => (e.id === eventId ? { ...e, source: appendAnchor(e.source, anchor) } : e)),
+    source: appendAnchor(el.source, anchor),
+  });
+}
+
 export async function addEvent(
   elementIds: string[],
   event: Omit<ZnElementEvent, 'id'>,

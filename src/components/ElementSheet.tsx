@@ -28,6 +28,7 @@ import {
   qualifyAsLink,
   qualifyAsLocation,
   qualifyAsProperty,
+  qualifyAsExistingProperty,
   qualifyAsEventProperty,
   reattachEvent,
   reattachLink,
@@ -615,6 +616,23 @@ function KeySuggestInput(p: {
       : null);
 }
 
+/** Two-way choice drawn as joined buttons, as in ZN. */
+function SegmentedChoice<T extends string | boolean>(p: { label: string; value: T; options: { value: T; label: string; icon?: ReactTypes.ReactNode }[]; onChange: (v: T) => void }) {
+  const { h } = host();
+  return h('div', { className: 'flex rounded border border-border-default overflow-hidden text-xs', role: 'radiogroup', 'aria-label': p.label },
+    p.options.map((o) =>
+      h('button', {
+        key: String(o.value),
+        type: 'button',
+        role: 'radio',
+        'aria-checked': p.value === o.value,
+        onClick: () => p.onChange(o.value),
+        className: `flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 ${p.value === o.value ? 'bg-accent/10 text-accent font-medium' : 'bg-bg-primary text-text-secondary hover:bg-bg-secondary'}`,
+      }, o.icon ?? null, o.label)));
+}
+
+const sameValue = (a: string, b: string) => a.replace(/\s+/g, ' ').trim().toLowerCase() === b.replace(/\s+/g, ' ').trim().toLowerCase();
+
 function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone: () => void }) {
   const { api, React, h } = host();
   const { env, element, passage } = p;
@@ -648,6 +666,22 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   );
   const onEvent = toEvent && eventId ? element.events.find((ev) => ev.id === eventId) : undefined;
 
+  // The passage may point to a property the target already has, left as it is.
+  // Proposed only when the values are the same; the user still confirms.
+  const existing = toEvent ? onEvent?.properties ?? [] : element.properties;
+  const matchOf = (list: ZnProperty[]) => list.findIndex((pr) => sameValue(formatValue(pr.value), trimPunctuation(passage.text)));
+  const targetKey = toEvent ? `event:${eventId ?? ''}` : 'element';
+  const [attachFor, setAttachFor] = React.useState<string | null>(null);
+  const [attachMode, setAttachMode] = React.useState(false);
+  const [attachIndex, setAttachIndex] = React.useState<number | null>(null);
+  if (attachFor !== targetKey) {
+    const match = matchOf(existing);
+    setAttachFor(targetKey);
+    setAttachMode(match >= 0);
+    setAttachIndex(match >= 0 ? match : null);
+  }
+  const attaching = attachMode && existing.length > 0;
+
   // A new 'choice' key takes its options here, as in ZN; a known one keeps the dossier's.
   const [options, setOptions] = React.useState('');
   const known = defs.get(key.trim());
@@ -673,9 +707,17 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
       setValue(valueFor(def.type, def.choices ?? []));
     }
   };
-  const valid = key.trim() && (type === 'boolean' || value.trim()) && (type !== 'choice' || choices.includes(value)) && (!toEvent || onEvent);
+  const valid = attaching
+    ? attachIndex !== null && !!existing[attachIndex]
+    : key.trim() && (type === 'boolean' || value.trim()) && (type !== 'choice' || choices.includes(value)) && (!toEvent || onEvent);
   const submit = async () => {
     setBusy(true);
+    if (attaching) {
+      const ok = await env.run(() => qualifyAsExistingProperty(env.ctx, passage, element.id, existing[attachIndex!].key, onEvent?.id));
+      if (ok) p.onDone();
+      else setBusy(false);
+      return;
+    }
     const property = { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type };
     const ok = await env.run(async () => {
       await registerDefinition({ key: property.key, type, ...(type === 'choice' ? { choices } : {}) }, element.tags);
@@ -698,18 +740,15 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   element.events.length
     ? h('div', { className: 'space-y-1' },
         h('label', { className: S.SMALL_LABEL }, env.t('property_target')),
-        h('div', { className: 'flex rounded border border-border-default overflow-hidden text-xs', role: 'radiogroup', 'aria-label': env.t('property_target') },
-          [false, true].map((ev) =>
-            h('button', {
-              key: String(ev),
-              type: 'button',
-              role: 'radio',
-              'aria-checked': toEvent === ev,
-              onClick: () => setToEvent(ev),
-              className: `flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 ${toEvent === ev ? 'bg-accent/10 text-accent font-medium' : 'bg-bg-primary text-text-secondary hover:bg-bg-secondary'}`,
-            },
-              ev ? h(api.icons.Calendar, { size: 12 }) : null,
-              env.t(ev ? 'property_target_event' : 'property_target_element')))),
+        h(SegmentedChoice<boolean>, {
+          label: env.t('property_target'),
+          value: toEvent,
+          onChange: setToEvent,
+          options: [
+            { value: false, label: env.t('property_target_element') },
+            { value: true, label: env.t('property_target_event'), icon: h(api.icons.Calendar, { size: 12 }) },
+          ],
+        }),
         toEvent
           ? h(EventPicker, {
               events: element.events,
@@ -722,10 +761,38 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
             })
           : null)
     : null,
-  h('div', { className: 'space-y-1' },
+  existing.length
+    ? h('div', { className: 'space-y-1' },
+        h('label', { className: S.SMALL_LABEL }, env.t('property_mode')),
+        h(SegmentedChoice<boolean>, {
+          label: env.t('property_mode'),
+          value: attaching,
+          onChange: setAttachMode,
+          options: [
+            { value: false, label: env.t('property_mode_new') },
+            { value: true, label: env.t('property_mode_existing') },
+          ],
+        }))
+    : null,
+  attaching
+    ? h('div', { className: 'rounded border border-border-default bg-bg-primary overflow-hidden', role: 'radiogroup', 'aria-label': env.t('property_mode_existing') },
+        existing.map((pr, i) =>
+          h('button', {
+            key: `${pr.key}-${i}`,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': attachIndex === i,
+            onClick: () => setAttachIndex(i),
+            className: `w-full px-2 py-1.5 text-xs text-left flex items-center gap-2 ${attachIndex === i ? 'bg-accent/10' : 'hover:bg-bg-secondary'}`,
+          },
+            h('span', { className: `shrink-0 font-medium ${attachIndex === i ? 'text-accent' : 'text-text-secondary'}` }, pr.key),
+            h('span', { className: 'flex-1 min-w-0 truncate text-text-primary' }, displayValue(pr.type, pr.value, env.t)),
+            h('span', { className: S.TYPE_BADGE }, env.t(`type_${pr.type ?? 'text'}`)))))
+    : null,
+  attaching ? null : h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
     h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: (onEvent ? onEvent.properties ?? [] : element.properties).map((pr) => pr.key), onChange: onKeyChange })),
-  h('div', { className: 'flex gap-2' },
+  attaching ? null : h('div', { className: 'flex gap-2' },
     h('div', { className: 'space-y-1', style: { width: 120 } },
       h('label', { className: S.SMALL_LABEL }, env.t('field_type')),
       h(TypeSelect, { env, value: type, onChange: changeType })),
@@ -734,13 +801,15 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
           h('label', { className: S.SMALL_LABEL }, env.t('field_options')),
           h('input', { className: S.INPUT_IN_CARD, value: options, placeholder: env.t('field_options_placeholder'), 'aria-label': env.t('field_options'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setOptions(e.target.value) }))
       : null),
-  h('div', { className: 'space-y-1' },
-    h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
-    h(PropertyValueField, { env, type, value, time, choices, onValue: setValue, onTime: setTime }),
-    h(ChecksumWarning, { env, passage })),
+  attaching
+    ? h(ChecksumWarning, { env, passage })
+    : h('div', { className: 'space-y-1' },
+        h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
+        h(PropertyValueField, { env, type, value, time, choices, onValue: setValue, onTime: setTime }),
+        h(ChecksumWarning, { env, passage })),
   h('div', { className: S.BUTTON_ROW },
     h('button', { type: 'button', onClick: p.onDone, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),
-    h('button', { type: 'submit', disabled: busy || !valid, className: S.BUTTON_PRIMARY_SMALL }, env.t('add_property'))));
+    h('button', { type: 'submit', disabled: busy || !valid, className: S.BUTTON_PRIMARY_SMALL }, env.t(attaching ? 'attach' : 'add_property'))));
 }
 
 function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone: () => void }) {

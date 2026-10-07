@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 (2026-10-07)
+
+- Propriété : un passage peut être rattaché à une propriété que l'élément, ou l'un de ses événements, a déjà (« Existante »), sans en modifier la valeur. Une propriété de même valeur que le passage est proposée d'emblée ; le rattachement attend la validation.
+
 ## 1.2.0 (2026-10-07)
 
 - La source des objets créés est un lien : `[PV n° 00347/2026 p.3](mn:1a2b3c4d)`. Dans ZeroNeurone 2.62 et suivantes, le champ Source affiche la référence et la page, et un clic ouvre le lecteur sur le passage. Après une fusion d'éléments, chaque passage reste accessible depuis la source de l'élément résultant. Un lien vers un passage dont le surlignage ou le document a disparu est grisé.

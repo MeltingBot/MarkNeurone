@@ -83,6 +83,17 @@ export async function qualifyAsEventProperty(ctx: DocumentContext, passage: Pass
   await saveAnnotation(ctx.dossierId, { ...a, targetId: elementId, propertyKey: property.key, eventIds: { [elementId]: eventId } });
 }
 
+/**
+ * Passage of a property the element, or one of its events, already has:
+ * the property is left as it is, the passage only points to it.
+ */
+export async function qualifyAsExistingProperty(ctx: DocumentContext, passage: Passage, elementId: string, key: string, eventId?: string): Promise<void> {
+  const a = draft(ctx, passage, 'property');
+  if (eventId) await graph.attachEventAnchor(elementId, eventId, anchorOf(ctx, a));
+  else await graph.attachAnchor(elementId, anchorOf(ctx, a));
+  await saveAnnotation(ctx.dossierId, { ...a, targetId: elementId, propertyKey: key, ...(eventId ? { eventIds: { [elementId]: eventId } } : {}) });
+}
+
 /** Place read in the document (an address), located on the element. */
 export async function qualifyAsLocation(ctx: DocumentContext, passage: Passage, elementId: string, geo: ZnGeo): Promise<void> {
   const a = draft(ctx, passage, 'location');
