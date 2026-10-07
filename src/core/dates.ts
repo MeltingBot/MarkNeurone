@@ -91,3 +91,13 @@ export function toDateInputValue(date: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
+
+
+/**
+ * Period of an event: the first two dates of the passage, when the second
+ * comes after the first.
+ */
+export function findDateRange(dates: DateMatch[]): { start: DateMatch; end: DateMatch } | null {
+  const [start, end] = dates;
+  return start && end && end.date.getTime() > start.date.getTime() ? { start, end } : null;
+}

@@ -10,7 +10,7 @@ import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import type { Annotation } from '../core/model.ts';
 import { defaultAttachment, findCandidates, type MatchKind } from '../core/dictionary.ts';
-import { findDates, toDateInputValue } from '../core/dates.ts';
+import { findDateRange, findDates, toDateInputValue } from '../core/dates.ts';
 import { trimPunctuation } from '../core/sentences.ts';
 import { extractPatterns } from '../core/patterns/patterns.ts';
 import { LOW_CONFIDENCE } from '../core/ocrLayout.ts';
@@ -819,7 +819,10 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
     const own = findDates(passage.text, passage.referenceYear);
     return own.length ? own : findDates(passage.context ?? '', passage.referenceYear);
   }, [passage]);
-  // Elements qualified in the same sentence are proposed and checked.
+  // Two dates in the passage itself: the second is the end.
+  const range = React.useMemo(() => findDateRange(findDates(passage.text, passage.referenceYear)), [passage]);
+  const start = range?.start ?? dates[0];
+  // Elements qualified in the same sentence are proposed, unchecked: the user picks.
   const sameSentence = React.useMemo(() => {
     const range = passage.sentenceRange;
     if (!range) return [] as string[];
@@ -831,21 +834,34 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   }, [passage, env.annotations, env.elements]);
   const initial = [...new Set([element.id, ...sameSentence])];
   const [label, setLabel] = React.useState(passage.text);
-  const [day, setDay] = React.useState(dates[0] ? toDateInputValue(dates[0].date) : '');
-  const [time, setTime] = React.useState(dates[0]?.hasTime ? timeOf(dates[0].date) : '');
-  const [checked, setChecked] = React.useState<string[]>(initial);
+  const [day, setDay] = React.useState(start ? toDateInputValue(start.date) : '');
+  const [time, setTime] = React.useState(start?.hasTime ? timeOf(start.date) : '');
+  const [endDay, setEndDay] = React.useState(range ? toDateInputValue(range.end.date) : '');
+  const [endTime, setEndTime] = React.useState(range?.end.hasTime ? timeOf(range.end.date) : '');
+  const [checked, setChecked] = React.useState<string[]>([element.id]);
   const [extra, setExtra] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [geo, setGeo] = React.useState<ZnGeo | null>(null);
-  const [description, setDescription] = React.useState(passage.context ?? '');
+  // Empty at first: the sentence of a form-like report may be a whole block.
+  const [description, setDescription] = React.useState('');
+  const sentence = passage.context?.trim() ?? '';
   const listed = [...new Set([...initial, ...extra])];
 
   const toggle = (id: string) => setChecked(checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id]);
-  const valid = label.trim() && day && checked.length > 0;
+  const date = day ? new Date(`${day}T${time || '12:00'}:00`) : null;
+  const dateEnd = endDay ? new Date(`${endDay}T${endTime || '12:00'}:00`) : null;
+  const endBeforeStart = !!(date && dateEnd && dateEnd.getTime() < date.getTime());
+  const valid = label.trim() && date && !endBeforeStart && checked.length > 0;
   const submit = async () => {
+    if (!date) return;
     setBusy(true);
-    const date = new Date(`${day}T${time || '12:00'}:00`);
-    const event = { date, label: label.trim(), ...(description.trim() ? { description: description.trim() } : {}), ...(geo ? { geo } : {}) };
+    const event = {
+      date,
+      ...(dateEnd ? { dateEnd } : {}),
+      label: label.trim(),
+      ...(description.trim() ? { description: description.trim() } : {}),
+      ...(geo ? { geo } : {}),
+    };
     // The current element first: it stays the active one.
     const ordered = [element.id, ...checked.filter((id) => id !== element.id)].filter((id) => checked.includes(id));
     const ok = await env.run(() => qualifyAsEvent(env.ctx, passage, ordered, event));
@@ -864,12 +880,22 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   h(OcrPreview, { passage }),
   h('input', { className: S.INPUT_IN_CARD, value: label, autoFocus: true, 'aria-label': env.t('field_event_label'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
   h('div', { className: 'flex items-center gap-2' },
+    h('span', { className: `${S.HINT} w-5 shrink-0` }, env.t('date_from')),
     h('input', { type: 'date', className: S.INPUT_IN_CARD, value: day, 'aria-label': env.t('field_date'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDay(e.target.value) }),
     h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) })),
-  dates[0] && !dates[0].hasYear ? h('p', { className: 'text-[10px] text-warning' }, env.t('year_assumed')) : null,
+  h('div', { className: 'flex items-center gap-2' },
+    h('span', { className: `${S.HINT} w-5 shrink-0` }, env.t('date_to')),
+    h('input', { type: 'date', className: S.INPUT_IN_CARD, value: endDay, 'aria-label': env.t('field_date_end'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setEndDay(e.target.value) }),
+    h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: endTime, disabled: !endDay, 'aria-label': env.t('field_time_end'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setEndTime(e.target.value) })),
+  start && !start.hasYear ? h('p', { className: 'text-[10px] text-warning' }, env.t('year_assumed')) : null,
+  endBeforeStart ? h('p', { className: 'text-[10px] text-error' }, env.t('date_end_before_start')) : null,
   !dates.length ? h('p', { className: S.HINT }, env.t('no_date_found')) : null,
   h('div', { className: 'space-y-1' },
-    h('label', { className: S.SMALL_LABEL }, env.t('field_description')),
+    h('div', { className: 'flex items-center justify-between' },
+      h('label', { className: S.SMALL_LABEL }, env.t('field_description')),
+      sentence && sentence !== label.trim() && description.trim() !== sentence
+        ? h('button', { type: 'button', onClick: () => setDescription(sentence), className: 'text-[10px] text-accent hover:underline' }, env.t('description_use_sentence'))
+        : null),
     h('textarea', {
       className: `${S.INPUT_IN_CARD} resize-y`,
       rows: 3,
@@ -1217,6 +1243,7 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
   return h('div', { className: 'space-y-2' },
     sorted.map((ev) => {
       const date = new Date(ev.date);
+      const end = ev.dateEnd ? new Date(ev.dateEnd) : null;
       const annotation = env.annotations.find((a) => a.kind === 'event' && a.eventIds?.[element.id] === ev.id);
       return h('div', { key: ev.id, className: S.CARD },
         h('div', { className: 'flex items-center gap-2' },
@@ -1246,6 +1273,23 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
             value: timeOf(date),
             ariaLabel: env.t('field_time'),
             onCommit: (v: string) => update(ev.id, { date: new Date(`${toDateInputValue(date)}T${v || '12:00'}:00`) }),
+          })),
+        h('div', { className: 'flex items-center gap-2' },
+          h('span', { className: `${S.HINT} w-3 shrink-0 text-center` }, env.t('date_to')),
+          h(CommitInput, {
+            type: 'date',
+            className: S.INPUT_IN_CARD,
+            value: end ? toDateInputValue(end) : '',
+            ariaLabel: env.t('field_date_end'),
+            // Emptied: the event has no end any more.
+            onCommit: (v: string) => update(ev.id, { dateEnd: v ? new Date(`${v}T${end ? timeOf(end) : '12:00'}:00`) : undefined }),
+          }),
+          h(CommitInput, {
+            type: 'time',
+            className: `${S.INPUT_IN_CARD} w-20`,
+            value: end ? timeOf(end) : '',
+            ariaLabel: env.t('field_time_end'),
+            onCommit: (v: string) => end && update(ev.id, { dateEnd: new Date(`${toDateInputValue(end)}T${v || '12:00'}:00`) }),
           })),
         h('div', { className: 'flex items-start gap-2' },
           h(api.icons.MapPin, { size: 12, className: 'text-text-tertiary shrink-0 mt-1.5' }),

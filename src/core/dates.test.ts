@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findDates, toDateInputValue } from './dates.ts';
+import { findDateRange, findDates, toDateInputValue } from './dates.ts';
 
 const ymd = (d: Date) => toDateInputValue(d);
 
@@ -60,5 +60,17 @@ describe('findDates', () => {
 
   it('does not take a month word inside another word', () => {
     expect(findDates('12 maisons')).toEqual([]);
+  });
+});
+
+describe('findDateRange', () => {
+  it('takes the first two dates of the passage, with their times', () => {
+    const r = findDateRange(findDates('Entre le 02/07/2026 20:00 et le 03/07/2026 07:00'));
+    expect(r && [toDateInputValue(r.start.date), r.start.date.getHours(), toDateInputValue(r.end.date), r.end.date.getHours()]).toEqual(['2026-07-02', 20, '2026-07-03', 7]);
+  });
+
+  it('proposes no period with a single date, or an end before the start', () => {
+    expect(findDateRange(findDates('le 02/07/2026'))).toBeNull();
+    expect(findDateRange(findDates('entre le 05/07/2026 et le 02/07/2026'))).toBeNull();
   });
 });

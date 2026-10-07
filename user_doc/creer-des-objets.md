@@ -44,9 +44,11 @@ Si l'élément, ou l'événement choisi, a déjà des propriétés, « Existante
 
 Le libellé est prérempli avec le passage, la date et l'heure avec celles lues dans le passage ou, à défaut, dans la phrase. Les dates écrites en toutes lettres sont reconnues (« le vingt-quatre mars deux mille vingt-cinq »), y compris avec septante, huitante, octante et nonante. Lorsque l'année manque, celle de la page est reprise et le formulaire le signale : vérifiez-la.
 
-« Éléments concernés » propose l'élément affiché et les éléments déjà surlignés dans la même phrase. Cochez ceux auxquels l'événement doit être ajouté. « Ajouter un élément... » permet d'en ajouter d'autres.
+« De » et « À » donnent le début et la fin de l'événement. Lorsque le passage contient deux dates et que la seconde est postérieure à la première, elle remplit « À ». La fin est facultative ; une fin antérieure au début est refusée. Elle se modifie ensuite dans la fiche de l'événement.
 
-La description est préremplie avec la phrase du passage. Un lieu peut être indiqué, ainsi que des propriétés propres à l'événement, comme dans la fiche d'événement de ZeroNeurone.
+« Éléments concernés » ne coche que l'élément affiché. Les éléments déjà surlignés dans la même phrase sont listés sans être cochés : cochez ceux auxquels l'événement doit aussi être ajouté. « Ajouter un élément... » permet d'en ajouter d'autres.
+
+La description est vide au départ ; « Reprendre la phrase » y place la phrase du passage. Un lieu peut être indiqué, ainsi que des propriétés propres à l'événement, comme dans la fiche d'événement de ZeroNeurone.
 
 ## Localisation
 

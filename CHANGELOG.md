@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0 (2026-10-08)
+
+- Événement : date de fin (« De » et « À »), à la création comme dans la fiche d'un événement existant. Lorsque le passage contient deux dates, la seconde, si elle est postérieure, remplit la fin.
+- Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
+- Événement : la description n'est plus préremplie avec la phrase, qui dans un procès-verbal de forme tabulaire peut couvrir tout un bloc de texte. « Reprendre la phrase » l'insère sur demande.
+
 ## 1.3.1 (2026-10-07)
 
 - Retirer le surlignage d'un événement, ou d'une propriété d'événement, retire aussi son lien de la source de l'événement, et plus seulement de celle de l'élément.
