@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1 (2026-10-07)
+
+- Retirer le surlignage d'un événement, ou d'une propriété d'événement, retire aussi son lien de la source de l'événement, et plus seulement de celle de l'élément.
+
 ## 1.3.0 (2026-10-07)
 
 - Propriété : un passage peut être rattaché à une propriété que l'élément, ou l'un de ses événements, a déjà (« Existante »), sans en modifier la valeur. Une propriété de même valeur que le passage est proposée d'emblée ; le rattachement attend la validation.

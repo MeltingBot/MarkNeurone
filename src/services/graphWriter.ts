@@ -185,12 +185,26 @@ export async function updateElement(
   if (changes.tags) await registerTags(changes.tags);
 }
 
-/** Removes the anchor of an annotation from an element, if the element still exists. */
+/**
+ * Removes the anchor of an annotation from an element and from its events
+ * (event, property of an event), if the element still exists.
+ */
 export async function detachAnchor(elementId: string, annotationId: string): Promise<void> {
   const el = getElement(elementId);
   if (!el) return;
+  const changes: Partial<Pick<ZnElement, 'source' | 'events'>> = {};
   const source = removeAnchor(el.source, annotationId);
-  if (source !== el.source) await store().updateElement(elementId, { source });
+  if (source !== el.source) changes.source = source;
+  let eventsChanged = false;
+  const events = el.events.map((e) => {
+    if (!e.source) return e;
+    const next = removeAnchor(e.source, annotationId);
+    if (next === e.source) return e;
+    eventsChanged = true;
+    return { ...e, source: next };
+  });
+  if (eventsChanged) changes.events = events;
+  if (Object.keys(changes).length) await store().updateElement(elementId, changes);
 }
 
 /** Selects the element on the canvas and centres the view on it. */
