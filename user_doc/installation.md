@@ -29,6 +29,8 @@ Après chaque mise à jour du plugin, recalculez l'empreinte et mettez à jour `
 
 Le choix d'un lieu sur une carte depuis le lecteur nécessite une version de ZeroNeurone qui propose ce sélecteur aux plugins. Avec une version antérieure, le lecteur se réduit et ouvre l'élément dans le panneau de ZeroNeurone, où la localisation se renseigne de la manière habituelle.
 
+Les liens de source, qui ouvrent le lecteur sur le passage depuis le champ « Source » d'un élément, d'un lien ou d'un événement, nécessitent ZeroNeurone 2.62 ou suivante. Avec une version antérieure, la source s'affiche en texte brut et le passage se retrouve par l'onglet « Marqueur ».
+
 ## Désinstallation
 
 Retirez l'entrée de `manifest.json` et le fichier `markneurone.js`. Les éléments, liens et propriétés créés avec MarkNeurone sont des objets ordinaires de ZeroNeurone et restent dans le graphe. Les surlignages restent enregistrés dans le dossier et réapparaissent si le plugin est réinstallé.
