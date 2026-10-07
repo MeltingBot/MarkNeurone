@@ -7,8 +7,8 @@ export const MAX_REFERENCE = 120;
 
 /**
  * The reference is the label of the anchor links in `source` fields, which
- * the plugin reads back: " ; " separates anchors and brackets delimit the
- * link, so neither may appear.
+ * the plugin reads back: line breaks and " ; " separate sources and brackets
+ * delimit the link, so none may appear.
  */
 export function cleanReference(raw: unknown): string {
   if (typeof raw !== 'string') return '';

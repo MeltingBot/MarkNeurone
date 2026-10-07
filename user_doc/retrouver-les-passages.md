@@ -13,7 +13,7 @@ Le document est désigné par sa référence si vous en avez saisi une, sinon pa
 
 Dans ZeroNeurone 2.62 et suivantes, le champ Source n'affiche que « Rapport annuel 2024 p.12 », en lien : un clic ouvre le lecteur sur le passage. Un clic à côté du lien affiche le texte complet pour le modifier. Un lien grisé désigne un passage dont le surlignage ou le document n'est plus dans le dossier.
 
-Un même élément peut cumuler plusieurs liens de source, issus de plusieurs documents. Lorsque deux éléments sont fusionnés, l'élément résultant conserve les liens des deux : chaque passage reste accessible depuis sa source.
+Un même élément peut cumuler plusieurs liens de source, issus de plusieurs documents, un par ligne. Lorsque deux éléments sont fusionnés, l'élément résultant conserve les liens des deux : chaque passage reste accessible depuis sa source.
 
 ## Depuis le lecteur
 

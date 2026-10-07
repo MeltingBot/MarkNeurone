@@ -3,6 +3,7 @@
 ## 1.2.0 (2026-10-07)
 
 - La source des objets créés est un lien : `[PV n° 00347/2026 p.3](mn:1a2b3c4d)`. Dans ZeroNeurone 2.62 et suivantes, le champ Source affiche la référence et la page, et un clic ouvre le lecteur sur le passage. Après une fusion d'éléments, chaque passage reste accessible depuis la source de l'élément résultant. Un lien vers un passage dont le surlignage ou le document a disparu est grisé.
+- Une source par ligne : chaque passage ajouté à un élément, un lien ou un événement occupe sa propre ligne du champ Source, comme les sources réunies par une fusion dans ZeroNeurone. Retirer un surlignage ne retire que sa ligne, y compris dans une source écrite sur plusieurs lignes ; les sources séparées par « ; » restent lues.
 - L'ancienne forme de source (`PV p.3 [mn:1a2b3c4d]`) n'est plus reconnue.
 - Avant ZeroNeurone 2.62, le lien s'affiche en texte brut et le retour au passage passe par l'onglet « Marqueur ».
 

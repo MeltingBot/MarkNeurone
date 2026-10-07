@@ -2,14 +2,20 @@
 //
 // ZN gives new ids to every object on import and emits nothing on merge.
 // The anchor lets the plugin find the object an annotation points to again:
-// it survives export/import and `mergeElements`, which concatenates sources
-// with " ; ".
+// it survives export/import and `mergeElements`, which concatenates sources.
+//
+// A source field holds one source per line (ZN joins merged sources with a
+// line break). Fields written earlier separate them with " ; ": both
+// separators are read, and kept as they are.
 //
 // It is a Markdown link, `[pv.pdf p.3](mn:1a2b3c4d)`, which ZN (2.62 and
 // later) shows as a link opening the passage (slot `source:scheme`).
 
 // End of the link: "](" keeps a free "(mn:…)" out.
 const TOKEN_RE = /\]\(mn:([0-9a-f]{8})\)/g;
+
+// Captured, so that split() keeps the separators between the parts.
+const PART_SEPARATOR = /(\r?\n| ; )/;
 
 /** Scheme of the anchor links, registered with ZN. */
 export const ANCHOR_SCHEME = 'mn';
@@ -26,7 +32,7 @@ export function anchorTarget(annotationId: string): string {
 
 /**
  * The link label may not hold brackets (they would end the link or start a
- * token) nor the " ; " that separates sources.
+ * token), the " ; " that used to separate sources, nor a line break.
  */
 function linkLabel(text: string): string {
   return text
@@ -62,17 +68,26 @@ export function appendAnchor(source: string | undefined | null, label: string): 
   if (!current) return label;
   const [id] = anchorIds(label);
   if (id && hasAnchor(current, id)) return current;
-  return `${current} ; ${label}`;
+  return `${current}\n${label}`;
 }
 
 /** Removes the anchor of one annotation from a source field, keeping the rest. */
 export function removeAnchor(source: string | undefined | null, annotationId: string): string {
   const id = shortId(annotationId);
-  return (source ?? '')
-    .split(' ; ')
-    .filter((part) => !hasAnchor(part, id))
-    .join(' ; ')
-    .trim();
+  // Parts at even indices, separators at odd ones. The part after a removed
+  // one takes the separator that came before the removed one: "B\n<anchor> ; C"
+  // gives "B\nC", C stays on its own line.
+  const pieces = (source ?? '').split(PART_SEPARATOR);
+  const kept: string[] = [];
+  let separator: string | null = null;
+  for (let i = 0; i < pieces.length; i += 2) {
+    if (separator === null && i > 0) separator = pieces[i - 1];
+    if (hasAnchor(pieces[i], id)) continue;
+    if (kept.length) kept.push(separator ?? '');
+    kept.push(pieces[i]);
+    separator = null;
+  }
+  return kept.join('').trim();
 }
 
 /** Whether a source part is exactly what the plugin wrote for this annotation. */
@@ -90,11 +105,12 @@ function writtenByPlugin(part: string, id: string): boolean {
 export function relabelAnchor(source: string | undefined | null, annotationId: string, label: string): string | null {
   const id = shortId(annotationId);
   let changed = false;
-  const parts = (source ?? '').split(' ; ').map((part) => {
-    const trimmed = part.trim();
-    if (!writtenByPlugin(trimmed, id) || trimmed === label) return part;
+  const pieces = (source ?? '').split(PART_SEPARATOR).map((piece, i) => {
+    if (i % 2 === 1) return piece;
+    const trimmed = piece.trim();
+    if (!writtenByPlugin(trimmed, id) || trimmed === label) return piece;
     changed = true;
     return label;
   });
-  return changed ? parts.join(' ; ') : null;
+  return changed ? pieces.join('') : null;
 }
