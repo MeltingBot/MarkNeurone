@@ -11,6 +11,8 @@ import { I18N_NS } from '../constants.ts';
 import type { Annotation } from '../core/model.ts';
 import { defaultAttachment, findCandidates, type MatchKind } from '../core/dictionary.ts';
 import { findDateRange, findDates, toDateInputValue } from '../core/dates.ts';
+import { dateFromInputKeys, dateInputKeys } from '../core/timeZones.ts';
+import { TimeZoneButton } from './TimeZoneButton.tsx';
 import { trimPunctuation } from '../core/sentences.ts';
 import { extractPatterns } from '../core/patterns/patterns.ts';
 import { LOW_CONFIDENCE } from '../core/ocrLayout.ts';
@@ -838,6 +840,8 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   const [time, setTime] = React.useState(start?.hasTime ? timeOf(start.date) : '');
   const [endDay, setEndDay] = React.useState(range ? toDateInputValue(range.end.date) : '');
   const [endTime, setEndTime] = React.useState(range?.end.hasTime ? timeOf(range.end.date) : '');
+  // The hours as written in the document, in the zone of the source (system zone by default).
+  const [timeZone, setTimeZone] = React.useState<string | undefined>(undefined);
   const [checked, setChecked] = React.useState<string[]>([element.id]);
   const [extra, setExtra] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
@@ -848,8 +852,8 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   const listed = [...new Set([...initial, ...extra])];
 
   const toggle = (id: string) => setChecked(checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id]);
-  const date = day ? new Date(`${day}T${time || '12:00'}:00`) : null;
-  const dateEnd = endDay ? new Date(`${endDay}T${endTime || '12:00'}:00`) : null;
+  const date = day ? dateFromInputKeys(day, time || '12:00', timeZone) : null;
+  const dateEnd = endDay ? dateFromInputKeys(endDay, endTime || '12:00', timeZone) : null;
   const endBeforeStart = !!(date && dateEnd && dateEnd.getTime() < date.getTime());
   const valid = label.trim() && date && !endBeforeStart && checked.length > 0;
   const submit = async () => {
@@ -858,6 +862,7 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
     const event = {
       date,
       ...(dateEnd ? { dateEnd } : {}),
+      ...(timeZone ? { timeZone } : {}),
       label: label.trim(),
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(geo ? { geo } : {}),
@@ -882,7 +887,8 @@ function EventDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone:
   h('div', { className: 'flex items-center gap-2' },
     h('span', { className: `${S.HINT} w-5 shrink-0` }, env.t('date_from')),
     h('input', { type: 'date', className: S.INPUT_IN_CARD, value: day, 'aria-label': env.t('field_date'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setDay(e.target.value) }),
-    h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) })),
+    h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: time, 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setTime(e.target.value) }),
+    h(TimeZoneButton, { value: timeZone, onChange: setTimeZone })),
   h('div', { className: 'flex items-center gap-2' },
     h('span', { className: `${S.HINT} w-5 shrink-0` }, env.t('date_to')),
     h('input', { type: 'date', className: S.INPUT_IN_CARD, value: endDay, 'aria-label': env.t('field_date_end'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setEndDay(e.target.value) }),
@@ -1242,8 +1248,14 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
 
   return h('div', { className: 'space-y-2' },
     sorted.map((ev) => {
-      const date = new Date(ev.date);
-      const end = ev.dateEnd ? new Date(ev.dateEnd) : null;
+      // Shown and typed in the event's source zone, as in ZN.
+      const zone = ev.timeZone;
+      const start = dateInputKeys(new Date(ev.date), zone);
+      const end = ev.dateEnd ? dateInputKeys(new Date(ev.dateEnd), zone) : null;
+      const at = (day: string, time: string) => dateFromInputKeys(day, time || '12:00', zone);
+      // A new zone keeps the typed wall clock: "03:12" now means 03:12 there.
+      const changeZone = (next: string | undefined) =>
+        update(ev.id, { timeZone: next, date: dateFromInputKeys(start.date, start.time, next), ...(end ? { dateEnd: dateFromInputKeys(end.date, end.time, next) } : {}) });
       const annotation = env.annotations.find((a) => a.kind === 'event' && a.eventIds?.[element.id] === ev.id);
       return h('div', { key: ev.id, className: S.CARD },
         h('div', { className: 'flex items-center gap-2' },
@@ -1263,33 +1275,34 @@ function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) =>
           h(CommitInput, {
             type: 'date',
             className: S.INPUT_IN_CARD,
-            value: toDateInputValue(date),
+            value: start.date,
             ariaLabel: env.t('field_date'),
-            onCommit: (v: string) => v && update(ev.id, { date: new Date(`${v}T${timeOf(date)}:00`) }),
+            onCommit: (v: string) => v && update(ev.id, { date: at(v, start.time) }),
           }),
           h(CommitInput, {
             type: 'time',
             className: `${S.INPUT_IN_CARD} w-20`,
-            value: timeOf(date),
+            value: start.time,
             ariaLabel: env.t('field_time'),
-            onCommit: (v: string) => update(ev.id, { date: new Date(`${toDateInputValue(date)}T${v || '12:00'}:00`) }),
-          })),
+            onCommit: (v: string) => update(ev.id, { date: at(start.date, v) }),
+          }),
+          h(TimeZoneButton, { value: zone, onChange: changeZone })),
         h('div', { className: 'flex items-center gap-2' },
           h('span', { className: `${S.HINT} w-3 shrink-0 text-center` }, env.t('date_to')),
           h(CommitInput, {
             type: 'date',
             className: S.INPUT_IN_CARD,
-            value: end ? toDateInputValue(end) : '',
+            value: end?.date ?? '',
             ariaLabel: env.t('field_date_end'),
             // Emptied: the event has no end any more.
-            onCommit: (v: string) => update(ev.id, { dateEnd: v ? new Date(`${v}T${end ? timeOf(end) : '12:00'}:00`) : undefined }),
+            onCommit: (v: string) => update(ev.id, { dateEnd: v ? at(v, end?.time ?? '') : undefined }),
           }),
           h(CommitInput, {
             type: 'time',
             className: `${S.INPUT_IN_CARD} w-20`,
-            value: end ? timeOf(end) : '',
+            value: end?.time ?? '',
             ariaLabel: env.t('field_time_end'),
-            onCommit: (v: string) => end && update(ev.id, { dateEnd: new Date(`${toDateInputValue(end)}T${v || '12:00'}:00`) }),
+            onCommit: (v: string) => end && update(ev.id, { dateEnd: at(end.date, v) }),
           })),
         h('div', { className: 'flex items-start gap-2' },
           h(api.icons.MapPin, { size: 12, className: 'text-text-tertiary shrink-0 mt-1.5' }),

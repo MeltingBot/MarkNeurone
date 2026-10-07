@@ -46,6 +46,8 @@ Le libellé est prérempli avec le passage, la date et l'heure avec celles lues 
 
 « De » et « À » donnent le début et la fin de l'événement. Lorsque le passage contient deux dates et que la seconde est postérieure à la première, elle remplit « À ». La fin est facultative ; une fin antérieure au début est refusée. Elle se modifie ensuite dans la fiche de l'événement.
 
+Le nom de ville affiché à côté de l'heure de début (par défaut celle du fuseau du poste) indique le fuseau dans lequel les heures sont écrites dans le document. Un clic permet d'en choisir un autre, par recherche : pour un document qui donne les heures de Beyrouth, choisissez « Asia/Beirut » et saisissez les heures telles qu'elles sont écrites. Le fuseau vaut pour le début et la fin, et ZeroNeurone le conserve avec l'événement. Changer de fuseau dans la fiche d'un événement garde les heures affichées et les rapporte au nouveau fuseau.
+
 « Éléments concernés » ne coche que l'élément affiché. Les éléments déjà surlignés dans la même phrase sont listés sans être cochés : cochez ceux auxquels l'événement doit aussi être ajouté. « Ajouter un élément... » permet d'en ajouter d'autres.
 
 La description est vide au départ ; « Reprendre la phrase » y place la phrase du passage. Un lieu peut être indiqué, ainsi que des propriétés propres à l'événement, comme dans la fiche d'événement de ZeroNeurone.

@@ -28,6 +28,8 @@ export interface ZnElementEvent {
   id: string;
   date: Date;
   dateEnd?: Date;
+  /** IANA zone the hours were given in at the source (ZN 2.61); system zone when absent. */
+  timeZone?: string;
   label: string;
   description?: string;
   source?: string;
