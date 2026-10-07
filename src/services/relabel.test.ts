@@ -7,11 +7,11 @@ const ID3 = '33333333-0000-4000-8000-000000000000';
 
 const elements: Record<string, { source: string; events: { id: string; source?: string }[] }> = {
   el: {
-    source: 'Saisie manuelle ; scan.pdf p.1 [mn:11111111] ; scan.pdf p.2 [mn:22222222] (vérifié)',
-    events: [{ id: 'ev', source: 'scan.pdf p.1 [mn:11111111]' }],
+    source: 'Saisie manuelle ; [scan.pdf p.1](mn:11111111) ; [scan.pdf p.2](mn:22222222) (vérifié)',
+    events: [{ id: 'ev', source: '[scan.pdf p.1](mn:11111111)' }],
   },
 };
-const links: Record<string, { source: string }> = { ln: { source: 'scan.pdf p.3 [mn:33333333]' } };
+const links: Record<string, { source: string }> = { ln: { source: '[scan.pdf p.3](mn:33333333)' } };
 
 vi.mock('../hostAPI.ts', () => ({ getHostAPI: () => ({}) }));
 vi.mock('./graphWriter.ts', () => ({
@@ -44,18 +44,12 @@ describe('planRelabel', () => {
       ann(ID3, 'link', 3, { targetId: 'ln' }),
     ]);
     expect(relabelCount(plan)).toBe(2);
-    expect(plan.elements.get('el')?.source).toBe('Saisie manuelle ; [PV n° 347 p.1](mn:11111111) ; scan.pdf p.2 [mn:22222222] (vérifié)');
+    expect(plan.elements.get('el')?.source).toBe('Saisie manuelle ; [PV n° 347 p.1](mn:11111111) ; [scan.pdf p.2](mn:22222222) (vérifié)');
     expect(plan.elements.get('el')?.events[0].source).toBe('[PV n° 347 p.1](mn:11111111)');
     expect(plan.links.get('ln')).toBe('[PV n° 347 p.3](mn:33333333)');
   });
 
-  it('rewrites a legacy anchor as a link, even with the same label', () => {
-    const plan = planRelabel({ ...ctx, reference: '' } as never, [ann(ID3, 'link', 3, { targetId: 'ln' })]);
-    expect(plan.links.get('ln')).toBe('[scan.pdf p.3](mn:33333333)');
-  });
-
   it('plans nothing when the sources already carry the reference', () => {
-    links.ln2 = { source: '[scan.pdf p.3](mn:33333333)' };
-    expect(relabelCount(planRelabel({ ...ctx, reference: '' } as never, [ann(ID3, 'link', 3, { targetId: 'ln2' })]))).toBe(0);
+    expect(relabelCount(planRelabel({ ...ctx, reference: '' } as never, [ann(ID3, 'link', 3, { targetId: 'ln' })]))).toBe(0);
   });
 });

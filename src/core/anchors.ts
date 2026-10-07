@@ -7,11 +7,9 @@
 //
 // It is a Markdown link, `[pv.pdf p.3](mn:1a2b3c4d)`, which ZN (2.62 and
 // later) shows as a link opening the passage (slot `source:scheme`).
-// Sources written by earlier versions carry `pv.pdf p.3 [mn:1a2b3c4d]`;
-// both forms are read.
 
-// Legacy token, or the end of a link: "](" keeps a free "(mn:…)" out.
-const TOKEN_RE = /\[mn:([0-9a-f]{8})\]|\]\(mn:([0-9a-f]{8})\)/g;
+// End of the link: "](" keeps a free "(mn:…)" out.
+const TOKEN_RE = /\]\(mn:([0-9a-f]{8})\)/g;
 
 /** Scheme of the anchor links, registered with ZN. */
 export const ANCHOR_SCHEME = 'mn';
@@ -49,9 +47,9 @@ export function anchorLabel(filename: string, page: number | null, annotationId:
   return `[${text}](${anchorTarget(annotationId)})`;
 }
 
-/** Short ids of all anchors found in a source field, in either form. */
+/** Short ids of all anchors found in a source field. */
 export function anchorIds(source: string | undefined | null): string[] {
-  return [...(source ?? '').matchAll(TOKEN_RE)].map((m) => m[1] ?? m[2]);
+  return [...(source ?? '').matchAll(TOKEN_RE)].map((m) => m[1]);
 }
 
 function hasAnchor(part: string, id: string): boolean {
@@ -79,15 +77,14 @@ export function removeAnchor(source: string | undefined | null, annotationId: st
 
 /** Whether a source part is exactly what the plugin wrote for this annotation. */
 function writtenByPlugin(part: string, id: string): boolean {
-  if (part.endsWith(` [mn:${id}]`)) return true;
   return /^\[[^\]]*\]\(mn:[0-9a-f]{8}\)$/.test(part) && part.endsWith(`(mn:${id})`);
 }
 
 /**
  * Replaces the label of one annotation's anchor, e.g. after the document's
- * reference changed. Only a part the plugin wrote is replaced: a link alone,
- * or a part that ends with a legacy token (rewritten as a link). A part the
- * user edited around the anchor, and every other part, are left as they are.
+ * reference changed. Only a part the plugin wrote is replaced: the link
+ * alone. A part the user edited around the anchor, and every other part,
+ * are left as they are.
  * Null when nothing changes.
  */
 export function relabelAnchor(source: string | undefined | null, annotationId: string, label: string): string | null {

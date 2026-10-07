@@ -15,8 +15,6 @@ Dans ZeroNeurone 2.62 et suivantes, le champ Source n'affiche que « Rapport ann
 
 Un même élément peut cumuler plusieurs liens de source, issus de plusieurs documents. Lorsque deux éléments sont fusionnés, l'élément résultant conserve les liens des deux : chaque passage reste accessible depuis sa source.
 
-Les objets créés avant la version 1.2.0 de MarkNeurone portent une source de la forme `Rapport annuel 2024 p.12 [mn:1a2b3c4d]`. Elle reste reconnue, mais ne s'affiche pas en lien. Elle est réécrite sous forme de lien lorsque vous modifiez la référence du document et acceptez la mise à jour des sources.
-
 ## Depuis le lecteur
 
 Lorsque rien n'est sélectionné, la fiche liste les éléments surlignés dans le document, dans l'ordre du texte, avec une recherche. Un clic ouvre l'élément et va à son premier passage.
