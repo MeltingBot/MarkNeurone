@@ -24,8 +24,11 @@ let handlesGapsNatively: boolean | undefined;
 
 function nativeHandling(): boolean {
   if (handlesGapsNatively === undefined) {
-    const first = layers.keys().next().value;
-    const firefox = !!first && (first.ownerDocument.defaultView ?? window).getComputedStyle(first).getPropertyValue('-moz-user-select') === 'none';
+    // pdf.js tells Firefox by a `-moz-user-select: none` rule of its full
+    // stylesheet, which our subset does not carry: the user agent it is.
+    // Moving the end block during a Firefox selection loses its start (a
+    // double-clicked word without its first letter).
+    const firefox = /\bFirefox\/\d+/.test(navigator.userAgent);
     const chromium = /\bChrome\/(\d+)\b/.exec(navigator.userAgent)?.[1];
     handlesGapsNatively = firefox || (!!chromium && parseInt(chromium, 10) >= 148);
   }

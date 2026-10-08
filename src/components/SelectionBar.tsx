@@ -39,7 +39,15 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
   const ref = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    ref.current?.focus();
+    // Firefox moves the selection into an element that takes the focus: the
+    // selected words lose their highlight (or part of it). Kept as they were.
+    const selection = readerDocument().getSelection();
+    const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, i) => selection.getRangeAt(i).cloneRange()) : [];
+    ref.current?.focus({ preventScroll: true });
+    if (selection && ranges.length) {
+      selection.removeAllRanges();
+      ranges.forEach((r) => selection.addRange(r));
+    }
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onCancel();
     };

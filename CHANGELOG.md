@@ -14,6 +14,7 @@
 - Lecteur : la fiche se réduit en un bandeau, comme le panneau de ZeroNeurone, et se rouvre d'elle-même lorsqu'un formulaire s'affiche.
 - Lecteur : ouverture dans une fenêtre séparée, pour travailler sur deux écrans ; zoom et position de lecture conservés, ZeroNeurone reste utilisable dans sa fenêtre.
 - Lecteur : la ligne en haut de l'écran reste en place quand l'échelle change (loupe, ajustement à la largeur, fenêtre redimensionnée).
+- Firefox : un mot sélectionné par double-clic garde toute sa sélection (la première lettre, voire tout le mot, se désélectionnait à l'apparition de la barre de gestes).
 - Propriété, événement ou localisation sans élément choisi : sélectionner un autre passage abandonne le premier, dont le surlignage restait affiché.
 - Choix d'un élément : les éléments du document ouvert viennent en premier. La recherche par référence (« 00347/2026 ») liste tous les documents qui portent cette référence, puis les éléments surlignés dans ces documents ; le survol affiche ces références.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
