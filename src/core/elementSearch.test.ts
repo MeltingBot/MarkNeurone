@@ -42,13 +42,30 @@ describe('searchElements', () => {
     expect(searchElements(read, '1a2b3c4d')).toEqual([]);
   });
 
+  it('lists every document of a reference, before the elements read in them', () => {
+    const docs = [
+      { ...el('d1', 'audition_martineau'), source: '' },
+      { ...el('d2', 'autopsie'), source: '' },
+      { ...el('d3', 'perquisition'), source: '' },
+      { ...el('p', 'Dylan MARTINEAU'), source: '[PV n° 00347/2026, pièce n° 9 p.1](mn:1a2b3c4d)' },
+    ];
+    const documentReferences = new Map([
+      ['d1', ['PV n° 00347/2026, pièce n° 4']],
+      ['d2', ['PV n° 00347/2026, pièce n° 9']],
+      ['d3', ['PV n° 00512/2026']],
+    ]);
+    const hits = searchElements(docs, '00347', { documentReferences });
+    expect(hits.map((h) => h.element.id)).toEqual(['d1', 'd2', 'p']);
+    expect(hits[0].document).toBe('PV n° 00347/2026, pièce n° 4');
+  });
+
   it('puts the given elements first within each group', () => {
-    expect(searchElements(elements, '', 30, new Set(['4', '3'])).map((h) => h.element.id)).toEqual(['3', '4', '1', '2']);
-    expect(searchElements(elements, 'vallier', 30, new Set(['3'])).map((h) => h.element.id)).toEqual(['3', '2']);
+    expect(searchElements(elements, '', { first: new Set(['4', '3']) }).map((h) => h.element.id)).toEqual(['3', '4', '1', '2']);
+    expect(searchElements(elements, 'vallier', { first: new Set(['3']) }).map((h) => h.element.id)).toEqual(['3', '2']);
   });
 
   it('lists elements up to the limit with an empty query', () => {
-    expect(searchElements(elements, '  ', 2)).toHaveLength(2);
+    expect(searchElements(elements, '  ', { limit: 2 })).toHaveLength(2);
   });
 });
 

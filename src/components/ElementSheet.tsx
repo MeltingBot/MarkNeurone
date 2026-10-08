@@ -38,7 +38,8 @@ import {
   type DocumentContext,
   type LinkPlace,
 } from '../services/qualify.ts';
-import { isPdf } from '../services/documentAssets.ts';
+import { isPdf, type DocumentAsset } from '../services/documentAssets.ts';
+import { getReferencesVersion, referencesOfElements, subscribeReferences } from '../services/documentRef.ts';
 import { documentIndex, type IndexEntry } from '../core/documentIndex.ts';
 import { discriminants, homonymGroups, searchElements } from '../core/elementSearch.ts';
 import { saveAnnotation } from '../services/annotationStore.ts';
@@ -110,6 +111,8 @@ interface Env {
   annotations: Annotation[];
   /** Elements read in the open document: listed first by the pickers. */
   documentElementIds: Set<string>;
+  /** References of the documents elements carry: the pickers find them by it. */
+  documentReferences: Map<string, string[]>;
   t: (key: string, opts?: Record<string, unknown>) => string;
   /** Runs a write, reports failures once. Resolves false on failure. */
   run: (write: () => Promise<unknown>) => Promise<boolean>;
@@ -1500,6 +1503,7 @@ function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => v
           tagSets: env.tagSets,
           links: env.links,
           first: env.documentElementIds,
+          documentReferences: env.documentReferences,
           value: (editing ?? (fromId ? 'to' : 'from')) === 'from' ? fromId : toId,
           autoFocus: true,
           inputClass: S.INPUT,
@@ -1614,7 +1618,7 @@ function LinkSheet(p: {
 /** Element picker in a card (link ends, orphan reattachment). */
 function ElementSelect(p: { env: Env; value: string; onChange: (id: string) => void }) {
   const { h } = host();
-  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, links: p.env.links, first: p.env.documentElementIds, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
+  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, links: p.env.links, first: p.env.documentElementIds, documentReferences: p.env.documentReferences, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
 }
 
 // ─── Elements of the document ────────────────────────────────
@@ -1637,7 +1641,7 @@ function DocumentElements(p: { env: Env; onPick: (entry: IndexEntry) => void }) 
   // The search keeps reading order; it only filters.
   const shown = React.useMemo(() => {
     if (!query.trim()) return entries;
-    const found = new Set(searchElements(entries.map((x) => x.element), query, entries.length).map((hit) => hit.element.id));
+    const found = new Set(searchElements(entries.map((x) => x.element), query, { limit: entries.length }).map((hit) => hit.element.id));
     return entries.filter((x) => found.has(x.element.id));
   }, [entries, query]);
   const pdf = isPdf(env.ctx.asset);
@@ -1823,6 +1827,18 @@ export function ElementSheet(props: Props) {
   const tagSetMap = api.stores.useTagSetStore((s: { tagSets: Map<string, ZnTagSet> }) => s.tagSets);
   const tagSets: ZnTagSet[] = React.useMemo(() => api.stores.useTagSetStore.getState().getAll(), [tagSetMap]);
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);
+  const assets: DocumentAsset[] = api.stores.useDossierStore((s: { assets: DocumentAsset[] }) => s.assets);
+  const referencesVersion = React.useSyncExternalStore(subscribeReferences, getReferencesVersion);
+  const [documentReferences, setDocumentReferences] = React.useState<Map<string, string[]>>(() => new Map());
+  React.useEffect(() => {
+    let cancelled = false;
+    referencesOfElements(ctx.dossierId, allElements, assets)
+      .then((refs) => !cancelled && setDocumentReferences(refs))
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load document references', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx.dossierId, allElements, assets, referencesVersion]);
   /** Choosing another element for the value being added. */
   const [changing, setChanging] = React.useState(false);
   React.useEffect(() => setChanging(false), [elementId, draft]);
@@ -1838,7 +1854,7 @@ export function ElementSheet(props: Props) {
     }
   };
   const documentElementIds = React.useMemo(() => new Set(annotations.flatMap(concernedElements)), [annotations]);
-  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, t, run };
+  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, documentReferences, t, run };
   const element = elementId ? elements.find((el) => el.id === elementId) : undefined;
 
   const container = (content: ReactTypes.ReactNode) =>
@@ -1922,6 +1938,7 @@ export function ElementSheet(props: Props) {
               tagSets,
               links,
               first: documentElementIds,
+              documentReferences,
               tall: true,
               autoFocus: true,
               inputClass: S.INPUT,
@@ -1966,6 +1983,7 @@ export function ElementSheet(props: Props) {
             tagSets,
             links,
             first: documentElementIds,
+            documentReferences,
             value: element.id,
             autoFocus: true,
             inputClass: S.INPUT,

@@ -11,7 +11,7 @@
 - Lecteur : Ctrl+molette, ou le pincement sur un pavé tactile, agrandit ou réduit le document en gardant en place le point sous le pointeur.
 - Lecteur : le document se déplace en faisant glisser la marge grise autour des pages ou avec le bouton du milieu. Le bouton « Main » permet de le faire glisser n'importe où, sans sélectionner de texte.
 - Propriété, événement ou localisation sans élément choisi : sélectionner un autre passage abandonne le premier, dont le surlignage restait affiché.
-- Choix d'un élément : les éléments du document ouvert viennent en premier. La recherche trouve aussi un élément par la référence d'un document où il a été surligné (« 00347/2026 »), et le survol affiche ces références.
+- Choix d'un élément : les éléments du document ouvert viennent en premier. La recherche par référence (« 00347/2026 ») liste tous les documents qui portent cette référence, puis les éléments surlignés dans ces documents ; le survol affiche ces références.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
 - Événement : la description n'est plus préremplie avec la phrase, qui dans un procès-verbal de forme tabulaire peut couvrir tout un bloc de texte. « Reprendre la phrase » l'insère sur demande.
 

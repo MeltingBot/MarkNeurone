@@ -4,6 +4,7 @@
 
 import { getHostAPI } from '../hostAPI.ts';
 import { cleanReference } from '../core/reference.ts';
+import { isReadable, type DocumentAsset } from './documentAssets.ts';
 
 const key = (hash: string) => `ref:${hash}`;
 
@@ -31,4 +32,25 @@ export async function saveReference(dossierId: string, hash: string, reference: 
   else await getHostAPI().pluginData.remove(dossierId, key(hash));
   version++;
   listeners.forEach((fn) => fn());
+}
+
+/**
+ * References of the readable documents each element carries (the element
+ * ZN creates for a dropped file), by element id. Documents without a
+ * reference are left out.
+ */
+export async function referencesOfElements(
+  dossierId: string,
+  elements: { id: string; assetIds?: string[] }[],
+  assets: DocumentAsset[],
+): Promise<Map<string, string[]>> {
+  const readable = new Map(assets.filter(isReadable).map((a) => [a.id, a]));
+  const hashes = [...new Set([...readable.values()].map((a) => a.hash))];
+  const refs = new Map(await Promise.all(hashes.map(async (hash) => [hash, await loadReference(dossierId, hash)] as const)));
+  const out = new Map<string, string[]>();
+  for (const el of elements) {
+    const found = (el.assetIds ?? []).map((id) => refs.get(readable.get(id)?.hash ?? '')).filter((r): r is string => !!r);
+    if (found.length) out.set(el.id, [...new Set(found)]);
+  }
+  return out;
 }

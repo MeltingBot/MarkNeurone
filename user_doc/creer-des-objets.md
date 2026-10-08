@@ -26,7 +26,7 @@ Sous le libellé, « Éléments existants proches » liste les éléments du dos
 
 Vérifiez les éléments proposés avant de rattacher : deux personnes peuvent porter le même nom. En cas de doute, créez un nouvel élément. Deux éléments se fusionnent plus tard dans ZeroNeurone, alors qu'un rattachement erroné passe facilement inaperçu. Pour deux éléments de même nom, la liste indique ce qui les distingue : les propriétés dont la valeur diffère et les éléments auxquels chacun est lié.
 
-Dans les listes de choix d'un élément, les éléments déjà surlignés dans le document ouvert apparaissent en premier. La recherche porte sur le libellé, les valeurs des propriétés et la source : saisir une référence de procès-verbal, par exemple « 00347/2026 », retrouve les éléments surlignés dans ce document. Au survol d'un élément, la liste affiche les références des documents où il a été surligné.
+Dans les listes de choix d'un élément, les éléments déjà surlignés dans le document ouvert apparaissent en premier. La recherche porte sur le libellé, les valeurs des propriétés, la référence des documents et la source. Saisir une référence de procès-verbal, par exemple « 00347/2026 », liste tous les documents qui portent cette référence, puis les éléments surlignés dans ces documents. Seules les références enregistrées sont prises en compte, pas celles seulement proposées à l'ouverture. Au survol d'un élément, la liste affiche les références des documents où il a été surligné.
 
 Le nouvel élément est placé sur le canvas et le passage est surligné dans la couleur de son tag.
 

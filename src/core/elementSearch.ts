@@ -18,17 +18,29 @@ export interface ElementHit<T extends SearchableElement> {
   property?: { key: string; value: string };
   /** Source (document reference) that matched, when nothing else did. */
   reference?: string;
+  /** Reference of the document the element carries, when it matched. */
+  document?: string;
+}
+
+export interface SearchOptions {
+  limit?: number;
+  /** Ids listed first within each group (e.g. elements read in the open document). */
+  first?: Set<string>;
+  /** References of the documents an element carries (its PDF), by element id. */
+  documentReferences?: Map<string, string[]>;
 }
 
 const valueText = (v: unknown): string => (v instanceof Date ? v.toLocaleDateString('fr-FR') : v === null || v === undefined ? '' : String(v));
 
 /**
  * Elements matching every word of the query, labels starting with it first,
- * then labels containing it, then matches on a property value, then on a
- * source (a document reference such as "00347/2026"). Within each group,
- * `first` ids come first (e.g. elements read in the open document).
+ * then labels containing it, then documents whose reference matches (all
+ * the documents of a procedure for "00347/2026"), then matches on a
+ * property value, then on a source (the reference of a document the
+ * element was read in). Within each group, `first` ids come first.
  */
-export function searchElements<T extends SearchableElement>(elements: T[], query: string, limit = 30, first: Set<string> = new Set()): ElementHit<T>[] {
+export function searchElements<T extends SearchableElement>(elements: T[], query: string, options: SearchOptions = {}): ElementHit<T>[] {
+  const { limit = 30, first = new Set<string>(), documentReferences } = options;
   const words = normalizeName(query).split(' ').filter(Boolean);
   const firstOut = (hits: ElementHit<T>[]) => [...hits.filter((h) => first.has(h.element.id)), ...hits.filter((h) => !first.has(h.element.id))];
   if (!words.length) return firstOut(elements.map((element) => ({ element }))).slice(0, limit);
@@ -39,11 +51,17 @@ export function searchElements<T extends SearchableElement>(elements: T[], query
   const start = normalizeName(query);
   const starts: ElementHit<T>[] = [];
   const contains: ElementHit<T>[] = [];
+  const byDocument: ElementHit<T>[] = [];
   const byProperty: ElementHit<T>[] = [];
   const bySource: ElementHit<T>[] = [];
   for (const element of elements) {
     if (matches(element.label)) {
       (normalizeName(element.label).startsWith(start) ? starts : contains).push({ element });
+      continue;
+    }
+    const document = documentReferences?.get(element.id)?.find(matches);
+    if (document) {
+      byDocument.push({ element, document });
       continue;
     }
     const prop = element.properties.find((p) => matches(valueText(p.value)));
@@ -54,7 +72,7 @@ export function searchElements<T extends SearchableElement>(elements: T[], query
     const reference = sourceLabels(element.source).find(matches);
     if (reference) bySource.push({ element, reference });
   }
-  return [starts, contains, byProperty, bySource].flatMap(firstOut).slice(0, limit);
+  return [starts, contains, byDocument, byProperty, bySource].flatMap(firstOut).slice(0, limit);
 }
 
 export interface SearchableEvent {

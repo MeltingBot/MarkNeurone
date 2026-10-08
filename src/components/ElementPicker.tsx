@@ -136,6 +136,8 @@ interface ElementPickerProps {
   tall?: boolean;
   /** Listed first (elements read in the open document). */
   first?: Set<string>;
+  /** References of the documents elements carry, to find them by it. */
+  documentReferences?: Map<string, string[]>;
   /** Picked element, shown in the field while it is not being searched. */
   value?: string | null;
   onChange: (elementId: string) => void;
@@ -150,8 +152,11 @@ export function ElementPicker(p: ElementPickerProps) {
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
-  const { elements, tagSets, links, tall, first } = p;
-  const search = React.useCallback((query: string) => searchElements(elements, query, tall ? 500 : 30, first), [elements, tall, first]);
+  const { elements, tagSets, links, tall, first, documentReferences } = p;
+  const search = React.useCallback(
+    (query: string) => searchElements(elements, query, { limit: tall ? 500 : 30, first, documentReferences }),
+    [elements, tall, first, documentReferences],
+  );
   const groups = React.useMemo(() => homonymGroups(elements), [elements]);
   const linkedLabels = React.useMemo(() => linkedLabelsOf(elements, links ?? []), [elements, links]);
   const colorOf = (el: ZnElement) => {
@@ -172,8 +177,8 @@ export function ElementPicker(p: ElementPickerProps) {
     empty: t('picker_none'),
     listClass: tall ? 'max-h-[calc(100vh-12rem)]' : undefined,
     // The documents it was read in, by their reference.
-    titleOf: ({ element }) => sourceLabels(element.source).join('\n') || undefined,
-    row: ({ element, property, reference }) => {
+    titleOf: ({ element }) => [...(documentReferences?.get(element.id) ?? []), ...sourceLabels(element.source)].join('\n') || undefined,
+    row: ({ element, property, reference, document }) => {
       const d = discriminants(element, groups, linkedLabels);
       const firstProperty = element.properties[0] ? { key: element.properties[0].key, value: valueText(element.properties[0].value) } : null;
       // A homonym shows what sets it apart, in full; any other element a single property.
@@ -184,6 +189,7 @@ export function ElementPicker(p: ElementPickerProps) {
           ].map((x) => `${x.key} : ${x.value}`).concat(d.linked.length ? [t('picker_linked', { labels: d.linked.join(', ') })] : [])
         : [property ?? firstProperty].filter((x) => x?.value).map((x) => `${x!.key} : ${x!.value}`);
       if (reference) lines.unshift(reference);
+      if (document) lines.unshift(document);
       return h(React.Fragment, null,
         h('span', { className: 'inline-block rounded-full shrink-0 mt-1', style: { width: 10, height: 10, background: colorOf(element) } }),
         h('span', { className: 'min-w-0 flex-1' },
