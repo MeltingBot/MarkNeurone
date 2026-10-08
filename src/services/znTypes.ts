@@ -17,6 +17,8 @@ export interface ZnProperty {
   key: string;
   value: string | number | boolean | Date | null;
   type?: ZnPropertyType;
+  /** `datetime` only (ZN 2.62.4): IANA zone the hour was given in at the source; system zone when absent. */
+  timeZone?: string;
 }
 
 /** ZN GeoData: a point, or a zone drawn in ZN (kept as is by the plugin). */

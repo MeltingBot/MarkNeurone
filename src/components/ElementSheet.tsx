@@ -156,6 +156,14 @@ function parseValue(type: ZnPropertyType | undefined, raw: string): ZnProperty['
   return raw;
 }
 
+/**
+ * A 'datetime' property from the day and hour as written at the source, in
+ * its time zone (ZN 2.62.4); without one, the computer's zone.
+ */
+function datetimeProperty(key: string, day: string, time: string, timeZone: string | undefined): ZnProperty {
+  return { key, value: dateFromInputKeys(day, time || '00:00', timeZone), type: 'datetime', ...(timeZone ? { timeZone } : {}) };
+}
+
 /** A date/time value as a Date, whether stored as a Date or as its ISO text. */
 function dateOf(value: ZnProperty['value']): Date | null {
   const d = value instanceof Date ? value : typeof value === 'string' && value ? new Date(value) : null;
@@ -205,6 +213,9 @@ function PropertyValueField(p: {
   type: ZnPropertyType;
   value: string;
   time?: string;
+  /** 'datetime': zone of the hour, as for events. */
+  timeZone?: string;
+  onTimeZone?: (timeZone: string | undefined) => void;
   choices: string[];
   onValue: (value: string) => void;
   onTime?: (time: string) => void;
@@ -247,7 +258,8 @@ function PropertyValueField(p: {
         h('input', { type: 'date', className: S.INPUT_IN_CARD, value: p.value, 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onValue(e.target.value), onKeyDown }),
         p.type === 'datetime'
           ? h('input', { type: 'time', className: S.INPUT_IN_CARD, style: { width: 90 }, value: p.time ?? '', 'aria-label': env.t('field_time'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onTime?.(e.target.value) })
-          : null);
+          : null,
+        p.type === 'datetime' && p.onTimeZone ? h(TimeZoneButton, { value: p.timeZone, onChange: p.onTimeZone }) : null);
     default:
       return h('input', { type: 'text', className: S.INPUT_IN_CARD, value: p.value, placeholder: env.t('field_value'), 'aria-label': env.t('field_value'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onValue(e.target.value), onKeyDown });
   }
@@ -697,6 +709,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     return firstDate ? toDateInputValue(firstDate.date) : '';
   });
   const [time, setTime] = React.useState(() => (firstDate?.hasTime ? timeOf(firstDate.date) : ''));
+  const [timeZone, setTimeZone] = React.useState<string | undefined>(undefined);
   const [busy, setBusy] = React.useState(false);
   /** The element itself, or one of its events (picked by search: there may be many). */
   const [toEvent, setToEvent] = React.useState(false);
@@ -760,7 +773,9 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
       else setBusy(false);
       return;
     }
-    const property = { key: key.trim(), value: parseValue(type, type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim()), type };
+    const property = type === 'datetime'
+      ? datetimeProperty(key.trim(), value.trim(), time, timeZone)
+      : { key: key.trim(), value: parseValue(type, value.trim()), type };
     const ok = await env.run(async () => {
       await registerDefinition({ key: property.key, type, ...(type === 'choice' ? { choices } : {}) }, element.tags);
       await (onEvent ? qualifyAsEventProperty(env.ctx, passage, element.id, onEvent.id, property) : qualifyAsProperty(env.ctx, passage, element.id, property));
@@ -847,7 +862,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     ? h(ChecksumWarning, { env, passage })
     : h('div', { className: 'space-y-1' },
         h('label', { className: S.SMALL_LABEL }, env.t('field_value')),
-        h(PropertyValueField, { env, type, value, time, choices, onValue: setValue, onTime: setTime }),
+        h(PropertyValueField, { env, type, value, time, timeZone, choices, onValue: setValue, onTime: setTime, onTimeZone: setTimeZone }),
         h(ChecksumWarning, { env, passage })),
   h('div', { className: S.BUTTON_ROW },
     h('button', { type: 'button', onClick: p.onDone, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),
@@ -1220,6 +1235,15 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
     const properties = element.properties.map((pr, i) => (i === index ? { ...pr, value: parseValue(pr.type, raw) } : pr));
     env.run(() => graph.updateElement(element.id, { properties }));
   };
+  /** A 'datetime' value with its zone; no zone means the computer's. */
+  const setAt = (index: number, value: Date, timeZone: string | undefined) => {
+    const properties = element.properties.map((pr, i) => {
+      if (i !== index) return pr;
+      const { timeZone: _previous, ...rest } = pr;
+      return { ...rest, value, ...(timeZone ? { timeZone } : {}) };
+    });
+    env.run(() => graph.updateElement(element.id, { properties }));
+  };
   const remove = (index: number) => {
     const key = element.properties[index].key;
     const properties = element.properties.filter((_, i) => i !== index);
@@ -1244,7 +1268,8 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
             h('span', { className: 'text-xs font-medium text-text-secondary truncate' }, pr.key),
             h('span', { className: S.TYPE_BADGE }, env.t(`type_${type}`))),
           type === 'datetime'
-            ? h(DateTimeRow, { value: pr.value, label: pr.key, onCommit: (v: string) => update(i, v) })
+            ? h('div', { className: 'mt-1' },
+                h(DateTimeRow, { value: pr.value, timeZone: pr.timeZone, label: pr.key, inputClass: S.INPUT_COMPACT, onCommit: (value: Date, timeZone: string | undefined) => setAt(i, value, timeZone) }))
             : type === 'text' || type === 'number' || type === 'date' || type === 'link'
             ? h('div', { className: 'mt-1' },
                 h(CommitInput, {
@@ -1260,16 +1285,21 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
     }));
 }
 
-/** Date and time of a 'datetime' property, each editable, in local time as ZN's panel shows it. */
-function DateTimeRow(p: { value: ZnProperty['value']; label: string; onCommit: (value: string) => void }) {
+/**
+ * Date and time of a 'datetime' property, each editable, shown and typed in
+ * the property's source zone as ZN's panel does. A new zone keeps the typed
+ * wall clock: "03:12" then means 03:12 there.
+ */
+function DateTimeRow(p: { value: ZnProperty['value']; timeZone?: string; label: string; inputClass: string; onCommit: (value: Date, timeZone: string | undefined) => void }) {
   const { h } = host();
   const d = dateOf(p.value);
-  const day = d ? toDateInputValue(d) : '';
-  const time = d ? timeOf(d) : '';
-  return h('div', { className: 'mt-1 flex gap-1' },
-    h(CommitInput, { type: 'date', className: S.INPUT_COMPACT, value: day, ariaLabel: p.label, onCommit: (v: string) => v && p.onCommit(`${v}T${time || '00:00'}`) }),
+  const keys = d ? dateInputKeys(d, p.timeZone) : { date: '', time: '' };
+  const at = (day: string, time: string, zone: string | undefined) => p.onCommit(dateFromInputKeys(day, time || '00:00', zone), zone);
+  return h('div', { className: 'flex items-center gap-1' },
+    h(CommitInput, { type: 'date', className: p.inputClass, value: keys.date, ariaLabel: p.label, onCommit: (v: string) => v && at(v, keys.time, p.timeZone) }),
     h('div', { style: { width: 90 }, className: 'shrink-0' },
-      h(CommitInput, { type: 'time', className: S.INPUT_COMPACT, value: time, ariaLabel: p.label, onCommit: (v: string) => day && p.onCommit(`${day}T${v || '00:00'}`) })));
+      h(CommitInput, { type: 'time', className: p.inputClass, value: keys.time, ariaLabel: p.label, onCommit: (v: string) => keys.date && at(keys.date, v, p.timeZone) })),
+    h(TimeZoneButton, { value: p.timeZone, onChange: (zone: string | undefined) => keys.date && at(keys.date, keys.time, zone) }));
 }
 
 function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) => void }) {
@@ -1383,6 +1413,7 @@ function EventDetails(p: { env: Env; elementId: string; elementTags: string[]; e
   const [key, setKey] = React.useState('');
   const [value, setValue] = React.useState('');
   const [time, setTime] = React.useState('');
+  const [timeZone, setTimeZone] = React.useState<string | undefined>(undefined);
   const [type, setType] = React.useState<ZnPropertyType>('text');
   const [options, setOptions] = React.useState('');
   const known = defs.get(key.trim());
@@ -1405,12 +1436,12 @@ function EventDetails(p: { env: Env; elementId: string; elementTags: string[]; e
   const add = () => {
     if (!valid) return;
     const k = key.trim();
-    const v = type === 'datetime' ? `${value.trim()}T${time || '00:00'}` : value.trim();
     env.run(() => registerDefinition({ key: k, type, ...(type === 'choice' ? { choices } : {}) }, p.elementTags));
-    setProperties([...properties, { key: k, value: parseValue(type, v), type }]);
+    setProperties([...properties, type === 'datetime' ? datetimeProperty(k, value.trim(), time, timeZone) : { key: k, value: parseValue(type, value.trim()), type }]);
     setKey('');
     setValue('');
     setTime('');
+    setTimeZone(undefined);
     setOptions('');
     setType('text');
   };
@@ -1432,7 +1463,20 @@ function EventDetails(p: { env: Env; elementId: string; elementTags: string[]; e
         return h('div', { key: `${pr.key}-${i}`, className: 'flex items-center gap-2' },
           h('span', { className: 'text-xs text-text-secondary truncate shrink-0', style: { maxWidth: 110 }, title: pr.key }, pr.key),
           h('div', { className: 'flex-1 min-w-0' },
-            editable
+            prType === 'datetime'
+              ? h(DateTimeRow, {
+                  value: pr.value,
+                  timeZone: pr.timeZone,
+                  label: pr.key,
+                  inputClass: S.INPUT_IN_CARD,
+                  onCommit: (value: Date, timeZone: string | undefined) =>
+                    setProperties(properties.map((x, j) => {
+                      if (j !== i) return x;
+                      const { timeZone: _previous, ...rest } = x;
+                      return { ...rest, value, ...(timeZone ? { timeZone } : {}) };
+                    })),
+                })
+              : editable
               ? h(CommitInput, {
                   type: prType === 'date' ? 'date' : 'text',
                   className: S.INPUT_IN_CARD,
@@ -1461,7 +1505,7 @@ function EventDetails(p: { env: Env; elementId: string; elementTags: string[]; e
           type === 'choice' && !knownChoices
             ? h('input', { className: S.INPUT_IN_CARD, value: options, placeholder: env.t('field_options_placeholder'), 'aria-label': env.t('field_options'), onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setOptions(e.target.value) })
             : null),
-        h(PropertyValueField, { env, type, value, time, choices, onValue: setValue, onTime: setTime, onEnter: add }),
+        h(PropertyValueField, { env, type, value, time, timeZone, choices, onValue: setValue, onTime: setTime, onTimeZone: setTimeZone, onEnter: add }),
         h('div', { className: 'flex justify-end' },
           h('button', { type: 'button', onClick: add, disabled: !valid, className: S.BUTTON_SECONDARY_SMALL }, env.t('event_add_property'))))));
 }
