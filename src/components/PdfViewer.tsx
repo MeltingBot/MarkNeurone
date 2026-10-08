@@ -744,6 +744,42 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     if (next !== undefined) setZoom(next);
   };
 
+  // Ctrl+wheel (or a trackpad pinch) zooms the document, as in a browser,
+  // keeping the point under the pointer in place. A native listener: React's
+  // wheel events are passive and cannot stop the page zoom.
+  const wheelZoom = React.useRef({ stepZoom, scale, delta: 0 });
+  wheelZoom.current.stepZoom = stepZoom;
+  wheelZoom.current.scale = scale;
+  /** Point to keep under the pointer once the new zoom is laid out. */
+  const zoomAnchor = React.useRef<{ x: number; y: number; contentX: number; contentY: number; from: number } | null>(null);
+  React.useEffect(() => {
+    if (!root) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const w = wheelZoom.current;
+      // A pinch sends many small deltas: one step per notch of a mouse wheel.
+      w.delta += e.deltaMode === 0 ? e.deltaY : e.deltaY * 40;
+      if (Math.abs(w.delta) < 40) return;
+      const box = root.getBoundingClientRect();
+      const x = e.clientX - box.left;
+      const y = e.clientY - box.top;
+      zoomAnchor.current = { x, y, contentX: root.scrollLeft + x, contentY: root.scrollTop + y, from: w.scale };
+      w.stepZoom(w.delta < 0 ? 1 : -1);
+      w.delta = 0;
+    };
+    root.addEventListener('wheel', onWheel, { passive: false });
+    return () => root.removeEventListener('wheel', onWheel);
+  }, [root]);
+  React.useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    if (!root || !anchor || anchor.from === scale) return;
+    zoomAnchor.current = null;
+    const ratio = scale / anchor.from;
+    root.scrollLeft = PADDING + (anchor.contentX - PADDING) * ratio - anchor.x;
+    root.scrollTop = PADDING + (anchor.contentY - PADDING) * ratio - anchor.y;
+  }, [root, scale]);
+
   // ─── Highlights ──────────────────────────────────────────
 
   /**

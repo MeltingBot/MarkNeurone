@@ -14,6 +14,7 @@
 | Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |
 | Entrée, Maj+Entrée | Résultat de recherche suivant, précédent |
+| Ctrl+molette | Agrandir ou réduire le document autour du pointeur (pincement sur un pavé tactile) |
 | Échap | Fermer la liste ou le formulaire ouvert, vider la sélection, puis réduire le lecteur |
 
 Les raccourcis du canvas de ZeroNeurone (Suppr, Ctrl+Z...) sont désactivés tant que le lecteur est ouvert, pour éviter de modifier le graphe par erreur.
