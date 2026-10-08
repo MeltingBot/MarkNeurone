@@ -20,26 +20,61 @@ export function getElement(id: string): ZnElement | undefined {
 const NODE_W = 160;
 const NODE_H = 110;
 
-/** First free spot on a spiral around the centre of the visible canvas. */
+/** Part of the canvas on screen, in canvas units. */
+export interface Bounds {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * First free spot on a spiral around the centre of the visible canvas. With
+ * `bounds`, the spot stays on screen: zoomed in, the nearest free spot may
+ * lie outside the view, and a node appearing off screen looks like nothing
+ * happened (reader in a window of its own, canvas watched while reading).
+ * A view with no free spot gets the least crowded spot of the view.
+ */
 export function freePosition(
   center: { x: number; y: number },
   occupied: { x: number; y: number }[],
+  bounds?: Bounds,
 ): { x: number; y: number } {
   const free = (p: { x: number; y: number }) =>
     occupied.every((o) => Math.abs(o.x - p.x) >= NODE_W || Math.abs(o.y - p.y) >= NODE_H);
   if (free(center)) return center;
-  for (let ring = 1; ring <= 12; ring++) {
+  if (!bounds) {
+    for (let ring = 1; ring <= 12; ring++) {
+      const steps = ring * 8;
+      for (let i = 0; i < steps; i++) {
+        const angle = (i / steps) * 2 * Math.PI;
+        const p = { x: center.x + Math.cos(angle) * ring * NODE_W, y: center.y + Math.sin(angle) * ring * NODE_H };
+        if (free(p)) return p;
+      }
+    }
+    return center;
+  }
+  // A node is placed by its top-left corner: room for its body inside the view.
+  const inView = (p: { x: number; y: number }) =>
+    p.x >= bounds.x0 && p.y >= bounds.y0 && p.x + NODE_W * 0.85 <= bounds.x1 && p.y + NODE_H * 0.6 <= bounds.y1;
+  const candidates: { x: number; y: number }[] = [];
+  for (let ring = 1; ring <= 40; ring++) {
     const steps = ring * 8;
     for (let i = 0; i < steps; i++) {
       const angle = (i / steps) * 2 * Math.PI;
-      const p = { x: center.x + Math.cos(angle) * ring * NODE_W, y: center.y + Math.sin(angle) * ring * NODE_H };
+      const p = { x: center.x + (Math.cos(angle) * ring * NODE_W) / 2, y: center.y + (Math.sin(angle) * ring * NODE_H) / 2 };
+      if (!inView(p)) continue;
       if (free(p)) return p;
+      candidates.push(p);
     }
   }
-  return center;
+  // Crowded view: the spot farthest from its nearest node.
+  const room = (p: { x: number; y: number }) =>
+    Math.min(...occupied.map((o) => Math.max(Math.abs(o.x - p.x) / NODE_W, Math.abs(o.y - p.y) / NODE_H)));
+  return candidates.reduce((best, p) => (room(p) > room(best) ? p : best), center);
 }
 
-/** Near the centre of the visible canvas, away from existing nodes. ZN keeps the canvas size private. */
+/** Near the centre of the visible canvas, away from existing nodes, on screen. ZN keeps the canvas size private. */
 function placementPosition(): { x: number; y: number } {
   const { viewport } = getHostAPI().stores.useViewStore.getState() as {
     viewport: { x: number; y: number; zoom: number };
@@ -47,11 +82,14 @@ function placementPosition(): { x: number; y: number } {
   const pane = document.querySelector('.react-flow');
   const width = pane?.clientWidth || window.innerWidth - 350;
   const height = pane?.clientHeight || window.innerHeight;
-  const center = {
-    x: (-viewport.x + width / 2) / viewport.zoom,
-    y: (-viewport.y + height / 2) / viewport.zoom,
+  const bounds = {
+    x0: -viewport.x / viewport.zoom,
+    y0: -viewport.y / viewport.zoom,
+    x1: (-viewport.x + width) / viewport.zoom,
+    y1: (-viewport.y + height) / viewport.zoom,
   };
-  return freePosition(center, store().elements.map((e: ZnElement) => e.position));
+  const center = { x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2 };
+  return freePosition(center, store().elements.map((e: ZnElement) => e.position), bounds);
 }
 
 export async function createElement(label: string, tags: string[], anchor: string): Promise<ZnElement> {

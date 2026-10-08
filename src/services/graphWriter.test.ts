@@ -61,4 +61,20 @@ describe('freePosition', () => {
     const p = freePosition({ x: 0, y: 0 }, occupied);
     expect(occupied.every((o) => Math.abs(o.x - p.x) >= 160 || Math.abs(o.y - p.y) >= 110)).toBe(true);
   });
+
+  // Zoomed in: the view shows x 571..1006, y 60..410 (canvas units).
+  const view = { x0: 571, y0: 60, x1: 1006, y1: 410 };
+
+  it('stays on screen when the nearest free spot lies outside the view', () => {
+    const occupied = [{ x: 788, y: 234 }, { x: 733, y: 131 }, { x: 806, y: 116 }];
+    const p = freePosition({ x: 788, y: 234 }, occupied, view);
+    expect(p.x >= view.x0 && p.x + 136 <= view.x1 && p.y >= view.y0 && p.y + 66 <= view.y1).toBe(true);
+    expect(occupied.every((o) => Math.abs(o.x - p.x) >= 160 || Math.abs(o.y - p.y) >= 110)).toBe(true);
+  });
+
+  it('takes the least crowded spot of a full view, still on screen', () => {
+    const occupied = [0, 1, 2, 3].flatMap((i) => [0, 1, 2, 3].map((j) => ({ x: 571 + i * 120, y: 60 + j * 90 })));
+    const p = freePosition({ x: 788, y: 234 }, occupied, view);
+    expect(p.x >= view.x0 && p.x + 136 <= view.x1 && p.y >= view.y0 && p.y + 66 <= view.y1).toBe(true);
+  });
 });
