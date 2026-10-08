@@ -40,7 +40,7 @@ import {
 } from '../services/qualify.ts';
 import { isPdf } from '../services/documentAssets.ts';
 import { documentIndex, type IndexEntry } from '../core/documentIndex.ts';
-import { searchElements } from '../core/elementSearch.ts';
+import { discriminants, homonymGroups, searchElements } from '../core/elementSearch.ts';
 import { saveAnnotation } from '../services/annotationStore.ts';
 import * as graph from '../services/graphWriter.ts';
 import {
@@ -56,7 +56,7 @@ import {
 } from '../services/znTypes.ts';
 import type { Gesture } from './SelectionBar.tsx';
 import * as S from './znStyles.ts';
-import { CountryPicker, ElementPicker, EventPicker } from './ElementPicker.tsx';
+import { CountryPicker, ElementPicker, EventPicker, linkedLabelsOf } from './ElementPicker.tsx';
 import { countryName, matchChoice, matchCountry, parseChoices, PROPERTY_TYPES } from '../core/propertyTypes.ts';
 import { ColorDot } from './ColorDot.tsx';
 
@@ -471,6 +471,8 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
     return findCandidates(label, named).slice(0, 5);
   }, [label, env.elements]);
   const attachTo = defaultAttachment(candidates);
+  const groups = React.useMemo(() => homonymGroups(env.elements), [env.elements]);
+  const linkedLabels = React.useMemo(() => linkedLabelsOf(env.elements, env.links), [env.elements, env.links]);
   const kindLabel: Record<MatchKind, string> = {
     exact: env.t('match_exact'),
     reordered: env.t('match_reordered'),
@@ -520,11 +522,15 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
         h('label', { className: S.LABEL }, env.t('candidates_title')),
         candidates.map((c) => {
           const el = env.elements.find((x) => x.id === c.elementId)!;
-          const details = [...el.tags, ...el.properties.slice(0, 2).map((pr) => `${pr.key} : ${pr.value instanceof Date ? pr.value.toLocaleDateString('fr-FR') : String(pr.value)}`)];
+          // Homonyms: what sets this one apart rather than its first properties.
+          const d = discriminants(el, groups, linkedLabels);
+          const details = d
+            ? [...el.tags, ...d.properties.map((pr) => `${pr.key} : ${pr.value}`), ...(d.linked.length ? [env.t('picker_linked', { labels: d.linked.join(', ') })] : [])]
+            : [...el.tags, ...el.properties.slice(0, 2).map((pr) => `${pr.key} : ${pr.value instanceof Date ? pr.value.toLocaleDateString('fr-FR') : String(pr.value)}`)];
           return h('div', { key: c.elementId, className: `flex items-center gap-2 px-2 py-1.5 rounded border ${c.elementId === attachTo ? 'border-accent' : 'border-border-default'}` },
             h('div', { className: 'flex-1 min-w-0' },
               h('div', { className: 'text-xs font-medium text-text-primary truncate' }, el.label),
-              h('div', { className: `${S.HINT} truncate` }, [kindLabel[c.kind], ...details].join(' · '))),
+              h('div', { className: `${S.HINT} ${d ? 'break-words' : 'truncate'}` }, [kindLabel[c.kind], ...details].join(' · '))),
             h('button', { type: 'button', disabled: busy, onClick: () => attach(c.elementId), className: `${S.BUTTON_GHOST_SMALL} shrink-0` }, env.t('attach')));
         }))
     : null,
@@ -1490,6 +1496,7 @@ function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => v
           key: editing ?? (fromId ? 'to' : 'from'),
           elements: env.elements,
           tagSets: env.tagSets,
+          links: env.links,
           value: (editing ?? (fromId ? 'to' : 'from')) === 'from' ? fromId : toId,
           autoFocus: true,
           inputClass: S.INPUT,
@@ -1604,7 +1611,7 @@ function LinkSheet(p: {
 /** Element picker in a card (link ends, orphan reattachment). */
 function ElementSelect(p: { env: Env; value: string; onChange: (id: string) => void }) {
   const { h } = host();
-  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
+  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, links: p.env.links, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
 }
 
 // ─── Elements of the document ────────────────────────────────
@@ -1909,6 +1916,8 @@ export function ElementSheet(props: Props) {
             h(ElementPicker, {
               elements,
               tagSets,
+              links,
+              tall: true,
               autoFocus: true,
               inputClass: S.INPUT,
               onChange: (id: string) => props.onElementChange(id),
@@ -1950,6 +1959,7 @@ export function ElementSheet(props: Props) {
           h(ElementPicker, {
             elements,
             tagSets,
+            links,
             value: element.id,
             autoFocus: true,
             inputClass: S.INPUT,

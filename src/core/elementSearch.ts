@@ -68,3 +68,54 @@ export function searchEvents<T extends SearchableEvent>(events: T[], query: stri
     return words.every((w) => text.includes(w));
   });
 }
+
+export interface NamedElement extends SearchableElement {
+  tags: string[];
+}
+
+/** Elements sharing a label (case, accents and punctuation aside), by that label; unique labels left out. */
+export function homonymGroups<T extends NamedElement>(elements: T[]): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const el of elements) {
+    const name = normalizeName(el.label);
+    if (!name) continue;
+    const group = groups.get(name);
+    if (group) group.push(el);
+    else groups.set(name, [el]);
+  }
+  for (const [name, group] of groups) if (group.length < 2) groups.delete(name);
+  return groups;
+}
+
+export interface Discriminants {
+  properties: { key: string; value: string }[];
+  /** Labels of the elements it is linked to and not all the others are. */
+  linked: string[];
+}
+
+/**
+ * What tells an element apart from the others bearing the same label: the
+ * property values and linked elements that not all of them share (tags are
+ * shown anyway).
+ * Null when the label is unique.
+ */
+export function discriminants<T extends NamedElement>(
+  element: T,
+  groups: Map<string, T[]>,
+  linkedLabels: (id: string) => string[] = () => [],
+  max = 3,
+): Discriminants | null {
+  const others = groups.get(normalizeName(element.label))?.filter((o) => o.id !== element.id);
+  if (!others?.length) return null;
+  const sharedByAll = (has: (o: T) => boolean) => others.every(has);
+  const properties: { key: string; value: string }[] = [];
+  for (const p of element.properties) {
+    const value = valueText(p.value);
+    if (value && !sharedByAll((o) => o.properties.some((q) => q.key === p.key && valueText(q.value) === value))) properties.push({ key: p.key, value });
+  }
+  const linked = [...new Set(linkedLabels(element.id))];
+  return {
+    properties: properties.slice(0, max),
+    linked: linked.filter((l) => !sharedByAll((o) => linkedLabels(o.id).includes(l))).slice(0, max),
+  };
+}

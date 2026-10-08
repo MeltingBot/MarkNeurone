@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { searchElements, searchEvents } from './elementSearch.ts';
+import { discriminants, homonymGroups, searchElements, searchEvents } from './elementSearch.ts';
 
 const el = (id: string, label: string, properties: { key: string; value: unknown }[] = []) => ({ id, label, properties });
 const elements = [
@@ -48,5 +48,35 @@ describe('searchEvents', () => {
     expect(searchEvents(events, '2018').map((e) => e.id)).toEqual(['a']);
     expect(searchEvents(events, '03/05').map((e) => e.id)).toEqual(['b']);
     expect(searchEvents(events, 'clients').map((e) => e.id)).toEqual(['a']);
+  });
+});
+
+describe('discriminants', () => {
+  const named = (id: string, label: string, tags: string[], properties: { key: string; value: unknown }[] = []) => ({ id, label, tags, properties });
+  const all = [
+    named('a', 'Jean MARTIN', ['Personne'], [{ key: 'Né le', value: '01/02/1980' }, { key: 'Ville', value: 'Lyon' }]),
+    named('b', 'jean martin', ['Personne', 'Suspect'], [{ key: 'Né le', value: '05/06/1975' }, { key: 'Ville', value: 'Lyon' }]),
+    named('c', 'Paul DURAND', ['Personne'], [{ key: 'Ville', value: 'Lyon' }]),
+  ];
+  const groups = homonymGroups(all);
+  const links: Record<string, string[]> = { a: ['CITROEN JUMPER', 'SARL Vallier'], b: ['SARL Vallier'] };
+
+  it('groups labels case and accents aside, unique labels left out', () => {
+    expect([...groups.keys()]).toEqual(['jean martin']);
+  });
+
+  it('keeps what not all homonyms share', () => {
+    expect(discriminants(all[0], groups, (id) => links[id] ?? [])).toEqual({
+      properties: [{ key: 'Né le', value: '01/02/1980' }],
+      linked: ['CITROEN JUMPER'],
+    });
+    expect(discriminants(all[1], groups, (id) => links[id] ?? [])).toEqual({
+      properties: [{ key: 'Né le', value: '05/06/1975' }],
+      linked: [],
+    });
+  });
+
+  it('is null for a unique label', () => {
+    expect(discriminants(all[2], groups)).toBeNull();
   });
 });

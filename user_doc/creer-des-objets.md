@@ -24,7 +24,7 @@ Sous le libellé, « Éléments existants proches » liste les éléments du dos
 - « Créer » crée un nouvel élément. C'est l'action proposée par défaut, même lorsqu'un élément proche existe.
 - « Rattacher », sur un des éléments proposés, relie le passage à cet élément sans en créer un nouveau.
 
-Vérifiez les éléments proposés avant de rattacher : deux personnes peuvent porter le même nom. En cas de doute, créez un nouvel élément. Deux éléments se fusionnent plus tard dans ZeroNeurone, alors qu'un rattachement erroné passe facilement inaperçu.
+Vérifiez les éléments proposés avant de rattacher : deux personnes peuvent porter le même nom. En cas de doute, créez un nouvel élément. Deux éléments se fusionnent plus tard dans ZeroNeurone, alors qu'un rattachement erroné passe facilement inaperçu. Pour deux éléments de même nom, la liste indique ce qui les distingue : les propriétés dont la valeur diffère et les éléments auxquels chacun est lié.
 
 Le nouvel élément est placé sur le canvas et le passage est surligné dans la couleur de son tag.
 

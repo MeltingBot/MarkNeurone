@@ -3,15 +3,16 @@
 // Search field with a list of matches, modelled on ZN's ElementAutocomplete
 // (components/report). Arrow keys move, Enter picks, Escape closes the list
 // and, once closed, leaves. ElementPicker shows colour, label, a property and
-// tags to tell homonyms apart; EventPicker shows label, date and description.
+// tags, and for homonyms what tells them apart; EventPicker shows label, date
+// and description.
 
 import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
-import { searchElements, searchEvents, type ElementHit } from '../core/elementSearch.ts';
+import { discriminants, homonymGroups, searchElements, searchEvents, type ElementHit } from '../core/elementSearch.ts';
 import { countries } from '../core/propertyTypes.ts';
 import { normalizeName } from '../core/dictionary.ts';
-import type { ZnElement, ZnElementEvent, ZnTagSet } from '../services/znTypes.ts';
+import type { ZnElement, ZnElementEvent, ZnLink, ZnTagSet } from '../services/znTypes.ts';
 
 interface PickerProps<T> {
   /** Matches of a query, in display order. */
@@ -27,6 +28,8 @@ interface PickerProps<T> {
   inputClass: string;
   placeholder: string;
   empty: string;
+  /** Height of the list; a short one by default. */
+  listClass?: string;
 }
 
 function SearchPicker<T>(p: PickerProps<T>) {
@@ -54,7 +57,7 @@ function SearchPicker<T>(p: PickerProps<T>) {
     ? h('div', {
         ref: listRef,
         role: 'listbox',
-        className: 'absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto bg-bg-primary border border-border-default rounded panel-shadow',
+        className: `absolute left-0 right-0 z-20 mt-1 ${p.listClass ?? 'max-h-64'} overflow-y-auto bg-bg-primary border border-border-default rounded panel-shadow`,
       },
       hits.length
         ? hits.map((item, i) =>
@@ -123,6 +126,10 @@ const valueText = (v: unknown): string => (v instanceof Date ? v.toLocaleDateStr
 interface ElementPickerProps {
   elements: ZnElement[];
   tagSets: ZnTagSet[];
+  /** To tell homonyms apart by the elements they are linked to. */
+  links?: ZnLink[];
+  /** Alone in the panel: a list as tall as the panel allows. */
+  tall?: boolean;
   /** Picked element, shown in the field while it is not being searched. */
   value?: string | null;
   onChange: (elementId: string) => void;
@@ -137,8 +144,10 @@ export function ElementPicker(p: ElementPickerProps) {
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
-  const { elements, tagSets } = p;
-  const search = React.useCallback((query: string) => searchElements(elements, query), [elements]);
+  const { elements, tagSets, links, tall } = p;
+  const search = React.useCallback((query: string) => searchElements(elements, query, tall ? 500 : 30), [elements, tall]);
+  const groups = React.useMemo(() => homonymGroups(elements), [elements]);
+  const linkedLabels = React.useMemo(() => linkedLabelsOf(elements, links ?? []), [elements, links]);
   const colorOf = (el: ZnElement) => {
     const tag = el.tags[0]?.toLowerCase();
     return (tag && tagSets.find((ts) => ts.name.toLowerCase() === tag)?.defaultVisual.color) || 'var(--color-border-strong)';
@@ -155,19 +164,45 @@ export function ElementPicker(p: ElementPickerProps) {
     inputClass: p.inputClass,
     placeholder: t('picker_placeholder'),
     empty: t('picker_none'),
+    listClass: tall ? 'max-h-[calc(100vh-12rem)]' : undefined,
     row: ({ element, property }) => {
-      const subtitle = property ?? (element.properties[0] ? { key: element.properties[0].key, value: valueText(element.properties[0].value) } : null);
+      const d = discriminants(element, groups, linkedLabels);
+      const first = element.properties[0] ? { key: element.properties[0].key, value: valueText(element.properties[0].value) } : null;
+      // A homonym shows what sets it apart, in full; any other element a single property.
+      const lines = d
+        ? [
+            ...(property && !d.properties.some((x) => x.key === property.key) ? [property] : []),
+            ...d.properties,
+          ].map((x) => `${x.key} : ${x.value}`).concat(d.linked.length ? [t('picker_linked', { labels: d.linked.join(', ') })] : [])
+        : [property ?? first].filter((x) => x?.value).map((x) => `${x!.key} : ${x!.value}`);
       return h(React.Fragment, null,
         h('span', { className: 'inline-block rounded-full shrink-0 mt-1', style: { width: 10, height: 10, background: colorOf(element) } }),
         h('span', { className: 'min-w-0 flex-1' },
-          h('span', { className: 'block text-sm text-text-primary truncate' }, element.label || t('unnamed')),
-          subtitle?.value ? h('span', { className: 'block text-xs text-text-secondary truncate mt-0.5' }, `${subtitle.key} : ${subtitle.value}`) : null,
+          h('span', { className: 'flex items-baseline gap-2' },
+            h('span', { className: 'text-sm text-text-primary truncate' }, element.label || t('unnamed')),
+            d ? h('span', { className: 'text-xs text-text-tertiary shrink-0' }, t('picker_homonyms', { count: (groups.get(normalizeName(element.label))?.length ?? 1) - 1 })) : null),
+          lines.map((line) => h('span', { key: line, className: `block text-xs text-text-secondary mt-0.5 ${d ? 'break-words' : 'truncate'}` }, line)),
           element.tags.length
-            ? h('span', { className: 'flex gap-1 mt-1' },
-                element.tags.slice(0, 2).map((tag) => h('span', { key: tag, className: 'text-xs px-1 py-0.5 bg-bg-tertiary rounded text-text-secondary' }, tag)))
+            ? h('span', { className: 'flex flex-wrap gap-1 mt-1' },
+                element.tags.slice(0, d ? 4 : 2).map((tag) => h('span', { key: tag, className: 'text-xs px-1 py-0.5 bg-bg-tertiary rounded text-text-secondary' }, tag)))
             : null));
     },
   });
+}
+
+/** Labels of the elements each element is linked to, by element id. */
+export function linkedLabelsOf(elements: ZnElement[], links: ZnLink[]): (id: string) => string[] {
+  const labelOf = new Map(elements.map((el) => [el.id, el.label]));
+  const byId = new Map<string, string[]>();
+  const add = (id: string, other: string) => {
+    const label = labelOf.get(other);
+    if (label) byId.set(id, [...(byId.get(id) ?? []), label]);
+  };
+  for (const l of links) {
+    add(l.fromId, l.toId);
+    add(l.toId, l.fromId);
+  }
+  return (id) => byId.get(id) ?? [];
 }
 
 interface EventPickerProps {
