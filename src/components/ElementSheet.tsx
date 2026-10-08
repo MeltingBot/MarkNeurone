@@ -100,6 +100,8 @@ interface Props {
   onReveal: (elementId: string) => void;
   /** Opens the element in ZN's panel, whose location section has the map picker. */
   onPickOnMap: (elementId: string) => void;
+  /** Folds the sheet into a rail (button at the right of its header). */
+  onCollapse?: () => void;
 }
 
 /** Shared by the sheet's parts. */
@@ -113,6 +115,8 @@ interface Env {
   documentElementIds: Set<string>;
   /** References of the documents elements carry: the pickers find them by it. */
   documentReferences: Map<string, string[]>;
+  /** Folds the sheet into a rail; its button sits at the right of the top header, as in ZN. */
+  onCollapse?: () => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
   /** Runs a write, reports failures once. Resolves false on failure. */
   run: (write: () => Promise<unknown>) => Promise<boolean>;
@@ -262,16 +266,31 @@ function escapeTo(fn: () => void) {
 
 // ─── Accordion section ───────────────────────────────────────
 
-function Section(p: { title: string; badge?: number; children?: ReactTypes.ReactNode }) {
+function Section(p: { title: string; badge?: number; action?: ReactTypes.ReactNode; children?: ReactTypes.ReactNode }) {
   const { api, React, h } = host();
   const [open, setOpen] = React.useState(true);
   const { ChevronDown } = api.icons;
+  const toggle = h('button', { type: 'button', onClick: () => setOpen(!open), className: S.SECTION_HEADER },
+    h(ChevronDown, { size: 14, className: 'text-text-tertiary transition-transform duration-200', style: open ? undefined : { transform: 'rotate(-90deg)' } }),
+    h('span', { className: S.SECTION_TITLE }, p.title),
+    p.badge ? h('span', { className: S.SECTION_BADGE }, p.badge) : null);
   return h('div', { className: S.SECTION },
-    h('button', { type: 'button', onClick: () => setOpen(!open), className: S.SECTION_HEADER },
-      h(ChevronDown, { size: 14, className: 'text-text-tertiary transition-transform duration-200', style: open ? undefined : { transform: 'rotate(-90deg)' } }),
-      h('span', { className: S.SECTION_TITLE }, p.title),
-      p.badge ? h('span', { className: S.SECTION_BADGE }, p.badge) : null),
+    // An action (the sheet's collapse button) beside the header, not inside its button.
+    p.action ? h('div', { className: 'flex items-center pr-3' }, toggle, p.action) : toggle,
     open ? h('div', { className: S.SECTION_BODY }, p.children) : null);
+}
+
+/** The sheet's collapse button, as at the right of ZN's panel header. */
+function CollapseButton(p: { env: Env }) {
+  const { api, h } = host();
+  if (!p.env.onCollapse) return null;
+  return h('button', {
+    type: 'button',
+    onClick: p.env.onCollapse,
+    title: p.env.t('sheet_collapse'),
+    'aria-label': p.env.t('sheet_collapse'),
+    className: `${S.ICON_BUTTON} shrink-0`,
+  }, h(api.icons.PanelRightClose, { size: 14 }));
 }
 
 // ─── New element ─────────────────────────────────────────────
@@ -1579,7 +1598,8 @@ function LinkSheet(p: {
   return h(React.Fragment, null,
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h(Link2, { size: 14, className: 'text-text-tertiary shrink-0' }),
-      h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, link.label || env.t('link_unnamed'))),
+      h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, link.label || env.t('link_unnamed')),
+      h(CollapseButton, { env })),
     h(Section, { title: env.t('section_link') },
       h('div', { className: 'space-y-4' },
         h('div', { className: 'space-y-1.5' },
@@ -1649,7 +1669,8 @@ function DocumentElements(p: { env: Env; onPick: (entry: IndexEntry) => void }) 
   return h(React.Fragment, null,
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h('span', { className: `${S.SECTION_TITLE}` }, env.t('index_title')),
-      h('span', { className: S.SECTION_BADGE }, entries.length)),
+      h('span', { className: S.SECTION_BADGE }, entries.length),
+      h('span', { className: 'ml-auto' }, h(CollapseButton, { env }))),
     entries.length
       ? h('div', { className: 'sticky top-0 z-10 px-4 py-2 bg-bg-primary border-b border-border-default' },
           h('input', {
@@ -1749,7 +1770,8 @@ function OrphanSheet(p: {
   return h(React.Fragment, null,
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h(TriangleAlert, { size: 14, className: 'text-warning shrink-0' }),
-      h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, env.t('orphan_title'))),
+      h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, env.t('orphan_title')),
+      h(CollapseButton, { env })),
     h(Section, { title: env.t('orphan_section') },
       h('form', {
         className: 'space-y-4',
@@ -1854,7 +1876,7 @@ export function ElementSheet(props: Props) {
     }
   };
   const documentElementIds = React.useMemo(() => new Set(annotations.flatMap(concernedElements)), [annotations]);
-  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, documentReferences, t, run };
+  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, documentReferences, onCollapse: props.onCollapse, t, run };
   const element = elementId ? elements.find((el) => el.id === elementId) : undefined;
 
   const container = (content: ReactTypes.ReactNode) =>
@@ -1868,7 +1890,7 @@ export function ElementSheet(props: Props) {
   if (props.linkDraft) {
     const ld = props.linkDraft;
     return container(
-      h(Section, { title: t('new_link') },
+      h(Section, { title: t('new_link'), action: h(CollapseButton, { env }) },
         h(LinkForm, {
           key: `${ld.fromId}-${ld.toId}`,
           env,
@@ -1885,7 +1907,7 @@ export function ElementSheet(props: Props) {
   // New element: the draft takes the whole sheet.
   if (draft?.gesture === 'element') {
     return container(
-      h(Section, { title: t('new_element') },
+      h(Section, { title: t('new_element'), action: h(CollapseButton, { env }) },
         h(NewElementForm, {
           key: passageKey(draft.passage) + draft.passage.page,
           env,
@@ -1931,7 +1953,7 @@ export function ElementSheet(props: Props) {
   // A property or an event needs an element first.
   if (!element) {
     const picker = draft
-      ? h(Section, { title: t('choose_element_title') },
+      ? h(Section, { title: t('choose_element_title'), action: h(CollapseButton, { env }) },
           h('div', { className: 'space-y-2' },
             h(ElementPicker, {
               elements,
@@ -1975,7 +1997,8 @@ export function ElementSheet(props: Props) {
         ? h('button', { type: 'button', onClick: () => setChanging(!changing), className: 'text-xs text-accent hover:underline shrink-0' }, t('change_element'))
         : null,
       h('button', { type: 'button', onClick: () => props.onReveal(element.id), title: t('reveal_on_canvas'), className: S.ICON_BUTTON_ACCENT },
-        h(LocateFixed, { size: 14 }))),
+        h(LocateFixed, { size: 14 })),
+      h(CollapseButton, { env })),
     changing
       ? h('div', { className: 'px-4 py-3 border-b border-border-default' },
           h(ElementPicker, {

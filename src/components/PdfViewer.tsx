@@ -1964,10 +1964,6 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       }, h(MoveHorizontal, { size: 14 })),
     ),
     h('span', { className: 'font-mono', title: `SHA-256 ${asset.hash}` }, `SHA-256 ${asset.hash.slice(0, 12)}`),
-    sheetCollapsed
-      ? null
-      : h('button', { onClick: () => setSheetCollapsed(true), title: t('sheet_collapse'), 'aria-label': t('sheet_collapse'), className: toolButton },
-          h(api.icons.PanelRightClose, { size: 14 })),
   );
 
   // Two elements selected with Ctrl+click: offer the link. Floating over the
@@ -2129,6 +2125,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       onGoto: gotoAnnotation,
       onReveal: reveal,
       onPickOnMap: pickOnMap,
+      onCollapse: () => setSheetCollapsed(true),
     }),
     pending
       ? h(SelectionBar, {
