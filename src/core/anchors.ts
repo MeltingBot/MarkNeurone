@@ -53,6 +53,20 @@ export function anchorLabel(filename: string, page: number | null, annotationId:
   return `[${text}](${anchorTarget(annotationId)})`;
 }
 
+/**
+ * Sources as read, one per part, links shown by their label: the
+ * references of the documents an object was read in, e.g.
+ * "PV n° 00347/2026, pièce n° 9 p.1". Without duplicates.
+ */
+export function sourceLabels(source: string | undefined | null): string[] {
+  const parts = (source ?? '')
+    .split(PART_SEPARATOR)
+    .filter((_, i) => i % 2 === 0)
+    .map((part) => part.replace(/\[([^\]]*)\]\([a-z][a-z0-9+.-]*:[^)]*\)/gi, '$1').trim())
+    .filter(Boolean);
+  return [...new Set(parts)];
+}
+
 /** Short ids of all anchors found in a source field. */
 export function anchorIds(source: string | undefined | null): string[] {
   return [...(source ?? '').matchAll(TOKEN_RE)].map((m) => m[1]);

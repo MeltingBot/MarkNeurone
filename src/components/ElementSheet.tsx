@@ -108,6 +108,8 @@ interface Env {
   links: ZnLink[];
   tagSets: ZnTagSet[];
   annotations: Annotation[];
+  /** Elements read in the open document: listed first by the pickers. */
+  documentElementIds: Set<string>;
   t: (key: string, opts?: Record<string, unknown>) => string;
   /** Runs a write, reports failures once. Resolves false on failure. */
   run: (write: () => Promise<unknown>) => Promise<boolean>;
@@ -1497,6 +1499,7 @@ function LinkForm(p: { env: Env; draft: LinkDraft; onDone: (fromId: string) => v
           elements: env.elements,
           tagSets: env.tagSets,
           links: env.links,
+          first: env.documentElementIds,
           value: (editing ?? (fromId ? 'to' : 'from')) === 'from' ? fromId : toId,
           autoFocus: true,
           inputClass: S.INPUT,
@@ -1611,7 +1614,7 @@ function LinkSheet(p: {
 /** Element picker in a card (link ends, orphan reattachment). */
 function ElementSelect(p: { env: Env; value: string; onChange: (id: string) => void }) {
   const { h } = host();
-  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, links: p.env.links, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
+  return h(ElementPicker, { elements: p.env.elements, tagSets: p.env.tagSets, links: p.env.links, first: p.env.documentElementIds, value: p.value || null, onChange: p.onChange, inputClass: S.INPUT_IN_CARD });
 }
 
 // ─── Elements of the document ────────────────────────────────
@@ -1834,7 +1837,8 @@ export function ElementSheet(props: Props) {
       return false;
     }
   };
-  const env: Env = { ctx, elements, links, tagSets, annotations, t, run };
+  const documentElementIds = React.useMemo(() => new Set(annotations.flatMap(concernedElements)), [annotations]);
+  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, t, run };
   const element = elementId ? elements.find((el) => el.id === elementId) : undefined;
 
   const container = (content: ReactTypes.ReactNode) =>
@@ -1917,6 +1921,7 @@ export function ElementSheet(props: Props) {
               elements,
               tagSets,
               links,
+              first: documentElementIds,
               tall: true,
               autoFocus: true,
               inputClass: S.INPUT,
@@ -1960,6 +1965,7 @@ export function ElementSheet(props: Props) {
             elements,
             tagSets,
             links,
+            first: documentElementIds,
             value: element.id,
             autoFocus: true,
             inputClass: S.INPUT,

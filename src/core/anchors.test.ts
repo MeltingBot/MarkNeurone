@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchorIds, anchorLabel, anchorTarget, appendAnchor, relabelAnchor, removeAnchor, shortId } from './anchors.ts';
+import { anchorIds, anchorLabel, anchorTarget, appendAnchor, relabelAnchor, removeAnchor, shortId, sourceLabels } from './anchors.ts';
 
 const ID = '1A2B3C4D-0000-4000-8000-000000000000';
 
@@ -78,5 +78,12 @@ describe('relabelAnchor', () => {
     expect(relabelAnchor('[PV p.3](mn:1a2b3c4d)', ID, anchorLabel('PV', 3, ID))).toBeNull();
     expect(relabelAnchor('[scan.pdf p.4](mn:9f9f9f9f)', ID, anchorLabel('PV', 3, ID))).toBeNull();
     expect(relabelAnchor(undefined, ID, 'x')).toBeNull();
+  });
+});
+
+describe('sourceLabels', () => {
+  it('reads each source by its link label, once', () => {
+    expect(sourceLabels('[PV n° 12 p.1](mn:1a2b3c4d) ; Témoin\n[PV n° 12 p.1](mn:5e6f7a8b)\n')).toEqual(['PV n° 12 p.1', 'Témoin']);
+    expect(sourceLabels(undefined)).toEqual([]);
   });
 });

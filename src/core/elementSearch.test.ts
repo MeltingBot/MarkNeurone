@@ -29,6 +29,24 @@ describe('searchElements', () => {
     expect(byPhone.property).toEqual({ key: 'Téléphone', value: '06 12 34 56 78' });
   });
 
+  it('finds an element by the reference of a document it was read in, after other matches', () => {
+    const read = [
+      { ...el('7', 'Dylan MARTINEAU'), source: '[PV n° 00347/2026, pièce n° 9 p.1](mn:1a2b3c4d)\nTémoin' },
+      { ...el('8', 'Pièce n° 9 du scellé'), source: '' },
+    ];
+    const hits = searchElements(read, 'pièce 9');
+    expect(hits.map((h) => h.element.id)).toEqual(['8', '7']);
+    expect(hits[1].reference).toBe('PV n° 00347/2026, pièce n° 9 p.1');
+    expect(searchElements(read, '00347/2026')[0].element.id).toBe('7');
+    // The anchor itself is not searched.
+    expect(searchElements(read, '1a2b3c4d')).toEqual([]);
+  });
+
+  it('puts the given elements first within each group', () => {
+    expect(searchElements(elements, '', 30, new Set(['4', '3'])).map((h) => h.element.id)).toEqual(['3', '4', '1', '2']);
+    expect(searchElements(elements, 'vallier', 30, new Set(['3'])).map((h) => h.element.id)).toEqual(['3', '2']);
+  });
+
   it('lists elements up to the limit with an empty query', () => {
     expect(searchElements(elements, '  ', 2)).toHaveLength(2);
   });

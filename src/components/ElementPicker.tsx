@@ -11,6 +11,7 @@ import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import { discriminants, homonymGroups, searchElements, searchEvents, type ElementHit } from '../core/elementSearch.ts';
 import { countries } from '../core/propertyTypes.ts';
+import { sourceLabels } from '../core/anchors.ts';
 import { normalizeName } from '../core/dictionary.ts';
 import type { ZnElement, ZnElementEvent, ZnLink, ZnTagSet } from '../services/znTypes.ts';
 
@@ -21,6 +22,8 @@ interface PickerProps<T> {
   /** Text shown in the field for the picked item. */
   labelOf: (item: T) => string;
   row: (item: T) => ReactTypes.ReactNode;
+  /** Shown on hover. */
+  titleOf?: (item: T) => string | undefined;
   picked?: T;
   onChange: (id: string) => void;
   onEscape?: () => void;
@@ -66,6 +69,7 @@ function SearchPicker<T>(p: PickerProps<T>) {
               type: 'button',
               role: 'option',
               'aria-selected': i === index,
+              title: p.titleOf?.(item),
               // Keeps the focus in the field, so that its blur does not close the list first.
               onMouseDown: (e: ReactTypes.MouseEvent) => {
                 e.preventDefault();
@@ -130,6 +134,8 @@ interface ElementPickerProps {
   links?: ZnLink[];
   /** Alone in the panel: a list as tall as the panel allows. */
   tall?: boolean;
+  /** Listed first (elements read in the open document). */
+  first?: Set<string>;
   /** Picked element, shown in the field while it is not being searched. */
   value?: string | null;
   onChange: (elementId: string) => void;
@@ -144,8 +150,8 @@ export function ElementPicker(p: ElementPickerProps) {
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
-  const { elements, tagSets, links, tall } = p;
-  const search = React.useCallback((query: string) => searchElements(elements, query, tall ? 500 : 30), [elements, tall]);
+  const { elements, tagSets, links, tall, first } = p;
+  const search = React.useCallback((query: string) => searchElements(elements, query, tall ? 500 : 30, first), [elements, tall, first]);
   const groups = React.useMemo(() => homonymGroups(elements), [elements]);
   const linkedLabels = React.useMemo(() => linkedLabelsOf(elements, links ?? []), [elements, links]);
   const colorOf = (el: ZnElement) => {
@@ -165,16 +171,19 @@ export function ElementPicker(p: ElementPickerProps) {
     placeholder: t('picker_placeholder'),
     empty: t('picker_none'),
     listClass: tall ? 'max-h-[calc(100vh-12rem)]' : undefined,
-    row: ({ element, property }) => {
+    // The documents it was read in, by their reference.
+    titleOf: ({ element }) => sourceLabels(element.source).join('\n') || undefined,
+    row: ({ element, property, reference }) => {
       const d = discriminants(element, groups, linkedLabels);
-      const first = element.properties[0] ? { key: element.properties[0].key, value: valueText(element.properties[0].value) } : null;
+      const firstProperty = element.properties[0] ? { key: element.properties[0].key, value: valueText(element.properties[0].value) } : null;
       // A homonym shows what sets it apart, in full; any other element a single property.
       const lines = d
         ? [
             ...(property && !d.properties.some((x) => x.key === property.key) ? [property] : []),
             ...d.properties,
           ].map((x) => `${x.key} : ${x.value}`).concat(d.linked.length ? [t('picker_linked', { labels: d.linked.join(', ') })] : [])
-        : [property ?? first].filter((x) => x?.value).map((x) => `${x!.key} : ${x!.value}`);
+        : [property ?? firstProperty].filter((x) => x?.value).map((x) => `${x!.key} : ${x!.value}`);
+      if (reference) lines.unshift(reference);
       return h(React.Fragment, null,
         h('span', { className: 'inline-block rounded-full shrink-0 mt-1', style: { width: 10, height: 10, background: colorOf(element) } }),
         h('span', { className: 'min-w-0 flex-1' },
