@@ -62,6 +62,8 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
   const popupRef = React.useRef<ReaderPopup | null>(null);
   popupRef.current = popup;
   const [opening, setOpening] = React.useState(false);
+  /** The reader is gone: a window still opening is closed as soon as it is ready. */
+  const unmounted = React.useRef(false);
   /** Back in ZN's window, where it was. */
   const attach = React.useCallback(() => {
     const current = popupRef.current;
@@ -80,6 +82,10 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
       setReaderWindow(null);
       setPopup(null);
     }).then((opened) => {
+      if (unmounted.current) {
+        opened?.close();
+        return;
+      }
       setOpening(false);
       if (!opened) {
         api.toast.warning(t('reader_popup_blocked'));
@@ -91,12 +97,22 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
     });
   };
   // Closing the reader closes its window.
-  React.useEffect(() => () => {
-    if (popupRef.current) {
-      setReaderWindow(null);
-      popupRef.current.close();
-    }
+  React.useEffect(() => {
+    // Set again on mount: StrictMode runs the cleanup once in between.
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
+      if (popupRef.current) {
+        setReaderWindow(null);
+        popupRef.current.close();
+      }
+    };
   }, []);
+  // The window is named after the document it shows.
+  const windowTitle = t('reader_title', { name: reference || asset?.filename || '' });
+  React.useEffect(() => {
+    if (popup) popup.win.document.title = windowTitle;
+  }, [popup, windowTitle]);
   // A passage opened from ZN (source link) brings the window forward.
   React.useEffect(() => {
     if (focus && popupRef.current) popupRef.current.win.focus();
@@ -210,7 +226,7 @@ export function MarkReaderModal({ dossierId, assetId, focus, minimized, onMinimi
         h(
           'div',
           { className: 'flex items-center gap-1' },
-          h('button', { onClick: attach, title: t('reader_attach'), className: headerButton }, h(api.icons.PanelTopClose ?? Minimize2, { size: 16 })),
+          h('button', { onClick: attach, title: t('reader_attach'), className: headerButton }, h(api.icons.SquareArrowDownLeft, { size: 16 })),
           h('button', { onClick: onClose, title: t('reader_close'), className: headerButton }, h(X, { size: 16 })),
         ),
       ),

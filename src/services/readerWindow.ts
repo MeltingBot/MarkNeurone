@@ -32,10 +32,16 @@ export function isReaderDetached(): boolean {
 // Moving the reader to another window mounts it again: zoom and scroll
 // position are handed over so that reading goes on where it was.
 
+/**
+ * Position in document units, not pixels: the new window may be wider or
+ * narrower, and a zoom fitted to its width gives another scale.
+ */
 export interface ReaderView {
   assetId: string;
   zoom: unknown;
-  top: number;
+  /** Page at the top of the view (0-based) and how far into it, at scale 1. */
+  page: number;
+  offset: number;
   left: number;
 }
 
@@ -55,9 +61,13 @@ export function handOverView(view: ReaderView): void {
   handedOver = view;
 }
 
-/** The view of the reader before its move; null when it is not moving. */
+/**
+ * The view of the reader before its move; null when it is not moving. Read
+ * from a state initializer, which StrictMode runs twice: the move ends after
+ * the current render rather than at the first read.
+ */
 export function takeView(assetId: string): ReaderView | null {
   const view = moving && handedOver?.assetId === assetId ? handedOver : null;
-  moving = false;
+  if (moving) setTimeout(() => { moving = false; });
   return view;
 }

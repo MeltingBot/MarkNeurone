@@ -552,11 +552,6 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [handedOver] = React.useState(() => takeView(asset.id));
   const [zoom, setZoom] = React.useState<Zoom>(() => (handedOver?.zoom as Zoom | undefined) ?? 'auto');
   const [root, setRoot] = React.useState<HTMLDivElement | null>(null);
-  /** Kept for a move to another window (see readerWindow). */
-  const rememberView = React.useCallback(() => {
-    if (root) handOverView({ assetId: asset.id, zoom, top: root.scrollTop, left: root.scrollLeft });
-  }, [root, zoom, asset.id]);
-  React.useEffect(rememberView, [rememberView]);
   const [rootWidth, setRootWidth] = React.useState(0);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageTexts, setPageTexts] = React.useState<PageText[]>([]);
@@ -751,6 +746,25 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     zoom === 'fit' ? fitScale : zoom === 'auto' ? Math.min(fitScale, AUTO_MAX_ZOOM * PDF_TO_CSS) : zoom * PDF_TO_CSS;
   const percent = Math.round((scale / PDF_TO_CSS) * 100);
 
+  /** Top of each page in the scrolled content, at the current scale (as onScroll counts them). */
+  const pageTop = React.useCallback((index: number) => {
+    let top = PADDING;
+    for (let i = 0; i < index && i < sizes.length; i++) top += Math.floor(sizes[i].height * scale) + PAGE_GAP;
+    return top;
+  }, [sizes, scale]);
+
+  /** Line at the top of the view, in document units: kept across a change of scale or of window. */
+  const lastView = React.useRef<{ page: number; offset: number; left: number } | null>(null);
+  const rememberView = React.useCallback(() => {
+    if (!root || !sizes.length || !scale) return;
+    let page = 0;
+    while (page < sizes.length - 1 && pageTop(page + 1) <= root.scrollTop) page++;
+    const view = { page, offset: (root.scrollTop - pageTop(page)) / scale, left: root.scrollLeft / scale };
+    lastView.current = view;
+    handOverView({ assetId: asset.id, zoom, ...view });
+  }, [root, sizes, scale, zoom, asset.id, pageTop]);
+  React.useEffect(rememberView, [rememberView]);
+
   const onScroll = React.useCallback(() => {
     if (!root) return;
     rememberView();
@@ -802,24 +816,39 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     root.addEventListener('wheel', onWheel, { passive: false });
     return () => root.removeEventListener('wheel', onWheel);
   }, [root]);
-  React.useLayoutEffect(() => {
-    const anchor = zoomAnchor.current;
-    if (!root || !anchor || anchor.from === scale) return;
-    zoomAnchor.current = null;
-    const ratio = scale / anchor.from;
-    root.scrollLeft = PADDING + (anchor.contentX - PADDING) * ratio - anchor.x;
-    root.scrollTop = PADDING + (anchor.contentY - PADDING) * ratio - anchor.y;
-  }, [root, scale]);
-
-  // After a move to another window, back to the position left.
+  // Keeps the reading position when the scale changes: around the pointer
+  // for Ctrl+wheel, otherwise the line at the top of the view (zoom buttons,
+  // a fitted zoom after the window was resized, a move to another window).
   const restoreScroll = React.useRef(handedOver);
+  const prevScale = React.useRef(scale);
   React.useLayoutEffect(() => {
-    const view = restoreScroll.current;
-    if (!view || !root || !sizes.length) return;
-    restoreScroll.current = null;
-    root.scrollTop = view.top;
-    root.scrollLeft = view.left;
-  }, [root, sizes]);
+    if (!root) return;
+    const moved = restoreScroll.current;
+    if (moved) {
+      // After a move, once the new window's width (hence the scale) is known.
+      if (!sizes.length || rootWidth <= 0) return;
+      restoreScroll.current = null;
+      prevScale.current = scale;
+      root.scrollTop = pageTop(moved.page) + moved.offset * scale;
+      root.scrollLeft = moved.left * scale;
+      return;
+    }
+    const from = prevScale.current;
+    if (from === scale) return;
+    prevScale.current = scale;
+    const anchor = zoomAnchor.current;
+    if (anchor) {
+      zoomAnchor.current = null;
+      const ratio = scale / anchor.from;
+      root.scrollLeft = PADDING + (anchor.contentX - PADDING) * ratio - anchor.x;
+      root.scrollTop = PADDING + (anchor.contentY - PADDING) * ratio - anchor.y;
+      return;
+    }
+    const last = lastView.current;
+    if (!last || !sizes.length) return;
+    root.scrollTop = pageTop(last.page) + last.offset * scale;
+    root.scrollLeft = last.left * scale;
+  }, [root, sizes, scale, rootWidth, pageTop]);
 
   // ─── Highlights ──────────────────────────────────────────
 
