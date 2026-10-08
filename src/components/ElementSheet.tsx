@@ -156,9 +156,19 @@ function parseValue(type: ZnPropertyType | undefined, raw: string): ZnProperty['
   return raw;
 }
 
-/** A value as read in a row: booleans and countries in words. */
+/** A date/time value as a Date, whether stored as a Date or as its ISO text. */
+function dateOf(value: ZnProperty['value']): Date | null {
+  const d = value instanceof Date ? value : typeof value === 'string' && value ? new Date(value) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
+}
+
+/** A value as read in a row: booleans and countries in words, date and time together. */
 function displayValue(type: ZnPropertyType | undefined, value: ZnProperty['value'], t: Env['t']): string {
   if (type === 'boolean') return t(value ? 'yes' : 'no');
+  if (type === 'datetime') {
+    const d = dateOf(value);
+    return d ? `${d.toLocaleDateString('fr-FR')} ${timeOf(d)}` : '';
+  }
   if (type === 'country' && typeof value === 'string' && value) return countryName(value);
   return formatValue(value);
 }
@@ -1233,7 +1243,9 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
           h('div', { className: 'flex items-center gap-1.5' },
             h('span', { className: 'text-xs font-medium text-text-secondary truncate' }, pr.key),
             h('span', { className: S.TYPE_BADGE }, env.t(`type_${type}`))),
-          type === 'text' || type === 'number' || type === 'date' || type === 'link'
+          type === 'datetime'
+            ? h(DateTimeRow, { value: pr.value, label: pr.key, onCommit: (v: string) => update(i, v) })
+            : type === 'text' || type === 'number' || type === 'date' || type === 'link'
             ? h('div', { className: 'mt-1' },
                 h(CommitInput, {
                   type: type === 'date' ? 'date' : 'text',
@@ -1246,6 +1258,18 @@ function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation)
         h(AnchorButton, { env, annotation, onGoto: p.onGoto }),
         h('button', { type: 'button', onClick: () => remove(i), title: env.t('delete_property'), className: S.ICON_BUTTON_DANGER }, h(X, { size: 12 })));
     }));
+}
+
+/** Date and time of a 'datetime' property, each editable, in local time as ZN's panel shows it. */
+function DateTimeRow(p: { value: ZnProperty['value']; label: string; onCommit: (value: string) => void }) {
+  const { h } = host();
+  const d = dateOf(p.value);
+  const day = d ? toDateInputValue(d) : '';
+  const time = d ? timeOf(d) : '';
+  return h('div', { className: 'mt-1 flex gap-1' },
+    h(CommitInput, { type: 'date', className: S.INPUT_COMPACT, value: day, ariaLabel: p.label, onCommit: (v: string) => v && p.onCommit(`${v}T${time || '00:00'}`) }),
+    h('div', { style: { width: 90 }, className: 'shrink-0' },
+      h(CommitInput, { type: 'time', className: S.INPUT_COMPACT, value: time, ariaLabel: p.label, onCommit: (v: string) => day && p.onCommit(`${day}T${v || '00:00'}`) })));
 }
 
 function EventRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) => void }) {
