@@ -1176,7 +1176,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       }
       const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
       const passage = suggestion ? suggestionPassage(suggestion) : null;
-      if (passage) setPending(passage);
+      if (passage) {
+        dropWaitingDraft();
+        setPending(passage);
+      }
       // A click on nothing clears the selection and the sheet, unless a form is being filled.
       else if (!e.ctrlKey && !e.metaKey && !draft && !linkDraft) {
         setSelectedIds([]);
@@ -1190,7 +1193,17 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       api.toast.warning(t('selection_multipage'));
       return;
     }
+    dropWaitingDraft();
     setPending(withOcrReading(result.passage));
+  };
+
+  /**
+   * A property, event or location still waiting for its element is given up
+   * when another passage is selected: its highlight would otherwise stay on
+   * the page with no form in sight to finish or cancel it.
+   */
+  const dropWaitingDraft = () => {
+    if (draft && draft.gesture !== 'element' && !activeElementId) setDraft(null);
   };
 
   const cancelPending = React.useCallback(() => setPending(null), []);
