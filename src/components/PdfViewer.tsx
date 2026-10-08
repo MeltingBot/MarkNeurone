@@ -1075,8 +1075,22 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     };
   };
 
+  /** The press began on the scrollbar: its release is no click on the document. */
+  const pressOnScrollbar = React.useRef(false);
+  const onMouseDown = (e: ReactTypes.MouseEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    pressOnScrollbar.current =
+      e.clientX - box.left >= e.currentTarget.clientLeft + e.currentTarget.clientWidth ||
+      e.clientY - box.top >= e.currentTarget.clientTop + e.currentTarget.clientHeight;
+  };
+
   const onMouseUp = (e: ReactTypes.MouseEvent) => {
     if (e.button !== 0) return;
+    // Dragging the scrollbar to a far page keeps the selection (a link across pages).
+    if (pressOnScrollbar.current) {
+      pressOnScrollbar.current = false;
+      return;
+    }
     // The end of a zone drag, handled by the zone layer.
     if (e.target instanceof Element && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
     const selection = window.getSelection();
@@ -1921,6 +1935,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       {
         ref: setRoot,
         onScroll,
+        onMouseDown,
         onMouseUp,
         onContextMenu,
         className: 'flex-1 overflow-auto bg-bg-tertiary',
