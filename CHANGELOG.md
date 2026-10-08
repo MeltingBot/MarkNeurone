@@ -5,6 +5,7 @@
 - Événement : date de fin (« De » et « À »), à la création comme dans la fiche d'un événement existant. Lorsque le passage contient deux dates, la seconde, si elle est postérieure, remplit la fin.
 - Événement : fuseau horaire des heures, comme dans ZeroNeurone 2.61, à la création comme dans la fiche. Les heures se saisissent telles qu'elles sont écrites dans le document ; le fuseau vaut pour le début et la fin et reste enregistré avec l'événement.
 - Événement : une date sans heure est enregistrée à 00:00, que ZeroNeurone lit comme la journée entière, au lieu de midi.
+- Dates : une date en chiffres est reconnue même lorsque la couche texte du PDF place des espaces autour des barres (« 07 / 07 / 2004 ») ou utilise des barres, tirets, chiffres ou caractères invisibles Unicode.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
 - Événement : la description n'est plus préremplie avec la phrase, qui dans un procès-verbal de forme tabulaire peut couvrir tout un bloc de texte. « Reprendre la phrase » l'insère sur demande.
 

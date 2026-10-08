@@ -28,7 +28,10 @@ const DAY = String.raw`1er|premier|\d{1,2}|${NUMBER_WORDS}`;
 // "à 11 heures 19", "à 11h19", "11:19", "à onze heures dix-neuf"
 const TIME = String.raw`(?:,?\s*(?:à\s+)?(${NUM})\s*(?:heures?|h|:)\s*(${String.raw`\d{2}|${NUMBER_WORDS}`})?)?`;
 
-const NUMERIC = new RegExp(String.raw`(?<!\d)(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4}|\d{2})(?!\d)` + TIME, 'giu');
+// A space may come around a slash: text layers of native PDFs often hold
+// one between glyphs. Not around dots and dashes ("1 - 2 - 24").
+const SEP = String.raw`(?:\s?/\s?|[.\-])`;
+const NUMERIC = new RegExp(String.raw`(?<!\d)(\d{1,2})${SEP}(\d{1,2})${SEP}(\d{4}|\d{2})(?!\d)` + TIME, 'giu');
 const ISO = new RegExp(String.raw`(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)` + TIME, 'giu');
 const LITERAL = new RegExp(
   String.raw`(?<![\p{L}\d])(${DAY})\s+(${MONTH_NAMES})\.?(?:\s+(${YEAR_WORDS}))?(?![\p{L}])` + TIME,
@@ -39,6 +42,24 @@ const REPORT_HEADER = new RegExp(
   String.raw`l['’]an\s+(${YEAR_WORDS}),?\s+le\s+(${DAY})\s+(${MONTH_NAMES})(?![\p{L}])` + TIME,
   'giu',
 );
+
+const SLASHES = /[\u2044\u2215\u29F8\uFF0F]/g;
+const DASHES = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g;
+const INVISIBLE = /[\u00AD\u200B-\u200D\u2060\uFEFF]/g;
+const WIDE_DIGITS = /[\uFF10-\uFF19]/g;
+
+/**
+ * Text of a PDF as the patterns expect it, one character for one so that
+ * offsets stay valid: Unicode slashes and dashes, full-width digits, and
+ * invisible characters (soft hyphen, zero-width space) as a space.
+ */
+function normalize(text: string): string {
+  return text
+    .replace(SLASHES, '/')
+    .replace(DASHES, '-')
+    .replace(INVISIBLE, ' ')
+    .replace(WIDE_DIGITS, (d) => String(d.charCodeAt(0) - 0xff10));
+}
 
 function build(year: number | null, month: number, day: number | null, hour?: string, minute?: string): Date | null {
   if (year === null || day === null || month < 1 || month > 12 || day < 1 || day > 31) return null;
@@ -61,11 +82,12 @@ function expandYear(y: string): number {
  * Every date found in the text, in order. A date without year takes
  * `referenceYear` and is flagged so the form can ask for confirmation.
  */
-export function findDates(text: string, referenceYear = new Date().getFullYear()): DateMatch[] {
+export function findDates(source: string, referenceYear = new Date().getFullYear()): DateMatch[] {
+  const text = normalize(source);
   const out: DateMatch[] = [];
   const push = (m: RegExpExecArray, date: Date | null, hasYear: boolean, hour?: string) => {
     if (!date) return;
-    out.push({ date, raw: m[0].trim(), start: m.index, end: m.index + m[0].trimEnd().length, hasYear, hasTime: hour !== undefined });
+    out.push({ date, raw: source.slice(m.index, m.index + m[0].trimEnd().length).trim(), start: m.index, end: m.index + m[0].trimEnd().length, hasYear, hasTime: hour !== undefined });
   };
   for (const m of text.matchAll(NUMERIC)) {
     push(m, build(expandYear(m[3]), Number(m[2]), Number(m[1]), m[4], m[5]), true, m[4]);

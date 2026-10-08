@@ -4,6 +4,15 @@ import { findDateRange, findDates, toDateInputValue } from './dates.ts';
 const ymd = (d: Date) => toDateInputValue(d);
 
 describe('findDates', () => {
+  it('reads numeric dates as native PDF text layers hold them', () => {
+    for (const text of ['07 / 07 / 2004', '07/ 07 /2004', '07\u22157\u20442004', '07\u200B/07/2004', '\uFF10\uFF17/07/2004', '07\u201107\u20112004']) {
+      expect(findDates(text).map((m) => ymd(m.date))).toEqual(['2004-07-07']);
+    }
+    const [m] = findDates('circulation 07 / 07 / 2004 Puissance');
+    expect([m.raw, m.start, m.end]).toEqual(['07 / 07 / 2004', 12, 26]);
+    expect(findDates('art. 1 - 2 - 24 et 3 . 4 . 2024')).toEqual([]);
+  });
+
   it('reads numeric French dates', () => {
     const [m] = findDates('immatriculée le 12/03/2019 au greffe');
     expect(ymd(m.date)).toBe('2019-03-12');
