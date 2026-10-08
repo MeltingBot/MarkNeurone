@@ -9,7 +9,8 @@
 // focus so that gaps extend the selection to that point only.
 
 const layers = new Map<HTMLElement, HTMLElement>();
-let listeners: AbortController | null = null;
+/** One set of listeners per document: the reader may be in a window of its own. */
+const listeners = new Map<Document, AbortController>();
 
 function reset(end: HTMLElement, layer: HTMLElement): void {
   layer.append(end);
@@ -24,17 +25,19 @@ let handlesGapsNatively: boolean | undefined;
 function nativeHandling(): boolean {
   if (handlesGapsNatively === undefined) {
     const first = layers.keys().next().value;
-    const firefox = !!first && getComputedStyle(first).getPropertyValue('-moz-user-select') === 'none';
+    const firefox = !!first && (first.ownerDocument.defaultView ?? window).getComputedStyle(first).getPropertyValue('-moz-user-select') === 'none';
     const chromium = /\bChrome\/(\d+)\b/.exec(navigator.userAgent)?.[1];
     handlesGapsNatively = firefox || (!!chromium && parseInt(chromium, 10) >= 148);
   }
   return handlesGapsNatively;
 }
 
-function enableListeners(): void {
-  if (listeners) return;
-  listeners = new AbortController();
-  const { signal } = listeners;
+function enableListeners(document: Document): void {
+  if (listeners.has(document)) return;
+  const controller = new AbortController();
+  listeners.set(document, controller);
+  const { signal } = controller;
+  const window = document.defaultView!;
   let pointerDown = false;
   let prevRange: Range | null = null;
   const resetAll = () => layers.forEach(reset);
@@ -87,21 +90,22 @@ function enableListeners(): void {
 
 /** Call once the layer's text is rendered; returns the cleanup. */
 export function guardTextSelection(layer: HTMLElement): () => void {
-  const end = document.createElement('div');
+  const end = layer.ownerDocument.createElement('div');
   end.className = 'endOfContent';
   layer.append(end);
   const onMouseDown = () => layer.classList.add('selecting');
   layer.addEventListener('mousedown', onMouseDown);
   layers.set(layer, end);
-  enableListeners();
+  const doc = layer.ownerDocument;
+  enableListeners(doc);
   return () => {
     layer.removeEventListener('mousedown', onMouseDown);
     layer.classList.remove('selecting');
     end.remove();
     layers.delete(layer);
-    if (layers.size === 0) {
-      listeners?.abort();
-      listeners = null;
+    if (![...layers.keys()].some((l) => l.ownerDocument === doc)) {
+      listeners.get(doc)?.abort();
+      listeners.delete(doc);
     }
   };
 }

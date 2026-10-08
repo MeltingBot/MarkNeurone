@@ -8,6 +8,7 @@ import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import { listTimeZones, systemTimeZone, timeZoneCity } from '../core/timeZones.ts';
+import { readerWindow } from '../services/readerWindow.ts';
 
 const MAX_RESULTS = 60;
 const WIDTH = 224;
@@ -62,8 +63,8 @@ export function TimeZoneButton(p: { value: string | undefined; onChange: (timeZo
             className: 'fixed bg-bg-primary border border-border-default rounded shadow-lg z-[9999]',
             style: {
               // Opens upwards when the list would leave the window.
-              ...(rect.bottom + 4 + HEIGHT > window.innerHeight ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
-              left: Math.max(8, Math.min(rect.right - WIDTH, window.innerWidth - WIDTH - 8)),
+              ...(rect.bottom + 4 + HEIGHT > readerWindow().innerHeight ? { bottom: readerWindow().innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+              left: Math.max(8, Math.min(rect.right - WIDTH, readerWindow().innerWidth - WIDTH - 8)),
               width: WIDTH,
             },
             onKeyDown: (e: ReactTypes.KeyboardEvent) => {

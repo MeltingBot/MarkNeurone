@@ -56,7 +56,7 @@ export type CaptureResult = { passage: Passage } | { error: 'multipage' } | null
  */
 function textLength(root: Node): number {
   let n = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  const walker = (root.ownerDocument ?? document).createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node.nodeType === Node.TEXT_NODE) n += (node.nodeValue ?? '').length;
     else if ((node as Element).tagName === 'BR') n += 1;
@@ -65,7 +65,7 @@ function textLength(root: Node): number {
 }
 
 function offsetIn(textLayer: HTMLElement, node: Node, offset: number): number {
-  const range = document.createRange();
+  const range = textLayer.ownerDocument.createRange();
   range.setStart(textLayer, 0);
   range.setEnd(node, offset);
   return textLength(range.cloneContents());
@@ -74,7 +74,7 @@ function offsetIn(textLayer: HTMLElement, node: Node, offset: number): number {
 /** Full text of a rendered page, lines separated by "\n". */
 export function pageText(textLayer: HTMLElement): string {
   let text = '';
-  const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  const walker = textLayer.ownerDocument.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue ?? '';
     else if ((node as Element).tagName === 'BR') text += '\n';
@@ -141,7 +141,7 @@ export function capturePassage(selection: Selection | null, pages: PageInfo[], s
 /** DOM position of a character offset, counting <br> as one character like pageText. */
 function positionAt(textLayer: HTMLElement, offset: number): [Node, number] {
   let n = 0;
-  const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  const walker = textLayer.ownerDocument.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node.nodeType === Node.TEXT_NODE) {
       const len = (node.nodeValue ?? '').length;
@@ -160,7 +160,7 @@ export function passageFromOffsets(root: HTMLElement, page: number, start: numbe
   const textLayer = pageEl?.querySelector('.textLayer') as HTMLElement | null;
   const info = pages[page - 1];
   if (!pageEl || !textLayer || !info) return null;
-  const range = document.createRange();
+  const range = textLayer.ownerDocument.createRange();
   range.setStart(...positionAt(textLayer, start));
   range.setEnd(...positionAt(textLayer, end));
   return buildPassage(pageEl, textLayer, range, start, end, info, scale);
@@ -202,7 +202,7 @@ export function annotationAt<A extends { id: string; page: number; quads: Quad[]
  * to the layer (current zoom). Used to frame search results.
  */
 export function rangeBoxes(textLayer: HTMLElement, start: number, end: number): Rect[] {
-  const range = document.createRange();
+  const range = textLayer.ownerDocument.createRange();
   range.setStart(...positionAt(textLayer, start));
   range.setEnd(...positionAt(textLayer, end));
   const origin = textLayer.getBoundingClientRect();

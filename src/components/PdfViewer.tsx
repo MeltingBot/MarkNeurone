@@ -47,6 +47,7 @@ import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
 import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
+import { handOverView, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
 
 const PAGE_GAP = 12;
 const PADDING = 16;
@@ -80,11 +81,13 @@ const TEXT_LAYER_CSS = `
 `;
 
 function ensureTextLayerStyle(): void {
-  let style = document.getElementById(TEXT_LAYER_STYLE_ID);
+  // In the window that shows the reader, which may be a window of its own.
+  const doc = readerDocument();
+  let style = doc.getElementById(TEXT_LAYER_STYLE_ID);
   if (!style) {
-    style = document.createElement('style');
+    style = doc.createElement('style');
     style.id = TEXT_LAYER_STYLE_ID;
-    document.head.appendChild(style);
+    doc.head.appendChild(style);
   }
   // Rewritten each time, so that a plugin update applies without a reload.
   style.textContent = TEXT_LAYER_CSS + TEXT_SHEET_CSS;
@@ -217,7 +220,7 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
     if (blocks) {
       // A text sheet is always rendered; its height follows its content and the zoom.
       setNear(true);
-      const observer = new ResizeObserver(() => {
+      const observer = new (readerWindow().ResizeObserver)(() => {
         onHeight?.(el.clientHeight / scaleRef.current);
         setTextVersion((v) => v + 1);
       });
@@ -225,7 +228,7 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
       return () => observer.disconnect();
     }
     // Pages within about one screen of the viewport stay rendered.
-    const observer = new IntersectionObserver(([entry]) => setNear(entry.isIntersecting), {
+    const observer = new (readerWindow().IntersectionObserver)(([entry]) => setNear(entry.isIntersecting), {
       root,
       rootMargin: '100% 0px',
     });
@@ -265,7 +268,7 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
       const page = await doc.getPage(pageNumber);
       if (cancelled) return;
       const viewport = page.getViewport({ scale });
-      const ratio = window.devicePixelRatio || 1;
+      const ratio = readerWindow().devicePixelRatio || 1;
       canvas.width = Math.floor(viewport.width * ratio);
       canvas.height = Math.floor(viewport.height * ratio);
       renderTask = page.render({
@@ -545,8 +548,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [sizes, setSizes] = React.useState<PageInfo[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [report, setReport] = React.useState<TextLayerReport | null>(null);
-  const [zoom, setZoom] = React.useState<Zoom>('auto');
+  // Moved to another window: zoom and position as they were.
+  const [handedOver] = React.useState(() => takeView(asset.id));
+  const [zoom, setZoom] = React.useState<Zoom>(() => (handedOver?.zoom as Zoom | undefined) ?? 'auto');
   const [root, setRoot] = React.useState<HTMLDivElement | null>(null);
+  /** Kept for a move to another window (see readerWindow). */
+  const rememberView = React.useCallback(() => {
+    if (root) handOverView({ assetId: asset.id, zoom, top: root.scrollTop, left: root.scrollLeft });
+  }, [root, zoom, asset.id]);
+  React.useEffect(rememberView, [rememberView]);
   const [rootWidth, setRootWidth] = React.useState(0);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageTexts, setPageTexts] = React.useState<PageText[]>([]);
@@ -577,7 +587,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [masked, setMasked] = React.useState(false);
   const toggleMasked = () => {
     setPending(null);
-    window.getSelection()?.removeAllRanges();
+    readerWindow().getSelection()?.removeAllRanges();
     setMasked((on) => !on);
   };
   /** Zone being read, shown on its page until the reading is done. */
@@ -682,7 +692,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         return;
       }
       const { openPdf } = await import('../services/pdfjs.ts');
-      current = await openPdf(data);
+      current = await openPdf(data, readerDocument());
       if (cancelled) return;
       const pageSizes: PageInfo[] = [];
       for (let n = 1; n <= current.doc.numPages; n++) {
@@ -728,7 +738,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   React.useEffect(() => {
     if (!root) return;
-    const observer = new ResizeObserver(([entry]) => {
+    const observer = new (readerWindow().ResizeObserver)(([entry]) => {
       if (entry.contentRect.width > 0) setRootWidth(entry.contentRect.width);
     });
     observer.observe(root);
@@ -743,6 +753,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   const onScroll = React.useCallback(() => {
     if (!root) return;
+    rememberView();
     const probe = root.scrollTop + root.clientHeight / 3;
     let top = PADDING;
     let page = 1;
@@ -756,7 +767,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       page = i + 1;
     }
     setCurrentPage(page);
-  }, [root, sizes, scale]);
+  }, [root, sizes, scale, rememberView]);
 
   const stepZoom = (direction: 1 | -1) => {
     const now = scale / PDF_TO_CSS;
@@ -799,6 +810,16 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     root.scrollLeft = PADDING + (anchor.contentX - PADDING) * ratio - anchor.x;
     root.scrollTop = PADDING + (anchor.contentY - PADDING) * ratio - anchor.y;
   }, [root, scale]);
+
+  // After a move to another window, back to the position left.
+  const restoreScroll = React.useRef(handedOver);
+  React.useLayoutEffect(() => {
+    const view = restoreScroll.current;
+    if (!view || !root || !sizes.length) return;
+    restoreScroll.current = null;
+    root.scrollTop = view.top;
+    root.scrollLeft = view.left;
+  }, [root, sizes]);
 
   // ─── Highlights ──────────────────────────────────────────
 
@@ -1149,6 +1170,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     // No text selection, and no autoscroll for the middle button.
     e.preventDefault();
     const root = e.currentTarget;
+    const win = root.ownerDocument.defaultView ?? window;
     panning.current = { x: e.clientX, y: e.clientY, left: root.scrollLeft, top: root.scrollTop, moved: false };
     const onMove = (ev: MouseEvent) => {
       const p = panning.current;
@@ -1160,16 +1182,16 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       root.scrollTop = p.top - (ev.clientY - p.y);
     };
     const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      win.removeEventListener('mousemove', onMove);
+      win.removeEventListener('mouseup', onUp);
       setGrabbing(false);
       // After the document's own mouseup, which needs to know the drag moved.
       setTimeout(() => {
         panning.current = null;
       });
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    win.addEventListener('mousemove', onMove);
+    win.addEventListener('mouseup', onUp);
   };
 
   const onMouseUp = (e: ReactTypes.MouseEvent) => {
@@ -1183,7 +1205,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     if (panning.current?.moved) return;
     // The end of a zone drag, handled by the zone layer.
     if (e.target instanceof Element && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
-    const selection = window.getSelection();
+    const selection = readerWindow().getSelection();
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, clickable);
       if (hit) {
@@ -1238,7 +1260,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   };
   const draftDone = React.useCallback(() => {
     setDraft(null);
-    window.getSelection()?.removeAllRanges();
+    readerWindow().getSelection()?.removeAllRanges();
   }, []);
 
   /** Shows every occurrence of a highlight's text in the document. */
@@ -1332,8 +1354,9 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         openLinkDraft(linkPair.from, linkPair.to);
       }
     };
-    document.addEventListener('keydown', onKeyDown, true);
-    return () => document.removeEventListener('keydown', onKeyDown, true);
+    const doc = readerDocument();
+    doc.addEventListener('keydown', onKeyDown, true);
+    return () => doc.removeEventListener('keydown', onKeyDown, true);
   });
 
   const linkDone = React.useCallback(() => {
@@ -1354,7 +1377,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       return;
     }
     const at = { x: e.clientX, y: e.clientY };
-    const selection = window.getSelection();
+    const selection = readerWindow().getSelection();
     if (selection && !selection.isCollapsed) {
       const result = capturePassage(selection, sizes, scale);
       if (result && 'passage' in result) {
@@ -1792,7 +1815,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const openSearch = () => {
     setSearchOpen(true);
     // Prefill with the current text selection, as browsers do.
-    const selected = window.getSelection()?.toString().trim();
+    const selected = readerWindow().getSelection()?.toString().trim();
     if (selected && selected.length < 80) {
       setQuery(selected);
       setHitIndex(0);

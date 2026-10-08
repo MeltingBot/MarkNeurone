@@ -19,7 +19,12 @@ export interface OpenedPdf {
   close: () => Promise<void>;
 }
 
-export async function openPdf(data: Uint8Array): Promise<OpenedPdf> {
+/**
+ * `ownerDocument`: document of the window the pages are drawn in. pdf.js
+ * registers the PDF's embedded fonts there; drawn in another window (reader
+ * moved to a window of its own), glyphs would show as boxes.
+ */
+export async function openPdf(data: Uint8Array, ownerDocument: Document = document): Promise<OpenedPdf> {
   // pdf.js 6 types the constructor's `port` as `null` although the runtime and
   // PDFWorkerParameters accept a Worker; hence the cast.
   const params = { port: new PdfjsWorker() } as unknown as ConstructorParameters<typeof pdfjs.PDFWorker>[0];
@@ -30,6 +35,7 @@ export async function openPdf(data: Uint8Array): Promise<OpenedPdf> {
     // No font or CMap URL is given, so nothing is downloaded; non-embedded
     // standard fonts fall back to system fonts.
     useSystemFonts: true,
+    ownerDocument,
   });
   try {
     const doc = await task.promise;

@@ -30,6 +30,12 @@ Le lecteur s'ouvre dans une grande fenêtre. Il comporte le document à gauche e
 
 Échap, ou le bouton « Réduire », ferme le lecteur et laisse une pastille sur l'écran de ZeroNeurone. Elle permet de revenir au canvas, puis de reprendre la lecture à la même position. Le bouton « Fermer » ferme le lecteur.
 
+## Lire dans une fenêtre séparée
+
+Le bouton « Ouvrir dans une fenêtre séparée », dans l'en-tête du lecteur, place le document et sa fiche dans une fenêtre indépendante, à poser sur un second écran. ZeroNeurone reste utilisable dans sa fenêtre, raccourcis du canvas compris ; une pastille rappelle le document ouvert et ramène la fenêtre du lecteur au premier plan. Le zoom et la position de lecture sont conservés. Le bouton « Ramener dans ZeroNeurone », ou la fermeture de la fenêtre, remet le lecteur à sa place. Un formulaire en cours de saisie est abandonné lors du passage d'une fenêtre à l'autre.
+
+Si rien ne s'ouvre, le navigateur bloque les fenêtres pour ce site : autorisez-les dans ses réglages.
+
 ## Référence du document
 
 En haut du lecteur, un champ permet de saisir la référence du document, telle que vous la citez : « PV n° 00347/2026, pièce n° 2 », « Rapport annuel 2024 », « Le Monde, 12 mars 2026 ». Cette référence remplace le nom du fichier dans la source des objets créés, dans le titre du lecteur et dans l'onglet « Marqueur ».

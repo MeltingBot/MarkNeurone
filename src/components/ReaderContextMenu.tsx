@@ -5,6 +5,7 @@
 
 import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
+import { readerDocument, readerWindow } from '../services/readerWindow.ts';
 
 export interface MenuItem {
   id: string;
@@ -46,8 +47,8 @@ export function ReaderContextMenu({ x, y, header, sections, onClose }: Props) {
     rootRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const left = Math.max(8, Math.min(x, window.innerWidth - MAX_WIDTH - 8));
-  const top = height && y + height > window.innerHeight - 8 ? Math.max(8, y - height) : y;
+  const left = Math.max(8, Math.min(x, readerWindow().innerWidth - MAX_WIDTH - 8));
+  const top = height && y + height > readerWindow().innerHeight - 8 ? Math.max(8, y - height) : y;
   const visible = sections.map((section) => section).filter((section) => section.length > 0);
 
   const items = () => [...(rootRef.current?.querySelectorAll<HTMLButtonElement>('button[role=menuitem]:not([disabled])') ?? [])];
@@ -62,7 +63,7 @@ export function ReaderContextMenu({ x, y, header, sections, onClose }: Props) {
     e.preventDefault();
     const list = items();
     if (!list.length) return;
-    const current = list.indexOf(document.activeElement as HTMLButtonElement);
+    const current = list.indexOf(readerDocument().activeElement as HTMLButtonElement);
     const next = e.key === 'ArrowDown' ? (current + 1) % list.length : (current - 1 + list.length) % list.length;
     list[next].focus({ preventScroll: true });
   };

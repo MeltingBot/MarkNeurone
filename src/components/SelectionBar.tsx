@@ -8,6 +8,7 @@ import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
 import type { Passage } from '../services/selectionCapture.ts';
+import { readerDocument, readerWindow } from '../services/readerWindow.ts';
 
 export type Gesture = 'element' | 'property' | 'event' | 'location';
 
@@ -42,8 +43,9 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onCancel();
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    const doc = readerDocument();
+    doc.addEventListener('mousedown', onDown);
+    return () => doc.removeEventListener('mousedown', onDown);
   }, [onCancel]);
 
   const onKeyDown = (e: ReactTypes.KeyboardEvent) => {
@@ -73,9 +75,9 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
 
   const box = passage.clientBox;
   const icons = api.icons;
-  const style: ReactTypes.CSSProperties = window.innerHeight - box.bottom > 48
+  const style: ReactTypes.CSSProperties = readerWindow().innerHeight - box.bottom > 48
     ? { left: Math.max(8, box.left), top: box.bottom + 6 }
-    : { left: Math.max(8, box.left), bottom: window.innerHeight - box.top + 6 };
+    : { left: Math.max(8, box.left), bottom: readerWindow().innerHeight - box.top + 6 };
 
   // Icons only, as in ZN's toolbars: the action and its key are in the tooltip.
   const button = (key: string, label: string, Icon: ReactTypes.ElementType, onClick: () => void) =>
