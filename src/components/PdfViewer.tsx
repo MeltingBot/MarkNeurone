@@ -72,6 +72,8 @@ const TEXT_LAYER_CSS = `
 .mn-page .textLayer br::selection { background: transparent; }
 .mn-page .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
 .mn-page .textLayer.selecting .endOfContent { top: 0; }
+.mn-pan, .mn-pan * { cursor: grab !important; user-select: none; }
+.mn-grabbing, .mn-grabbing * { cursor: grabbing !important; user-select: none; }
 `;
 
 function ensureTextLayerStyle(): void {
@@ -564,6 +566,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [pending, setPending] = React.useState<Passage | null>(null);
   /** Zone reading tool: the next rectangle drawn on a page is read by OCR. */
   const [zoneMode, setZoneMode] = React.useState(false);
+  /** Hand tool: a drag anywhere moves the document instead of selecting text. */
+  const [panMode, setPanMode] = React.useState(false);
   /** Zone being read, shown on its page until the reading is done. */
   const [zoneBusy, setZoneBusy] = React.useState<{ page: number; quad: Quad } | null>(null);
   /** Gesture being filled in the sheet. */
@@ -1113,11 +1117,43 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   /** The press began on the scrollbar: its release is no click on the document. */
   const pressOnScrollbar = React.useRef(false);
+  /** Drag that moves the document; `moved` once it went past a click. */
+  const panning = React.useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const [grabbing, setGrabbing] = React.useState(false);
   const onMouseDown = (e: ReactTypes.MouseEvent<HTMLDivElement>) => {
     const box = e.currentTarget.getBoundingClientRect();
     pressOnScrollbar.current =
       e.clientX - box.left >= e.currentTarget.clientLeft + e.currentTarget.clientWidth ||
       e.clientY - box.top >= e.currentTarget.clientTop + e.currentTarget.clientHeight;
+    if (pressOnScrollbar.current || zoneMode) return;
+    // The hand tool, the middle button, or the margin around the pages move
+    // the document; elsewhere a drag selects text.
+    const onPage = e.target instanceof Element && !!e.target.closest('.mn-page');
+    if (!(e.button === 1 || (e.button === 0 && (panMode || !onPage)))) return;
+    // No text selection, and no autoscroll for the middle button.
+    e.preventDefault();
+    const root = e.currentTarget;
+    panning.current = { x: e.clientX, y: e.clientY, left: root.scrollLeft, top: root.scrollTop, moved: false };
+    const onMove = (ev: MouseEvent) => {
+      const p = panning.current;
+      if (!p) return;
+      if (!p.moved && Math.hypot(ev.clientX - p.x, ev.clientY - p.y) < 4) return;
+      if (!p.moved) setGrabbing(true);
+      p.moved = true;
+      root.scrollLeft = p.left - (ev.clientX - p.x);
+      root.scrollTop = p.top - (ev.clientY - p.y);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      setGrabbing(false);
+      // After the document's own mouseup, which needs to know the drag moved.
+      setTimeout(() => {
+        panning.current = null;
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
   const onMouseUp = (e: ReactTypes.MouseEvent) => {
@@ -1127,6 +1163,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       pressOnScrollbar.current = false;
       return;
     }
+    // The end of a pan, not a click.
+    if (panning.current?.moved) return;
     // The end of a zone drag, handled by the zone layer.
     if (e.target instanceof Element && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
     const selection = window.getSelection();
@@ -1861,6 +1899,13 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       className: `p-1.5 rounded disabled:opacity-40 ${suggestionsOn ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
     }, h(api.icons.Sparkles, { size: 14 })),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
+      h('button', {
+        onClick: () => setPanMode((on) => !on),
+        disabled: !ready,
+        'aria-pressed': panMode,
+        title: t(panMode ? 'viewer_pan_off' : 'viewer_pan_on'),
+        className: `p-1.5 rounded disabled:opacity-40 ${panMode ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
+      }, h(api.icons.Hand, { size: 14 })),
       h('button', { onClick: () => stepZoom(-1), disabled: !ready, title: t('viewer_zoom_out'), className: toolButton }, h(ZoomOut, { size: 14 })),
       h('span', { className: 'text-center', style: { minWidth: 40 } }, `${percent} %`),
       h('button', { onClick: () => stepZoom(1), disabled: !ready, title: t('viewer_zoom_in'), className: toolButton }, h(ZoomIn, { size: 14 })),
@@ -1974,7 +2019,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         onMouseDown,
         onMouseUp,
         onContextMenu,
-        className: 'flex-1 overflow-auto bg-bg-tertiary',
+        className: `flex-1 overflow-auto bg-bg-tertiary${grabbing ? ' mn-grabbing' : panMode ? ' mn-pan' : ''}`,
         style: { padding: PADDING },
       },
       error ? h('p', { className: 'text-sm text-error' }, error) : null,

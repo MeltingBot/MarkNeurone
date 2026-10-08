@@ -9,6 +9,8 @@
   "viewer_page": "Page {{current}} / {{total}}",
   "viewer_zoom_in": "Agrandir",
   "viewer_zoom_out": "Réduire le zoom",
+  "viewer_pan_on": "Main : déplacer le document",
+  "viewer_pan_off": "Main : revenir à la sélection de texte",
   "viewer_fit_width": "Ajuster à la largeur",
   "viewer_error": "Impossible d'ouvrir ce document.",
   "viewer_text_empty": "Ce document ne contient aucun texte lisible.",

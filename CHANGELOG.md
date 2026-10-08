@@ -9,6 +9,7 @@
 - Choix d'un élément : sans élément actif, la liste occupe la hauteur du panneau et montre plus de résultats. Les éléments de même nom indiquent combien d'autres le portent et affichent ce qui les distingue : propriétés dont la valeur diffère et éléments auxquels ils sont liés. Les candidats au rattachement font de même.
 - Liens : utiliser la barre de défilement du document ne vide plus la sélection, ce qui empêchait de lier deux passages éloignés de plusieurs pages.
 - Lecteur : Ctrl+molette, ou le pincement sur un pavé tactile, agrandit ou réduit le document en gardant en place le point sous le pointeur.
+- Lecteur : le document se déplace en faisant glisser la marge grise autour des pages ou avec le bouton du milieu. Le bouton « Main » permet de le faire glisser n'importe où, sans sélectionner de texte.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
 - Événement : la description n'est plus préremplie avec la phrase, qui dans un procès-verbal de forme tabulaire peut couvrir tout un bloc de texte. « Reprendre la phrase » l'insère sur demande.
 

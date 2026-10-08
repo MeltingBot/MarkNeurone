@@ -20,7 +20,8 @@ Le lecteur s'ouvre dans une grande fenêtre. Il comporte le document à gauche e
 
 ## Naviguer dans le document
 
-- Les boutons de la barre d'outils permettent d'agrandir, de réduire le zoom et d'ajuster la page à la largeur de la fenêtre.
+- Les boutons de la barre d'outils permettent d'agrandir, de réduire le zoom et d'ajuster la page à la largeur de la fenêtre. Ctrl+molette fait de même autour du pointeur.
+- Pour déplacer le document à la souris, faites glisser la marge grise autour des pages, ou maintenez le bouton du milieu enfoncé. Le bouton « Main » de la barre d'outils permet de déplacer le document en le faisant glisser n'importe où ; un clic sur un passage surligné ouvre toujours sa fiche. Cliquez de nouveau sur ce bouton pour revenir à la sélection de texte.
 - Ctrl+F ouvre la recherche dans tout le document, texte reconnu compris. Entrée et Maj+Entrée passent au résultat suivant ou précédent.
 
 ## Réduire et reprendre la lecture
