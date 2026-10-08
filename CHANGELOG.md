@@ -10,6 +10,8 @@
 - Liens : utiliser la barre de défilement du document ne vide plus la sélection, ce qui empêchait de lier deux passages éloignés de plusieurs pages.
 - Lecteur : Ctrl+molette, ou le pincement sur un pavé tactile, agrandit ou réduit le document en gardant en place le point sous le pointeur.
 - Lecteur : le document se déplace en faisant glisser la marge grise autour des pages ou avec le bouton du milieu. Le bouton « Main » permet de le faire glisser n'importe où, sans sélectionner de texte.
+- Lecteur : masquage du texte (bouton œil ou touche M) pour la confidentialité, sans rien enregistrer ; les pages deviennent des aplats gris non sélectionnables.
+- Lecteur : la fiche se réduit en un bandeau, comme le panneau de ZeroNeurone, et se rouvre d'elle-même lorsqu'un formulaire s'affiche.
 - Propriété, événement ou localisation sans élément choisi : sélectionner un autre passage abandonne le premier, dont le surlignage restait affiché.
 - Choix d'un élément : les éléments du document ouvert viennent en premier. La recherche par référence (« 00347/2026 ») liste tous les documents qui portent cette référence, puis les éléments surlignés dans ces documents ; le survol affiche ces références.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.

@@ -74,6 +74,9 @@ const TEXT_LAYER_CSS = `
 .mn-page .textLayer.selecting .endOfContent { top: 0; }
 .mn-pan, .mn-pan * { cursor: grab !important; user-select: none; }
 .mn-grabbing, .mn-grabbing * { cursor: grabbing !important; user-select: none; }
+.mn-masked .mn-page { background: var(--color-text-tertiary) !important; }
+.mn-masked .mn-page canvas, .mn-masked .mn-page .textLayer { visibility: hidden; }
+.mn-masked .mn-page .textLayer, .mn-masked .mn-page .textLayer * { user-select: none !important; pointer-events: none; }
 `;
 
 function ensureTextLayerStyle(): void {
@@ -568,6 +571,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [zoneMode, setZoneMode] = React.useState(false);
   /** Hand tool: a drag anywhere moves the document instead of selecting text. */
   const [panMode, setPanMode] = React.useState(false);
+  /** Sheet folded into a narrow rail, as ZN's side panel; a form opens it again. */
+  const [sheetCollapsed, setSheetCollapsed] = React.useState(false);
+  /** Text hidden (confidentiality, screen sharing): pages shown as plain blocks. Never stored. */
+  const [masked, setMasked] = React.useState(false);
+  const toggleMasked = () => {
+    setPending(null);
+    window.getSelection()?.removeAllRanges();
+    setMasked((on) => !on);
+  };
   /** Zone being read, shown on its page until the reading is done. */
   const [zoneBusy, setZoneBusy] = React.useState<{ page: number; quad: Quad } | null>(null);
   /** Gesture being filled in the sheet. */
@@ -593,6 +605,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setActiveLinkId(id);
   }, []);
   const [linkDraft, setLinkDraft] = React.useState<LinkDraft | null>(null);
+  // A gesture needs its form: the folded sheet opens.
+  React.useEffect(() => {
+    if (draft || linkDraft || activeOrphanId) setSheetCollapsed(false);
+  }, [draft, linkDraft, activeOrphanId]);
 
   const onSheetHeight = React.useCallback((height: number) => {
     setSizes((s) => (s.length === 1 && Math.abs(s[0].height - height) > 0.5 ? [{ ...s[0], height }] : s));
@@ -1187,6 +1203,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       }
       return;
     }
+    // Hidden text is not selected, even by a double click under the mask.
+    if (masked) {
+      selection.removeAllRanges();
+      return;
+    }
     const result = capturePassage(selection, sizes, scale);
     if (!result) return;
     if ('error' in result) {
@@ -1286,6 +1307,12 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       if (e.key === 'Escape' && zoneMode) {
         e.stopImmediatePropagation();
         setZoneMode(false);
+        return;
+      }
+      if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey && !pending) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        toggleMasked();
         return;
       }
       if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey && !pending && opened) {
@@ -1913,6 +1940,13 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     }, h(api.icons.Sparkles, { size: 14 })),
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', {
+        onClick: toggleMasked,
+        disabled: !ready,
+        'aria-pressed': masked,
+        title: t(masked ? 'viewer_unmask' : 'viewer_mask'),
+        className: `p-1.5 rounded disabled:opacity-40 ${masked ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
+      }, h(masked ? api.icons.EyeOff : api.icons.Eye, { size: 14 })),
+      h('button', {
         onClick: () => setPanMode((on) => !on),
         disabled: !ready,
         'aria-pressed': panMode,
@@ -1930,6 +1964,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       }, h(MoveHorizontal, { size: 14 })),
     ),
     h('span', { className: 'font-mono', title: `SHA-256 ${asset.hash}` }, `SHA-256 ${asset.hash.slice(0, 12)}`),
+    sheetCollapsed
+      ? null
+      : h('button', { onClick: () => setSheetCollapsed(true), title: t('sheet_collapse'), 'aria-label': t('sheet_collapse'), className: toolButton },
+          h(api.icons.PanelRightClose, { size: 14 })),
   );
 
   // Two elements selected with Ctrl+click: offer the link. Floating over the
@@ -2032,7 +2070,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         onMouseDown,
         onMouseUp,
         onContextMenu,
-        className: `flex-1 overflow-auto bg-bg-tertiary${grabbing ? ' mn-grabbing' : panMode ? ' mn-pan' : ''}`,
+        className: `flex-1 overflow-auto bg-bg-tertiary${grabbing ? ' mn-grabbing' : panMode ? ' mn-pan' : ''}${masked ? ' mn-masked' : ''}`,
         style: { padding: PADDING },
       },
       error ? h('p', { className: 'text-sm text-error' }, error) : null,
@@ -2065,7 +2103,16 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     'div',
     { className: 'flex flex-1 min-h-0' },
     documentColumn,
-    h(ElementSheet, {
+    sheetCollapsed
+      ? h('aside', { className: 'w-12 shrink-0 border-l border-border-default bg-bg-primary flex flex-col items-center py-2' },
+          h('button', {
+            onClick: () => setSheetCollapsed(false),
+            title: t('sheet_expand'),
+            'aria-label': t('sheet_expand'),
+            className: 'p-2 rounded text-text-secondary hover:text-text-primary hover:bg-bg-secondary',
+          }, h(api.icons.PanelRightOpen, { size: 18 })))
+      : null,
+    sheetCollapsed ? null : h(ElementSheet, {
       ctx: docCtx,
       elementId: sheetElementId,
       draft,
