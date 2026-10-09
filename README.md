@@ -8,7 +8,7 @@ Il convient à tout document rédigé dont on veut tirer des éléments du graph
 
 ## Principes
 
-- **Traitement local.** Les documents, le texte reconnu par OCR et les annotations restent sur le poste. Le plugin n'effectue aucun appel réseau : le moteur OCR et le modèle de langue française sont inclus dans le plugin.
+- **Traitement local.** Le plugin n'effectue aucun appel réseau : le moteur OCR et le modèle de langue française sont inclus dans le plugin. Les annotations et les références des documents sont enregistrées avec le dossier ZeroNeurone ; dans un dossier partagé, elles sont transmises aux autres membres par la synchronisation chiffrée de ZeroNeurone (2.63 et suivantes). Le texte reconnu par OCR et les préférences d'affichage restent sur le poste.
 - **Validation par l'utilisateur.** Aucun objet n'est ajouté au graphe sans action explicite de l'utilisateur. Il n'existe pas de validation groupée.
 - **Pas de rattachement automatique.** Lorsqu'un élément du graphe porte un nom proche du passage sélectionné, il est proposé, mais l'action par défaut reste la création d'un nouvel élément. Le rattachement à un élément existant est toujours un choix de l'utilisateur, afin d'éviter la fusion d'homonymes.
 - **Pas d'ontologie imposée.** Les tags proposés par défaut proviennent d'un profil de configuration et peuvent être remplacés.
@@ -48,8 +48,6 @@ npm run build:plugin   # génère dist-plugin/markneurone.js
 ```
 
 Le build minifié place en tête de `markneurone.js` la licence de MarkNeurone et celles des composants inclus, que la minification retirerait sinon.
-
-Le sélecteur de carte n'est disponible que si la version de ZeroNeurone expose `ui.openGeoPicker`. Avec une version antérieure, le lecteur se réduit et ouvre la fiche de l'élément dans le panneau de ZeroNeurone.
 
 ### Structure du code
 

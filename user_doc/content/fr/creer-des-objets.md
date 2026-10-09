@@ -41,7 +41,7 @@ L'élément qui recevra la propriété est celui affiché dans la fiche. « Chan
 
 « Rattacher à » permet de placer la propriété sur l'élément lui-même ou sur l'un de ses événements, choisi par recherche.
 
-Choisissez ou saisissez le nom de la propriété. Les noms déjà utilisés dans le dossier sont proposés pendant la saisie. Le type suit ceux de ZeroNeurone : texte, numérique, date, date et heure, booléen, choix, pays, lien. La valeur est préremplie à partir du passage : la date lue, le pays ou l'option reconnus. Pour une date et heure, le nom de ville affiché à côté de l'heure indique son fuseau, comme pour un événement : choisissez celui dans lequel l'heure est écrite dans le document. ZeroNeurone (version 2.62.4 ou suivante) le conserve avec la propriété, et la fiche affiche l'heure dans ce fuseau.
+Choisissez ou saisissez le nom de la propriété. Les noms déjà utilisés dans le dossier sont proposés pendant la saisie. Le type suit ceux de ZeroNeurone : texte, numérique, date, date et heure, booléen, choix, pays, lien. La valeur est préremplie à partir du passage : la date lue, le pays ou l'option reconnus. Pour une date et heure, le nom de ville affiché à côté de l'heure indique son fuseau, comme pour un événement : choisissez celui dans lequel l'heure est écrite dans le document. ZeroNeurone le conserve avec la propriété, et la fiche affiche l'heure dans ce fuseau.
 
 Une nouvelle propriété est enregistrée dans le dossier et associée aux tags de l'élément, comme lorsqu'elle est créée dans ZeroNeurone.
 

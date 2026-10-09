@@ -26,7 +26,7 @@ Cette documentation s'adresse aux utilisateurs du plugin. Les informations desti
 
 ## Principes de fonctionnement
 
-- **Traitement local.** Les documents, le texte reconnu et les surlignages restent sur le poste. Le plugin n'effectue aucun appel réseau : le moteur de reconnaissance du texte et le modèle de langue française sont inclus dans le plugin. Seule la recherche d'adresse du sélecteur de carte, qui appartient à ZeroNeurone, utilise un service en ligne.
+- **Traitement local.** Le plugin n'effectue aucun appel réseau : le moteur de reconnaissance du texte et le modèle de langue française sont inclus dans le plugin. Les surlignages et les références des documents sont enregistrés avec le dossier ZeroNeurone. Dans un dossier partagé, ils sont transmis aux autres membres par la synchronisation chiffrée de ZeroNeurone, comme les éléments et les documents du dossier. Le texte reconnu et les préférences d'affichage restent sur le poste. Seule la recherche d'adresse du sélecteur de carte, qui appartient à ZeroNeurone, utilise un service en ligne.
 - **Rien n'entre dans le graphe sans votre action.** Chaque objet est créé par une action explicite. Les suggestions se traitent une par une, sans validation groupée.
 - **Pas de rattachement automatique.** Lorsqu'un élément du dossier porte un nom proche du passage, il est proposé, mais l'action par défaut reste la création d'un nouvel élément. Rattacher un passage à un élément existant est toujours votre choix, pour éviter de confondre deux homonymes.
 - **Vous choisissez les catégories.** Les tags proposés par défaut (Personne, Entreprise, Lieu...) se modifient dans les réglages.
