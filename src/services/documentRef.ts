@@ -1,12 +1,14 @@
 // ─── Reference of a document ─────────────────────────────────
 //
-// Stored with the dossier (pluginData `ref:<sha256>`), set by the user only.
+// Stored with the dossier (pluginData `ref:<sha256>`), set by the user only,
+// and shared with the dossier's members.
 
 import { getHostAPI } from '../hostAPI.ts';
 import { cleanReference } from '../core/reference.ts';
 import { isReadable, type DocumentAsset } from './documentAssets.ts';
 
-const key = (hash: string) => `ref:${hash}`;
+const PREFIX = 'ref:';
+const key = (hash: string) => `${PREFIX}${hash}`;
 
 // Views showing references (reader title, Marqueur tab) follow changes.
 const listeners = new Set<() => void>();
@@ -21,6 +23,20 @@ export function getReferencesVersion(): number {
   return version;
 }
 
+function notify(): void {
+  version++;
+  listeners.forEach((fn) => fn());
+}
+
+/** Shares the references with the dossier's members. Called at registration, before any write. */
+export function shareReferences(): void {
+  const pd = getHostAPI().pluginData;
+  pd.shareKeys([PREFIX]);
+  pd.onRemoteChange((change) => {
+    if (change.key.startsWith(PREFIX)) notify();
+  });
+}
+
 /** The document's reference, or '' when none was given. */
 export async function loadReference(dossierId: string, hash: string): Promise<string> {
   return cleanReference(await getHostAPI().pluginData.get(dossierId, key(hash)));
@@ -30,8 +46,7 @@ export async function saveReference(dossierId: string, hash: string, reference: 
   const value = cleanReference(reference);
   if (value) await getHostAPI().pluginData.set(dossierId, key(hash), value);
   else await getHostAPI().pluginData.remove(dossierId, key(hash));
-  version++;
-  listeners.forEach((fn) => fn());
+  notify();
 }
 
 /**

@@ -37,7 +37,7 @@ import { SelectionBar, type Gesture } from './SelectionBar.tsx';
 import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
 import { applyRelabel, deleteAnnotation, planRelabel, reattachToElement, rejectSuggestion, relabelCount, type RelabelPlan } from '../services/qualify.ts';
-import { loadReference, saveReference } from '../services/documentRef.ts';
+import { getReferencesVersion, loadReference, saveReference, subscribeReferences } from '../services/documentRef.ts';
 import { cleanReference, detectReference } from '../core/reference.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
 import { cooccurrences, elementHighlights, pairKey, verbEnds } from '../core/linkAssist.ts';
@@ -645,6 +645,19 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       cancelled = true;
     };
   }, [dossierId, asset.id, asset.hash]);
+  // Given or changed by another member of the dossier.
+  const referencesVersion = React.useSyncExternalStore(subscribeReferences, getReferencesVersion);
+  React.useEffect(() => {
+    let cancelled = false;
+    loadReference(dossierId, asset.hash)
+      .then((value) => {
+        if (!cancelled) setReference(value);
+      })
+      .catch((err: unknown) => console.error('MarkNeurone: cannot load the document reference', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [referencesVersion]);
   const docCtx = React.useMemo(() => ({ dossierId, asset, reference }), [dossierId, asset, reference]);
   const elements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);

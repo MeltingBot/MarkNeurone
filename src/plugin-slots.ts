@@ -15,6 +15,7 @@ import { exportAnnotations, importAnnotations, type ZipLike } from './services/t
 import { onDocumentDeleted } from './services/documentData.ts';
 import { registerSourceScheme } from './services/sourceLinks.ts';
 import { shareAnnotations } from './services/annotationStore.ts';
+import { shareReferences } from './services/documentRef.ts';
 
 export async function registerSlots(): Promise<void> {
   const api = getHostAPI();
@@ -40,6 +41,7 @@ export async function registerSlots(): Promise<void> {
   }
   // Before any write: the other members of a shared dossier receive them.
   shareAnnotations();
+  shareReferences();
 
   // Settings apply to every dossier; defaults stay in use if they cannot be read.
   await loadSettings().catch((err: unknown) => console.error('MarkNeurone: cannot load settings', err));

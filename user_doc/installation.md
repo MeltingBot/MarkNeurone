@@ -29,7 +29,7 @@ Après chaque mise à jour du plugin, recalculez l'empreinte et mettez à jour `
 
 MarkNeurone nécessite ZeroNeurone 2.63 ou une version ultérieure. Avec une version antérieure, le plugin ne se charge pas et un message l'indique.
 
-Dans un dossier partagé, les surlignages sont transmis aux autres membres, et un lien de source vers un passage s'ouvre chez chacun d'eux. Tous les membres doivent utiliser la même version de MarkNeurone. Le texte reconnu par l'OCR n'est pas transmis : un membre qui n'a pas lancé la reconnaissance voit le passage à l'échelle de la page.
+Dans un dossier partagé, les surlignages et les références des documents sont transmis aux autres membres, et un lien de source vers un passage s'ouvre chez chacun d'eux. Tous les membres doivent utiliser la même version de MarkNeurone. Le texte reconnu par l'OCR n'est pas transmis : un membre qui n'a pas lancé la reconnaissance voit le passage à l'échelle de la page.
 
 ## Désinstallation
 
