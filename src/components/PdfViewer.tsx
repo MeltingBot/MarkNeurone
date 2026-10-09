@@ -2010,6 +2010,20 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         h('button', { type: 'button', className: 'ml-2 text-xs text-accent hover:underline', onClick: () => setRelabel(null) }, t('reference_relabel_skip')))
     : null;
 
+  /** Toggles a framing tool; a pending selection is dropped, as with the keys. */
+  const frameButton = (mode: 'text' | 'image', label: string, Icon: ReactTypes.ElementType) =>
+    h('button', {
+      onClick: () => {
+        setPending(null);
+        setZoneMode((on) => (on === mode ? false : mode));
+      },
+      disabled: !ready,
+      'aria-pressed': zoneMode === mode,
+      title: label,
+      'aria-label': label,
+      className: `p-1.5 rounded disabled:opacity-40 ${zoneMode === mode ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
+    }, h(Icon, { size: 14 }));
+
   const toolbar = h(
     'div',
     { className: 'flex items-center gap-3 px-4 py-1.5 border-b border-border-default bg-bg-secondary text-xs text-text-secondary' },
@@ -2056,6 +2070,12 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       // Grey when off, accent when on: the icon alone tells the state.
       className: `p-1.5 rounded disabled:opacity-40 ${suggestionsOn ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
     }, h(api.icons.Sparkles, { size: 14 })),
+    // Framing tools, as in the context menu (PDF only).
+    opened
+      ? h('div', { className: 'flex items-center gap-1' },
+          frameButton('text', `${t('zone_read')} (Z)`, api.icons.SquareDashed),
+          frameButton('image', `${t('area_read')} (I)`, api.icons.Image))
+      : null,
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', {
         onClick: toggleMasked,

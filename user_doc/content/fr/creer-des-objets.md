@@ -37,7 +37,7 @@ Le nouvel élément est placé sur le canvas et le passage est surligné dans la
 
 ## Image
 
-Une photo, une signature, un tampon, un logo ou un schéma d'un PDF peut servir de source à un élément. Choisissez « Encadrer une image » dans le menu du clic droit ou appuyez sur I, puis entourez l'image à la souris. Aucune reconnaissance du texte n'est lancée : saisissez le libellé de l'élément, puis créez-le ou rattachez l'image à un élément existant.
+Une photo, une signature, un tampon, un logo ou un schéma d'un PDF peut servir de source à un élément. Choisissez « Encadrer une image » dans la barre d'outils du lecteur ou dans le menu du clic droit, ou appuyez sur I, puis entourez l'image à la souris. Aucune reconnaissance du texte n'est lancée : saisissez le libellé de l'élément, puis créez-le ou rattachez l'image à un élément existant.
 
 L'option « Joindre l'image à l'élément », cochée par défaut, ajoute l'image découpée aux fichiers de l'élément dans ZeroNeurone, qui l'affiche en miniature. La source de l'élément pointe vers la zone encadrée de la page. Retirer le surlignage ne supprime pas l'image de l'élément.
 

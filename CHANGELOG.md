@@ -3,6 +3,7 @@
 ## 1.5.0 (non publiée)
 
 - Image : une photo, une signature, un tampon ou un schéma d'un PDF peut servir de source à un élément (« Encadrer une image », touche I). Aucune reconnaissance du texte n'est lancée, le libellé se saisit à la main, et l'image découpée peut être jointe à l'élément, que ZeroNeurone affiche en miniature.
+- Lecteur : « Encadrer un passage » et « Encadrer une image » sont aussi dans la barre d'outils, et plus seulement dans le menu du clic droit.
 
 ## 1.4.1 (2026-10-09)
 

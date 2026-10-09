@@ -31,7 +31,7 @@ Sur une page numérisée, « Relire la sélection » dans la barre de sélection
 
 ## Encadrer un passage
 
-Pour ce qui ne peut pas être sélectionné, comme un passage manuscrit, une mention dans la marge ou une zone sans texte reconnu, choisissez « Encadrer un passage » dans le menu du clic droit ou appuyez sur Z, puis entourez la zone à la souris. La zone est lue à haute résolution. Si rien n'est lu, saisissez le texte dans le formulaire en vous aidant de l'image. La référence pointe vers la zone encadrée de la page.
+Pour ce qui ne peut pas être sélectionné, comme un passage manuscrit, une mention dans la marge ou une zone sans texte reconnu, choisissez « Encadrer un passage » dans la barre d'outils du lecteur ou dans le menu du clic droit, ou appuyez sur Z, puis entourez la zone à la souris. La zone est lue à haute résolution. Si rien n'est lu, saisissez le texte dans le formulaire en vous aidant de l'image. La référence pointe vers la zone encadrée de la page.
 
 ## Tampons et encre de couleur
 
