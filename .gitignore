@@ -11,3 +11,8 @@ bench/ocr/out/
 # Technical notes on the ZN plugin API, kept local
 /docs/
 .env
+
+# Working notes, kept local
+CLAUDE.md
+note-plugin-lecture-pdf-zn.md
+analyse-contradictoire-markneurone.md

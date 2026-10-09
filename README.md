@@ -73,11 +73,6 @@ Le dossier `bench/ocr/` contient un outil autonome qui mesure, pour un ensemble 
 
 Le dépôt ne contient que des documents fictifs : les procès-verbaux de test sont générés par le banc à partir de textes inventés, puis dégradés (inclinaison, bruit, tampons, photocopie). Pour mesurer l'OCR sur d'autres documents, placez-les dans `bench/ocr/data/`. Ce dossier est exclu de git.
 
-### Documents de conception
-
-- [`note-plugin-lecture-pdf-zn.md`](note-plugin-lecture-pdf-zn.md) : note de cadrage (périmètre, modèle de données, découpage en versions).
-- [`analyse-contradictoire-markneurone.md`](analyse-contradictoire-markneurone.md) : analyse des risques.
-
 ## État du projet
 
 Version 1.4.1. Les fonctions de la première version sont en place. Elles ont été mesurées sur des procès-verbaux fictifs dégradés et restent à éprouver sur des pièces réelles. Voir le [changelog](CHANGELOG.md).
