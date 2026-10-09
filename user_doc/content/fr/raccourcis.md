@@ -16,6 +16,7 @@ weight: 10
 | Ctrl+clic | Sélectionner plusieurs passages surlignés |
 | L | Créer un lien entre les deux passages sélectionnés ; avec le mode verbe, créer un lien à partir des mots sélectionnés |
 | Z | Encadrer un passage à la souris |
+| I | Encadrer une image à la souris, pour en faire la source d'un élément |
 | M | Masquer ou afficher le texte du document |
 | Suppr | Ignorer la suggestion sélectionnée |
 | Ctrl+F | Rechercher dans le document |

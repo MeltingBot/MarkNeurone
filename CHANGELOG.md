@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0 (non publiée)
+
+- Image : une photo, une signature, un tampon ou un schéma d'un PDF peut servir de source à un élément (« Encadrer une image », touche I). Aucune reconnaissance du texte n'est lancée, le libellé se saisit à la main, et l'image découpée peut être jointe à l'élément, que ZeroNeurone affiche en miniature.
+
 ## 1.4.1 (2026-10-09)
 
 - MarkNeurone nécessite désormais ZeroNeurone 2.63 ou une version ultérieure.

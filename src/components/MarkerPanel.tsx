@@ -112,7 +112,7 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
           const first = row.items[0];
           const meta = first.kind === 'property' ? first.propertyKey : '';
           return h('div', { key: row.key, className: 'flex items-start gap-2 px-2 py-1 rounded hover:bg-bg-secondary' },
-            h(icons[first.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0 mt-0.5' }),
+            h(first.area ? api.icons.Image : icons[first.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0 mt-0.5' }),
             h('div', { className: 'flex-1 min-w-0' },
               h('button', { type: 'button', onClick: () => open(asset, first), className: 'block w-full text-left text-xs text-text-primary truncate hover:text-accent' },
                 first.text || '…'),
@@ -160,7 +160,7 @@ function AbsentSection(p: { dossierId: string; documents: AbsentDocument[] }) {
 function rowsOf(items: Annotation[]): { key: string; items: Annotation[] }[] {
   const rows = new Map<string, Annotation[]>();
   for (const a of items) {
-    const key = `${a.kind}|${a.text.trim().toLowerCase()}|${a.propertyKey ?? ''}`;
+    const key = `${a.kind}${a.area ? '-area' : ''}|${a.text.trim().toLowerCase()}|${a.propertyKey ?? ''}`;
     rows.set(key, [...(rows.get(key) ?? []), a]);
   }
   return [...rows].map(([key, list]) => ({ key, items: list }));

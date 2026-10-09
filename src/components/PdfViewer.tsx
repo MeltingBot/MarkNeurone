@@ -530,6 +530,9 @@ function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string
 }
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
+/** Framed picture: longest side in pixels, and JPEG quality. */
+const AREA_MAX_PX = 1600;
+const AREA_JPEG_QUALITY = 0.9;
 
 export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) {
   const api = getHostAPI();
@@ -573,7 +576,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   /** Selection waiting for a gesture (E, P, V). */
   const [pending, setPending] = React.useState<Passage | null>(null);
   /** Zone reading tool: the next rectangle drawn on a page is read by OCR. */
-  const [zoneMode, setZoneMode] = React.useState(false);
+  // Framing tool: 'text' reads the zone by OCR, 'image' keeps it as a picture.
+  const [zoneMode, setZoneMode] = React.useState<false | 'text' | 'image'>(false);
   /** Hand tool: a drag anywhere moves the document instead of selecting text. */
   const [panMode, setPanMode] = React.useState(false);
   /** Sheet folded into a narrow rail, as ZN's side panel; a form opens it again. */
@@ -1085,8 +1089,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
    * types a handwritten passage the OCR could not read.
    */
   const onZone = (pageNumber: number, rect: Rect, client: Rect) => {
+    const mode = zoneMode;
     setZoneMode(false);
-    void readArea(pageNumber, [{ left: rect.left / scale, top: rect.top / scale, right: rect.right / scale, bottom: rect.bottom / scale }], client);
+    const unit = { left: rect.left / scale, top: rect.top / scale, right: rect.right / scale, bottom: rect.bottom / scale };
+    if (mode === 'image') void captureImageArea(pageNumber, unit, client);
+    else void readArea(pageNumber, [unit], client);
   };
 
   /** Reads the rectangle of a selection again, at high resolution: same passage, better reading. */
@@ -1108,6 +1115,46 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     });
   };
 
+  /** Rectangle of a page (page units at scale 1) rendered at `factor`. */
+  const renderArea = async (pageNumber: number, unit: Rect, factor: number): Promise<HTMLCanvasElement> => {
+    const page = await opened!.doc.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: factor });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round((unit.right - unit.left) * factor));
+    canvas.height = Math.max(1, Math.round((unit.bottom - unit.top) * factor));
+    await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -unit.left * factor, -unit.top * factor] }).promise;
+    return canvas;
+  };
+
+  /**
+   * Framed picture (photo, signature, stamp, diagram): no OCR, the user names
+   * the element, and the picture can go onto it.
+   */
+  const captureImageArea = async (pageNumber: number, unit: Rect, client: Rect) => {
+    const size = sizes[pageNumber - 1];
+    if (!opened || !size) return;
+    const quad = viewportRectToPdf(unit, size.transform) as Quad;
+    setZoneBusy({ page: pageNumber, quad });
+    try {
+      // High enough for a photo, capped so that a whole page stays a small file.
+      const longest = Math.max(unit.right - unit.left, unit.bottom - unit.top);
+      const canvas = await renderArea(pageNumber, unit, Math.min(OCR_SCALE, AREA_MAX_PX / longest));
+      setPending({
+        page: pageNumber,
+        quads: [quad],
+        text: '',
+        area: true,
+        preview: { image: canvas.toDataURL('image/jpeg', AREA_JPEG_QUALITY), lines: [], framed: true },
+        clientBox: client,
+      });
+    } catch (err) {
+      console.error('MarkNeurone: picture capture failed', err);
+      api.toast.error(t('area_error'));
+    } finally {
+      setZoneBusy(null);
+    }
+  };
+
   /**
    * OCR of rectangles of a page (page units at scale 1): a framed zone, or the
    * lines of a selection, each read on its own so that a selection over two
@@ -1126,12 +1173,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setZoneBusy({ page: pageNumber, quad });
     try {
       const engine = await import('../services/ocrEngine.ts');
-      const page = await opened.doc.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: OCR_SCALE });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round((unit.right - unit.left) * OCR_SCALE));
-      canvas.height = Math.max(1, Math.round((unit.bottom - unit.top) * OCR_SCALE));
-      await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -unit.left * OCR_SCALE, -unit.top * OCR_SCALE] }).promise;
+      const canvas = await renderArea(pageNumber, unit, OCR_SCALE);
       const image = canvas.toDataURL('image/png');
       const texts: string[] = [];
       const lines: { t: string; c: number }[][] = [];
@@ -1382,7 +1424,13 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey && !pending && opened) {
         e.stopImmediatePropagation();
         e.preventDefault();
-        setZoneMode((on) => !on);
+        setZoneMode((on) => (on === 'text' ? false : 'text'));
+        return;
+      }
+      if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.metaKey && !e.altKey && !pending && opened) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        setZoneMode((on) => (on === 'image' ? false : 'image'));
         return;
       }
       if (e.key === 'Escape' && selectedIds.length > 1) {
@@ -1511,7 +1559,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         sections: [
           [
             { id: 'open', label: t('menu_open_sheet'), icon: PanelRightOpen, action: () => selectHighlight(hit, false) },
-            ...(hit.kind === 'link' ? [] : [{ id: 'same', label: t('menu_select_same'), icon: api.icons.ListChecks, action: () => selectSameText(hit) }]),
+            ...(hit.kind === 'link' || hit.area ? [] : [{ id: 'same', label: t('menu_select_same'), icon: api.icons.ListChecks, action: () => selectSameText(hit) }]),
           ],
           linkItems,
           [{
@@ -1552,7 +1600,12 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setMenu({
       ...at,
       sections: [
-        ...(opened ? [[{ id: 'zone', label: t('zone_read'), icon: api.icons.SquareDashed, shortcut: 'Z', action: () => setZoneMode(true) }]] : []),
+        ...(opened
+          ? [[
+              { id: 'zone', label: t('zone_read'), icon: api.icons.SquareDashed, shortcut: 'Z', action: () => setZoneMode('text') },
+              { id: 'area', label: t('area_read'), icon: api.icons.Image, shortcut: 'I', action: () => setZoneMode('image') },
+            ]]
+          : []),
         [
         { id: 'zoom-in', label: t('viewer_zoom_in'), icon: ZoomIn, action: () => stepZoom(1) },
         { id: 'zoom-out', label: t('viewer_zoom_out'), icon: ZoomOut, action: () => stepZoom(-1) },
@@ -2152,7 +2205,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
               suggestions: suggestionsByPage.get(i + 1) ?? NO_SUGGESTIONS,
               marks: marksByPage.get(i + 1) ?? NO_MARKS,
               onMark: (key: string) => openPossibleLink(key, i + 1),
-              zoneMode,
+              zoneMode: !!zoneMode,
               onZone,
               ocr: ocrPages[String(i + 1)] ?? null,
             }))
@@ -2201,7 +2254,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           onReject: pending.suggestion ? () => reject(pending) : undefined,
           // A selection on a scanned page can be read again, more finely.
           onReread: ocrPages[String(pending.page)] && !pending.preview?.framed ? () => rereadSelection(pending) : undefined,
-          onLink: getSettings().links.verb && !pending.suggestion ? () => linkFromWords(pending) : undefined,
+          onLink: getSettings().links.verb && !pending.suggestion && !pending.area ? () => linkFromWords(pending) : undefined,
         })
       : null,
     menu ? h(ReaderContextMenu, { ...menu, onClose: () => setMenu(null) }) : null,

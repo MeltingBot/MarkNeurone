@@ -22,6 +22,8 @@ export interface Annotation {
   quads: Quad[];
   /** Exact highlighted text, as validated by the user. */
   text: string;
+  /** Framed picture of a PDF page (photo, signature, stamp): `text` is the name the user gave. */
+  area?: true;
   /** Sentence containing the passage. */
   context?: string;
   /** Character offsets of the passage in the page text. */

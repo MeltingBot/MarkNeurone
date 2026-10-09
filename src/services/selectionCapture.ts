@@ -37,6 +37,8 @@ export interface Passage {
   sentenceRange?: [number, number];
   /** Year of the first complete date of the page, for dates written without year. */
   referenceYear?: number;
+  /** Framed picture (photo, signature, stamp): no text read, the user names it. */
+  area?: true;
   /** Set on scanned pages: what the OCR read, and how sure it was. */
   ocr?: { rawText: string; confidence: number };
   /** Scanned page: image of the passage and words as read, to check and correct the reading. */

@@ -29,6 +29,7 @@ function draft(ctx: DocumentContext, passage: Passage, kind: AnnotationKind): An
     page: passage.page,
     quads: passage.quads,
     text: passage.text,
+    ...(passage.area ? { area: true as const } : {}),
     ...(passage.context ? { context: passage.context } : {}),
     ...(passage.textRange ? { textRange: passage.textRange } : {}),
     ...(isPdf(ctx.asset) ? {} : { extractor: TEXT_EXTRACTOR_ID }),
@@ -56,17 +57,42 @@ function withValidatedText(a: Annotation, validated: string): Annotation {
   return { ...a, text: validated, ocr: { ...a.ocr, corrected: true } };
 }
 
-export async function qualifyAsNewElement(ctx: DocumentContext, passage: Passage, label: string, tags: string[]): Promise<string> {
-  const a = withValidatedText(draft(ctx, passage, 'element'), label);
+/** For a framed picture: attach it to the element. */
+export interface ElementOptions {
+  attachImage?: boolean;
+}
+
+/** The framed picture as a file named after the document and page, e.g. "PV n° 347 p.3.jpg". */
+export function areaFile(ctx: DocumentContext, passage: Passage): File | null {
+  const url = passage.area ? passage.preview?.image : undefined;
+  const match = url?.match(/^data:([^;,]+);base64,(.*)$/);
+  if (!match) return null;
+  const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+  const name = `${ctx.reference || ctx.asset.filename.replace(/\.[^.]+$/, '')} p.${passage.page}`.replace(/[\\/:*?"<>|]/g, '_');
+  return new File([bytes], `${name}.${match[1] === 'image/png' ? 'png' : 'jpg'}`, { type: match[1] });
+}
+
+async function attachArea(ctx: DocumentContext, passage: Passage, elementId: string, options: ElementOptions): Promise<void> {
+  const file = options.attachImage ? areaFile(ctx, passage) : null;
+  if (file) await graph.attachImage(elementId, file);
+}
+
+export async function qualifyAsNewElement(ctx: DocumentContext, passage: Passage, label: string, tags: string[], options: ElementOptions = {}): Promise<string> {
+  const drafted = draft(ctx, passage, 'element');
+  // A picture has no text: its passage is the name given to it.
+  const a = passage.area ? { ...drafted, text: label } : withValidatedText(drafted, label);
   const el = await graph.createElement(label, tags, anchorOf(ctx, a));
   await saveAnnotation(ctx.dossierId, { ...a, targetId: el.id });
+  await attachArea(ctx, passage, el.id, options);
   return el.id;
 }
 
-export async function qualifyAsExistingElement(ctx: DocumentContext, passage: Passage, elementId: string): Promise<string> {
-  const a = draft(ctx, passage, 'element');
+export async function qualifyAsExistingElement(ctx: DocumentContext, passage: Passage, elementId: string, options: ElementOptions = {}): Promise<string> {
+  const drafted = draft(ctx, passage, 'element');
+  const a = passage.area ? { ...drafted, text: graph.getElement(elementId)?.label ?? '' } : drafted;
   await graph.attachAnchor(elementId, anchorOf(ctx, a));
   await saveAnnotation(ctx.dossierId, { ...a, targetId: elementId });
+  await attachArea(ctx, passage, elementId, options);
   return elementId;
 }
 

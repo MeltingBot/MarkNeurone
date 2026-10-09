@@ -93,6 +93,11 @@ describe('sanitizeAnnotation', () => {
     expect(a?.context).toBe('Phrase.');
   });
 
+  it('keeps a framed picture as such', () => {
+    expect(sanitizeAnnotation(ann(ELEMENT, 'element', { area: true }), HASH)?.area).toBe(true);
+    expect(sanitizeAnnotation({ ...ann(ELEMENT, 'element'), area: 'yes' }, HASH)).not.toHaveProperty('area');
+  });
+
   it('does not let a __proto__ key change the prototype of eventIds', () => {
     const a = sanitizeAnnotation(JSON.parse(JSON.stringify(ann(ELEMENT, 'event')).replace('"kind"', '"eventIds":{"__proto__":{"polluted":"yes"}},"kind"')), HASH);
     expect(Object.getPrototypeOf(a?.eventIds)).toBe(Object.prototype);

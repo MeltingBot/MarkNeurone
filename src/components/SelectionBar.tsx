@@ -74,7 +74,8 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
       return;
     }
     const gesture = KEYS[e.key.toLowerCase()];
-    if (gesture) {
+    // A framed picture only makes an element.
+    if (gesture && (!passage.area || gesture === 'element')) {
       // The sheet's first field takes focus during this keystroke.
       e.preventDefault();
       onChoose(gesture);
@@ -118,9 +119,9 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
         h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }))
     : null,
   button('element', `${t('gesture_element')} (E)`, icons.Highlighter, () => onChoose('element')),
-  button('property', `${t('gesture_property')} (P)`, icons.Tag, () => onChoose('property')),
-  button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),
-  button('location', `${t('gesture_location')} (G)`, icons.MapPin, () => onChoose('location')),
+  passage.area ? null : button('property', `${t('gesture_property')} (P)`, icons.Tag, () => onChoose('property')),
+  passage.area ? null : button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),
+  passage.area ? null : button('location', `${t('gesture_location')} (G)`, icons.MapPin, () => onChoose('location')),
   onLink ? button('link', `${t('gesture_link')} (L)`, icons.Link2, onLink) : null,
   onReread
     ? h(React.Fragment, null,

@@ -131,6 +131,12 @@ export async function attachAnchor(elementId: string, anchor: string): Promise<v
   await store().updateElement(elementId, { source: appendAnchor(el.source, anchor) });
 }
 
+/** A picture framed in a document goes onto the element, as a file ZN shows on it. */
+export async function attachImage(elementId: string, file: File): Promise<void> {
+  if (!getElement(elementId)) throw new Error('element not found');
+  await store().addAsset(elementId, file);
+}
+
 export async function addProperty(elementId: string, property: ZnProperty, anchor: string): Promise<void> {
   const el = getElement(elementId);
   if (!el) throw new Error('element not found');

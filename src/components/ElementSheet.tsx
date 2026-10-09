@@ -505,6 +505,9 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
     return tag ? [tag] : [];
   });
   const [busy, setBusy] = React.useState(false);
+  // Framed picture: it goes onto the element unless the user unticks it.
+  const [attachImage, setAttachImage] = React.useState(true);
+  const options = { attachImage: !!passage.area && attachImage };
 
   const candidates = React.useMemo(() => {
     const named = env.elements.map((el) => ({
@@ -529,12 +532,12 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
   const create = async () => {
     setBusy(true);
     let id = '';
-    if (await env.run(async () => { id = await qualifyAsNewElement(env.ctx, passage, label.trim(), tags); })) p.onCreated(id);
+    if (await env.run(async () => { id = await qualifyAsNewElement(env.ctx, passage, label.trim(), tags, options); })) p.onCreated(id);
     else setBusy(false);
   };
   const attach = async (elementId: string) => {
     setBusy(true);
-    if (await env.run(() => qualifyAsExistingElement(env.ctx, passage, elementId))) p.onCreated(elementId);
+    if (await env.run(() => qualifyAsExistingElement(env.ctx, passage, elementId, options))) p.onCreated(elementId);
     else setBusy(false);
   };
 
@@ -556,6 +559,11 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
     },
   },
   h(OcrPreview, { passage }),
+  passage.area
+    ? h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
+        h('input', { type: 'checkbox', checked: attachImage, onChange: () => setAttachImage(!attachImage) }),
+        env.t('area_attach'))
+    : null,
   h('div', { className: 'space-y-1.5' },
     h('label', { className: S.LABEL }, env.t('field_label')),
     h('input', { className: S.INPUT, value: label, autoFocus: true, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) }),
@@ -1523,7 +1531,7 @@ function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | nu
         key: a.id,
         className: `flex items-center gap-2 px-2 py-1 rounded ${a.id === p.selectedId ? 'bg-accent/10 border border-accent/20' : 'hover:bg-bg-secondary'}`,
       },
-      h(icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
+      h(a.area ? api.icons.Image : icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
       h('button', { type: 'button', onClick: () => p.onGoto(a), className: 'flex-1 min-w-0 text-left' },
         h('span', { className: 'block text-xs text-text-primary truncate' }, a.text),
         h('span', { className: S.HINT }, [isPdf(env.ctx.asset) ? `p.${a.page}` : '', a.kind === 'property' ? a.propertyKey : ''].filter(Boolean).join(' · ') || null)),
