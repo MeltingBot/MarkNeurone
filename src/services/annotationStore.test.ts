@@ -69,6 +69,47 @@ beforeEach(() => {
   store.resetAnnotationStore();
 });
 
+describe('conversion of the former arrays', () => {
+  it('splits each array into one key per annotation, then deletes the arrays and the index', async () => {
+    data.set(`ann:${H1}`, [ann('a'), ann('bb')]);
+    data.set(`ann:${H2}`, [ann('c', H2)]);
+    data.set('ann-index', [H1, H2]);
+
+    expect((await store.loadAnnotations(D, H1)).map((a) => a.id)).toEqual(['a', 'bb']);
+    expect(sharedKeys()).toEqual([key(H1, 'a'), key(H1, 'bb'), key(H2, 'c')].sort());
+    expect(data.has(`ann:${H1}`)).toBe(false);
+    expect(data.has(`ann:${H2}`)).toBe(false);
+    expect(data.has('ann-index')).toBe(false);
+  });
+
+  it('can run twice without duplicates, and keeps an annotation changed in between', async () => {
+    const legacy = [ann('a'), ann('bb')];
+    data.set(`ann:${H1}`, legacy);
+    data.set('ann-index', [H1]);
+    await store.loadAnnotations(D, H1);
+
+    // Changed since (here or by another member), then the same array comes back.
+    data.set(key(H1, 'a'), ann('a', H1, { text: 'corrigé' }));
+    data.set(`ann:${H1}`, legacy);
+    data.set('ann-index', [H1]);
+    store.resetAnnotationStore();
+    calls.set = [];
+
+    const list = await store.loadAnnotations(D, H1);
+    expect(list.map((a) => a.id)).toEqual(['a', 'bb']);
+    expect(list[0].text).toBe('corrigé');
+    expect(calls.set).toEqual([]);
+    expect(sharedKeys()).toEqual([key(H1, 'a'), key(H1, 'bb')]);
+    expect(data.has(`ann:${H1}`)).toBe(false);
+  });
+
+  it('lists the documents of a dossier not converted yet', async () => {
+    data.set(`ann:${H1}`, [ann('a')]);
+    data.set('ann-index', [H1]);
+    expect(await store.annotatedDocuments(D)).toEqual([H1]);
+  });
+});
+
 describe('one key per annotation', () => {
   it('saves and removes a single key', async () => {
     await store.saveAnnotation(D, ann('a'));

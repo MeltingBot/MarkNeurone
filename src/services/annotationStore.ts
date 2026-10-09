@@ -64,13 +64,53 @@ function isAnnotation(value: unknown): value is Annotation {
   return !!value && typeof (value as Annotation).id === 'string';
 }
 
+// Conversion of the former format, one array per document (`ann:<sha256>`)
+// plus an index (`ann-index`), kept on the workstation. Once per dossier and
+// session. It can run again without harm, here or on another member's
+// workstation: annotations keep their id, so their keys are the same, and an
+// existing key is never overwritten (it may have been changed since).
+const LEGACY_PREFIX = 'ann:';
+const LEGACY_INDEX_KEY = 'ann-index';
+const migrations = new Map<string, Promise<void>>();
+
+async function migrate(dossierId: string): Promise<void> {
+  const pd = getHostAPI().pluginData;
+  const arrays = (await pd.list(dossierId, LEGACY_PREFIX)).filter((e) => Array.isArray(e.value));
+  if (arrays.length) {
+    const existing = new Set((await pd.list(dossierId, SHARED_PREFIX)).map((e) => e.key));
+    for (const { key, value } of arrays) {
+      const hash = key.slice(LEGACY_PREFIX.length);
+      for (const a of value as unknown[]) {
+        if (isAnnotation(a) && !existing.has(annotationKey(hash, a.id))) await pd.set(dossierId, annotationKey(hash, a.id), a);
+      }
+    }
+    // Only once every annotation has its own key.
+    for (const { key } of arrays) await pd.remove(dossierId, key);
+  }
+  if ((await pd.get(dossierId, LEGACY_INDEX_KEY)) !== undefined) await pd.remove(dossierId, LEGACY_INDEX_KEY);
+}
+
+function ensureMigrated(dossierId: string): Promise<void> {
+  let pending = migrations.get(dossierId);
+  if (!pending) {
+    pending = migrate(dossierId).catch((err: unknown) => {
+      migrations.delete(dossierId);
+      throw err;
+    });
+    migrations.set(dossierId, pending);
+  }
+  return pending;
+}
+
 async function readStored(dossierId: string, hash: string): Promise<Annotation[]> {
+  await ensureMigrated(dossierId);
   const entries = await getHostAPI().pluginData.list(dossierId, docPrefix(hash));
   return ordered(entries.map((e) => e.value).filter(isAnnotation));
 }
 
 /** Stored annotations of every document of a dossier, by hash. */
 async function readAll(dossierId: string): Promise<Map<string, Annotation[]>> {
+  await ensureMigrated(dossierId);
   const byHash = new Map<string, Annotation[]>();
   for (const { key, value } of await getHostAPI().pluginData.list(dossierId, SHARED_PREFIX)) {
     const hash = hashOfKey(key);
@@ -293,6 +333,7 @@ export function resetAnnotationStore(): void {
   loading.clear();
   generations.clear();
   reads.clear();
+  migrations.clear();
   dirty.clear();
   if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = null;
