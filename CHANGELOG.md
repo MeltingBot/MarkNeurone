@@ -1,10 +1,8 @@
 # Changelog
 
-## 1.4.0 (2026-10-08)
+## 1.4.1 (2026-10-09)
 
-- Événement : date de fin (« De » et « À »), à la création comme dans la fiche d'un événement existant. Lorsque le passage contient deux dates, la seconde, si elle est postérieure, remplit la fin.
-- Événement : fuseau horaire des heures, comme dans ZeroNeurone 2.61, à la création comme dans la fiche. Les heures se saisissent telles qu'elles sont écrites dans le document ; le fuseau vaut pour le début et la fin et reste enregistré avec l'événement.
-- Événement : une date sans heure est enregistrée à 00:00, que ZeroNeurone lit comme la journée entière, au lieu de midi.
+- MarkNeurone nécessite désormais ZeroNeurone 2.63 ou une version ultérieure.
 - Dates : une date en chiffres est reconnue même lorsque la couche texte du PDF place des espaces autour des barres (« 07 / 07 / 2004 ») ou utilise des barres, tirets, chiffres ou caractères invisibles Unicode.
 - Choix d'un élément : sans élément actif, la liste occupe la hauteur du panneau et montre plus de résultats. Les éléments de même nom indiquent combien d'autres le portent et affichent ce qui les distingue : propriétés dont la valeur diffère et éléments auxquels ils sont liés. Les candidats au rattachement font de même.
 - Liens : utiliser la barre de défilement du document ne vide plus la sélection, ce qui empêchait de lier deux passages éloignés de plusieurs pages.
@@ -21,7 +19,12 @@
 - Propriété, événement ou localisation sans élément choisi : sélectionner un autre passage abandonne le premier, dont le surlignage restait affiché.
 - Choix d'un élément : les éléments du document ouvert viennent en premier. La recherche par référence (« 00347/2026 ») liste tous les documents qui portent cette référence, puis les éléments surlignés dans ces documents ; le survol affiche ces références.
 - Dossier partagé : les surlignages sont transmis aux autres membres du dossier, et un lien de source vers un passage s'ouvre chez chacun d'eux. Deux analystes peuvent surligner le même document en même temps. Tous les membres doivent utiliser la même version de MarkNeurone. Le texte reconnu par l'OCR reste sur le poste qui l'a produit.
-- MarkNeurone nécessite désormais ZeroNeurone 2.63 ou une version ultérieure.
+
+## 1.4.0 (2026-10-08)
+
+- Événement : date de fin (« De » et « À »), à la création comme dans la fiche d'un événement existant. Lorsque le passage contient deux dates, la seconde, si elle est postérieure, remplit la fin.
+- Événement : fuseau horaire des heures, comme dans ZeroNeurone 2.61, à la création comme dans la fiche. Les heures se saisissent telles qu'elles sont écrites dans le document ; le fuseau vaut pour le début et la fin et reste enregistré avec l'événement.
+- Événement : une date sans heure est enregistrée à 00:00, que ZeroNeurone lit comme la journée entière, au lieu de midi.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
 - Événement : la description n'est plus préremplie avec la phrase, qui dans un procès-verbal de forme tabulaire peut couvrir tout un bloc de texte. « Reprendre la phrase » l'insère sur demande.
 
