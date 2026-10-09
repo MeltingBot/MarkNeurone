@@ -19,10 +19,6 @@ import { shareAnnotations } from './services/annotationStore.ts';
 export async function registerSlots(): Promise<void> {
   const api = getHostAPI();
   const React = api.React;
-
-  // ─── Shared annotations (ZN 2.63 and later) ──────────────
-  // Before any write: the other members of a shared dossier receive them.
-  shareAnnotations();
   const { useState: useReactState, useEffect: useReactEffect, useCallback: useReactCallback } = React;
 
   // ─── i18n ────────────────────────────────────────────────
@@ -35,6 +31,15 @@ export async function registerSlots(): Promise<void> {
   }
 
   const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
+
+  // ─── Host version ────────────────────────────────────────
+  // Annotations are shared with the dossier's members (ZN 2.63 and later).
+  if (!api.features?.sharedPluginData) {
+    api.toast.error(t('host_too_old'));
+    return;
+  }
+  // Before any write: the other members of a shared dossier receive them.
+  shareAnnotations();
 
   // Settings apply to every dossier; defaults stay in use if they cannot be read.
   await loadSettings().catch((err: unknown) => console.error('MarkNeurone: cannot load settings', err));

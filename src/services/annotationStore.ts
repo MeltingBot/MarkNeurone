@@ -4,14 +4,10 @@
 // ZN's pluginData. Small pub/sub so React views can follow changes with
 // useSyncExternalStore.
 //
-// Two storage formats:
-// - ZN 2.63 and later (`features.sharedPluginData`): one key per annotation,
-//   `annotation:<sha256>:<id>`, shared with the other members of the dossier.
-//   Conflicts are resolved key by key (last write wins), so two analysts
-//   annotating the same document do not overwrite each other.
-// - Before: one array per document (`ann:<sha256>`) and an index of annotated
-//   documents (`ann-index`), kept on the workstation. A dossier stored this
-//   way is converted to the first format the first time it is read.
+// One key per annotation, `annotation:<sha256>:<id>`, shared with the other
+// members of the dossier (ZN 2.63). Conflicts are resolved key by key (last
+// write wins), so two analysts annotating the same document do not overwrite
+// each other.
 
 import { getHostAPI } from '../hostAPI.ts';
 import type { Annotation } from '../core/model.ts';
@@ -44,24 +40,14 @@ export function getVersion(): number {
 
 const EMPTY: Annotation[] = [];
 
-// ─── Storage formats ─────────────────────────────────────────
+// ─── Storage ─────────────────────────────────────────────────
 
-/** Prefix of the shared annotation keys. `ann:` stays the one of the former arrays. */
+/** Prefix of the shared annotation keys. */
 export const SHARED_PREFIX = 'annotation:';
-const sharedDocPrefix = (hash: string) => `${SHARED_PREFIX}${hash}:`;
-const sharedKey = (hash: string, id: string) => `${sharedDocPrefix(hash)}${id}`;
+const docPrefix = (hash: string) => `${SHARED_PREFIX}${hash}:`;
+const annotationKey = (hash: string, id: string) => `${docPrefix(hash)}${id}`;
 
-const LEGACY_INDEX_KEY = 'ann-index';
-const LEGACY_PREFIX = 'ann:';
-const legacyKey = (hash: string) => `${LEGACY_PREFIX}${hash}`;
-
-/** Annotations stored one per key, shared with the dossier's members. */
-export function isShared(): boolean {
-  const api = getHostAPI();
-  return !!api.features?.sharedPluginData && typeof api.pluginData.list === 'function';
-}
-
-/** Document hash of a shared annotation key, or null. */
+/** Document hash of an annotation key, or null. */
 export function hashOfKey(key: string): string | null {
   if (!key.startsWith(SHARED_PREFIX)) return null;
   const rest = key.slice(SHARED_PREFIX.length);
@@ -78,60 +64,15 @@ function isAnnotation(value: unknown): value is Annotation {
   return !!value && typeof (value as Annotation).id === 'string';
 }
 
-// Conversion of the former arrays, once per dossier and session. It can run
-// again without harm, here or on another member's workstation: annotations
-// keep their id, so their keys are the same, and an existing key is never
-// overwritten (it may have been changed since).
-const migrations = new Map<string, Promise<void>>();
-
-async function migrate(dossierId: string): Promise<void> {
-  const pd = getHostAPI().pluginData;
-  const arrays = (await pd.list!(dossierId, LEGACY_PREFIX)).filter((e) => Array.isArray(e.value));
-  if (arrays.length) {
-    const existing = new Set((await pd.list!(dossierId, SHARED_PREFIX)).map((e) => e.key));
-    for (const { key, value } of arrays) {
-      const hash = key.slice(LEGACY_PREFIX.length);
-      for (const a of value as unknown[]) {
-        if (!isAnnotation(a)) continue;
-        const k = sharedKey(hash, a.id);
-        if (!existing.has(k)) await pd.set(dossierId, k, a);
-      }
-    }
-    // Only once every annotation has its own key.
-    for (const { key } of arrays) await pd.remove(dossierId, key);
-  }
-  if ((await pd.get(dossierId, LEGACY_INDEX_KEY)) !== undefined) await pd.remove(dossierId, LEGACY_INDEX_KEY);
-}
-
-function ensureMigrated(dossierId: string): Promise<void> {
-  let pending = migrations.get(dossierId);
-  if (!pending) {
-    pending = migrate(dossierId).catch((err: unknown) => {
-      migrations.delete(dossierId);
-      throw err;
-    });
-    migrations.set(dossierId, pending);
-  }
-  return pending;
-}
-
-/** Stored annotations of a document, in either format. */
 async function readStored(dossierId: string, hash: string): Promise<Annotation[]> {
-  const pd = getHostAPI().pluginData;
-  if (isShared()) {
-    await ensureMigrated(dossierId);
-    const entries = await pd.list!(dossierId, sharedDocPrefix(hash));
-    return ordered(entries.map((e) => e.value).filter(isAnnotation));
-  }
-  const stored = await pd.get(dossierId, legacyKey(hash));
-  return Array.isArray(stored) ? stored : [];
+  const entries = await getHostAPI().pluginData.list(dossierId, docPrefix(hash));
+  return ordered(entries.map((e) => e.value).filter(isAnnotation));
 }
 
-/** Stored annotations of every document of a dossier, by hash (shared format). */
-async function readAllShared(dossierId: string): Promise<Map<string, Annotation[]>> {
-  await ensureMigrated(dossierId);
+/** Stored annotations of every document of a dossier, by hash. */
+async function readAll(dossierId: string): Promise<Map<string, Annotation[]>> {
   const byHash = new Map<string, Annotation[]>();
-  for (const { key, value } of await getHostAPI().pluginData.list!(dossierId, SHARED_PREFIX)) {
+  for (const { key, value } of await getHostAPI().pluginData.list(dossierId, SHARED_PREFIX)) {
     const hash = hashOfKey(key);
     if (!hash || !isAnnotation(value)) continue;
     const list = byHash.get(hash);
@@ -140,14 +81,6 @@ async function readAllShared(dossierId: string): Promise<Map<string, Annotation[
   }
   for (const [hash, list] of byHash) byHash.set(hash, ordered(list));
   return byHash;
-}
-
-/** Legacy format: the document's array, then the index. */
-async function persistLegacy(dossierId: string, hash: string, list: Annotation[]): Promise<void> {
-  const pd = getHostAPI().pluginData;
-  await pd.set(dossierId, legacyKey(hash), list);
-  const index: string[] = (await pd.get(dossierId, LEGACY_INDEX_KEY)) ?? [];
-  if (!index.includes(hash)) await pd.set(dossierId, LEGACY_INDEX_KEY, [...index, hash]);
 }
 
 // ─── Cache ───────────────────────────────────────────────────
@@ -205,24 +138,16 @@ export async function saveAnnotation(dossierId: string, annotation: Annotation):
     : [...current, annotation];
   cache.set(cacheKey(dossierId, hash), next);
   notify();
-  await writing(dossierId, hash, () =>
-    isShared()
-      ? getHostAPI().pluginData.set(dossierId, sharedKey(hash, annotation.id), annotation)
-      : persistLegacy(dossierId, hash, next),
-  );
+  await writing(dossierId, hash, () => getHostAPI().pluginData.set(dossierId, annotationKey(hash, annotation.id), annotation));
 }
 
 /** Hashes of the dossier's annotated documents. */
 export async function annotatedDocuments(dossierId: string): Promise<string[]> {
-  if (isShared()) {
-    if (loadedDossiers.has(dossierId)) {
-      const prefix = `${dossierId}|`;
-      return [...cache].filter(([key, list]) => key.startsWith(prefix) && list.length).map(([key]) => key.slice(prefix.length));
-    }
-    return [...(await readAllShared(dossierId)).keys()];
+  if (loadedDossiers.has(dossierId)) {
+    const prefix = `${dossierId}|`;
+    return [...cache].filter(([key, list]) => key.startsWith(prefix) && list.length).map(([key]) => key.slice(prefix.length));
   }
-  const index = await getHostAPI().pluginData.get(dossierId, LEGACY_INDEX_KEY);
-  return Array.isArray(index) ? index : [];
+  return [...(await readAll(dossierId)).keys()];
 }
 
 /** Stored annotations of a document, bypassing the cache (export, import). */
@@ -231,24 +156,23 @@ export function readDocument(dossierId: string, hash: string): Promise<Annotatio
 }
 
 /**
- * Replaces a document's annotations, and refreshes any view of it. Shared
- * format: only the annotations that changed are written, and those no longer
- * in the list are removed, so that a member does not overwrite another one's
- * changes with an unchanged copy.
+ * Replaces a document's annotations, and refreshes any view of it. Only the
+ * annotations that changed are written, and those no longer in the list are
+ * removed, so that a member does not overwrite another one's changes with an
+ * unchanged copy.
  */
 export async function writeDocument(dossierId: string, hash: string, list: Annotation[]): Promise<void> {
   cache.set(cacheKey(dossierId, hash), list);
   notify();
   await writing(dossierId, hash, async () => {
-    if (!isShared()) return persistLegacy(dossierId, hash, list);
     const pd = getHostAPI().pluginData;
     const stored = new Map((await readStored(dossierId, hash)).map((a) => [a.id, JSON.stringify(a)]));
     const kept = new Set<string>();
     for (const a of list) {
       kept.add(a.id);
-      if (stored.get(a.id) !== JSON.stringify(a)) await pd.set(dossierId, sharedKey(hash, a.id), a);
+      if (stored.get(a.id) !== JSON.stringify(a)) await pd.set(dossierId, annotationKey(hash, a.id), a);
     }
-    for (const id of stored.keys()) if (!kept.has(id)) await pd.remove(dossierId, sharedKey(hash, id));
+    for (const id of stored.keys()) if (!kept.has(id)) await pd.remove(dossierId, annotationKey(hash, id));
   });
 }
 
@@ -257,21 +181,13 @@ export async function removeAnnotation(dossierId: string, hash: string, annotati
   const next = current.filter((a) => a.id !== annotationId);
   cache.set(cacheKey(dossierId, hash), next);
   notify();
-  await writing(dossierId, hash, () =>
-    isShared() ? getHostAPI().pluginData.remove(dossierId, sharedKey(hash, annotationId)) : persistLegacy(dossierId, hash, next),
-  );
+  await writing(dossierId, hash, () => getHostAPI().pluginData.remove(dossierId, annotationKey(hash, annotationId)));
 }
 
 /** Removes all annotations of a document (deleted document, on request). */
 export async function deleteDocument(dossierId: string, hash: string): Promise<void> {
   const pd = getHostAPI().pluginData;
-  if (isShared()) {
-    for (const a of await readStored(dossierId, hash)) await pd.remove(dossierId, sharedKey(hash, a.id));
-  } else {
-    await pd.remove(dossierId, legacyKey(hash));
-    const index = await annotatedDocuments(dossierId);
-    if (index.includes(hash)) await pd.set(dossierId, LEGACY_INDEX_KEY, index.filter((h) => h !== hash));
-  }
+  for (const a of await readStored(dossierId, hash)) await pd.remove(dossierId, annotationKey(hash, a.id));
   cache.delete(cacheKey(dossierId, hash));
   notify();
 }
@@ -308,12 +224,11 @@ export function onRemoteChange(change: { dossierId: string; key: string }): void
   if (!refreshTimer) refreshTimer = setTimeout(refresh, REFRESH_DELAY_MS);
 }
 
-/** Shares the annotations with the dossier's members (ZN 2.63 and later). Called at registration. */
+/** Shares the annotations with the dossier's members. Called at registration, before any write. */
 export function shareAnnotations(): void {
-  if (!isShared()) return;
   const pd = getHostAPI().pluginData;
-  pd.shareKeys?.([SHARED_PREFIX]);
-  pd.onRemoteChange?.(onRemoteChange);
+  pd.shareKeys([SHARED_PREFIX]);
+  pd.onRemoteChange(onRemoteChange);
 }
 
 // ─── Lookup by anchor ────────────────────────────────────────
@@ -329,7 +244,7 @@ let byAnchor: { version: number; map: Map<string, Annotation> } | null = null;
 export function loadDossier(dossierId: string): Promise<void> {
   let pending = dossierLoads.get(dossierId);
   if (!pending) {
-    pending = (isShared() ? loadAllShared(dossierId) : loadAllLegacy(dossierId))
+    pending = loadAll(dossierId)
       .then(() => {
         loadedDossiers.add(dossierId);
       })
@@ -342,14 +257,9 @@ export function loadDossier(dossierId: string): Promise<void> {
   return pending;
 }
 
-async function loadAllLegacy(dossierId: string): Promise<void> {
-  const hashes = await annotatedDocuments(dossierId);
-  await Promise.all(hashes.map((hash) => loadAnnotations(dossierId, hash)));
-}
-
 /** One read for the whole dossier; documents already cached are kept as they are. */
-async function loadAllShared(dossierId: string): Promise<void> {
-  const byHash = await readAllShared(dossierId);
+async function loadAll(dossierId: string): Promise<void> {
+  const byHash = await readAll(dossierId);
   let added = false;
   for (const [hash, list] of byHash) {
     const key = cacheKey(dossierId, hash);
@@ -383,7 +293,6 @@ export function resetAnnotationStore(): void {
   loading.clear();
   generations.clear();
   reads.clear();
-  migrations.clear();
   dirty.clear();
   if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = null;

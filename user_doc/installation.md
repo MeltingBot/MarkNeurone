@@ -27,9 +27,9 @@ Après chaque mise à jour du plugin, recalculez l'empreinte et mettez à jour `
 
 ## Version de ZeroNeurone
 
-Le choix d'un lieu sur une carte depuis le lecteur nécessite une version de ZeroNeurone qui propose ce sélecteur aux plugins. Avec une version antérieure, le lecteur se réduit et ouvre l'élément dans le panneau de ZeroNeurone, où la localisation se renseigne de la manière habituelle.
+MarkNeurone nécessite ZeroNeurone 2.63 ou une version ultérieure. Avec une version antérieure, le plugin ne se charge pas et un message l'indique.
 
-Les liens de source, qui ouvrent le lecteur sur le passage depuis le champ « Source » d'un élément, d'un lien ou d'un événement, nécessitent ZeroNeurone 2.62 ou suivante. Avec une version antérieure, la source s'affiche en texte brut et le passage se retrouve par l'onglet « Marqueur ».
+Dans un dossier partagé, les surlignages sont transmis aux autres membres, et un lien de source vers un passage s'ouvre chez chacun d'eux. Tous les membres doivent utiliser la même version de MarkNeurone. Le texte reconnu par l'OCR n'est pas transmis : un membre qui n'a pas lancé la reconnaissance voit le passage à l'échelle de la page.
 
 ## Désinstallation
 

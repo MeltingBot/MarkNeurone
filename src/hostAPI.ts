@@ -28,7 +28,7 @@ export interface MarkHostAPI {
     sourceLinks?: boolean;
     /** Slot `source:scheme` */
     sourceSchemes?: boolean;
-    /** pluginData.shareKeys / list / onRemoteChange (ZN 2.63 and later) */
+    /** pluginData.shareKeys / list / onRemoteChange (ZN 2.63 and later, required) */
     sharedPluginData?: boolean;
   };
 
@@ -103,12 +103,12 @@ export interface MarkHostAPI {
     getGlobal: (key: string) => Promise<any>;
     setGlobal: (key: string, value: any) => Promise<void>;
     removeGlobal: (key: string) => Promise<void>;
-    /** Entries of a dossier whose key starts with `prefix` (ZN 2.63 and later). */
-    list?: (dossierId: string, prefix: string) => Promise<{ key: string; value: any }[]>;
-    /** Keys with these prefixes are shared with the dossier's members (ZN 2.63 and later). */
-    shareKeys?: (prefixes: string[]) => void;
-    /** A member changed a shared key; Dexie is already up to date (ZN 2.63 and later). */
-    onRemoteChange?: (cb: (change: { dossierId: string; key: string; deleted: boolean }) => void) => () => void;
+    /** Entries of a dossier whose key starts with `prefix`. */
+    list: (dossierId: string, prefix: string) => Promise<{ key: string; value: any }[]>;
+    /** Keys with these prefixes are shared with the dossier's members. */
+    shareKeys: (prefixes: string[]) => void;
+    /** A member changed a shared key; Dexie is already up to date. */
+    onRemoteChange: (cb: (change: { dossierId: string; key: string; deleted: boolean }) => void) => () => void;
   };
 
   // ─── Utilities ────────────────────────────────────────────

@@ -78,6 +78,7 @@
   "field_event_elements": "Éléments concernés",
   "add_event": "Ajouter l'événement",
   "write_error": "L'enregistrement dans le graphe a échoué.",
+  "host_too_old": "MarkNeurone nécessite ZeroNeurone 2.63 ou une version ultérieure.",
   "annotations_load_error": "Impossible de charger les annotations de ce document.",
   "selection_multipage": "Une sélection doit tenir sur une seule page.",
   "add_element": "Ajouter un élément...",

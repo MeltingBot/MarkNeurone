@@ -15,6 +15,8 @@ vi.mock('../hostAPI.ts', () => ({
       get: async (_d: string, key: string) => data.get(key),
       set: async (_d: string, key: string, value: unknown) => void data.set(key, value),
       remove: async (_d: string, key: string) => void data.delete(key),
+      list: async (_d: string, prefix: string) =>
+        [...data.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key, value: data.get(key) })),
     },
     repositories: { elementRepository: { getByDossier: async () => elements } },
     fileService: { getAssetsByDossier: async () => assets },
@@ -29,7 +31,8 @@ beforeEach(() => {
     ['ocr-index', [H1, H2]],
     [`ocr:${H1}`, ocr],
     [`ocr:${H2}`, ocr],
-    [`ann:${H1}`, [{ id: 'x' }, { id: 'y' }]],
+    [`annotation:${H1}:x`, { id: 'x' }],
+    [`annotation:${H1}:y`, { id: 'y' }],
   ]);
   elements = [{ assetIds: ['a2'] }, {}];
   assets = [
@@ -49,7 +52,7 @@ describe('onDocumentDeleted', () => {
     expect(await onDocumentDeleted('d', 'a1')).toEqual({ filename: 'pv.pdf', annotations: 2 });
     expect(data.has(`ocr:${H1}`)).toBe(false);
     expect(data.get('ocr-index')).toEqual([H2]);
-    expect(data.get(`ann:${H1}`)).toHaveLength(2);
+    expect(data.has(`annotation:${H1}:x`) && data.has(`annotation:${H1}:y`)).toBe(true);
     expect(data.has(`ocr:${H2}`)).toBe(true);
   });
 
@@ -63,13 +66,11 @@ describe('onDocumentDeleted', () => {
 
 describe('absentDocuments', () => {
   it('lists deleted documents that still have annotations, with their file name', async () => {
-    data.set('ann-index', [H1, H2]);
-    data.set(`ann:${H2}`, [{ id: 'z' }]);
+    data.set(`annotation:${H2}:z`, { id: 'z' });
     expect(await absentDocuments('d')).toEqual([{ hash: H1, filename: 'pv.pdf', annotations: 2 }]);
   });
 
   it('gives no name when ZN no longer has the asset row', async () => {
-    data.set('ann-index', [H1]);
     assets = assets.filter((a) => a.id !== 'a1');
     expect(await absentDocuments('d')).toEqual([{ hash: H1, filename: null, annotations: 2 }]);
   });
@@ -77,11 +78,9 @@ describe('absentDocuments', () => {
 
 describe('forgetDocument', () => {
   it('deletes annotations, OCR, reference and view preferences of the document', async () => {
-    data.set('ann-index', [H1]);
     data.set(`ref:${H1}`, 'PV n° 347');
     data.set(`view:${H1}`, { suggestions: true });
     await forgetDocument('d', H1);
-    for (const k of [`ann:${H1}`, `ocr:${H1}`, `ref:${H1}`, `view:${H1}`]) expect(data.has(k), k).toBe(false);
-    expect(data.get('ann-index')).toEqual([]);
+    for (const k of [`annotation:${H1}:x`, `annotation:${H1}:y`, `ocr:${H1}`, `ref:${H1}`, `view:${H1}`]) expect(data.has(k), k).toBe(false);
   });
 });

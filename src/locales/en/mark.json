@@ -78,6 +78,7 @@
   "field_event_elements": "Related elements",
   "add_event": "Add event",
   "write_error": "Writing to the graph failed.",
+  "host_too_old": "MarkNeurone requires ZeroNeurone 2.63 or later.",
   "annotations_load_error": "Annotations of this document cannot be loaded.",
   "selection_multipage": "A selection must fit on a single page.",
   "add_element": "Add an element...",
