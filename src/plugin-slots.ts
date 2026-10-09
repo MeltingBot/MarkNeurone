@@ -14,10 +14,15 @@ import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
 import { onDocumentDeleted } from './services/documentData.ts';
 import { registerSourceScheme } from './services/sourceLinks.ts';
+import { shareAnnotations } from './services/annotationStore.ts';
 
 export async function registerSlots(): Promise<void> {
   const api = getHostAPI();
   const React = api.React;
+
+  // ─── Shared annotations (ZN 2.63 and later) ──────────────
+  // Before any write: the other members of a shared dossier receive them.
+  shareAnnotations();
   const { useState: useReactState, useEffect: useReactEffect, useCallback: useReactCallback } = React;
 
   // ─── i18n ────────────────────────────────────────────────

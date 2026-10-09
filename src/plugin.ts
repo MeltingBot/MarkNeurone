@@ -40,6 +40,9 @@ export async function initMarkNeurone(): Promise<void> {
     getGlobal: (key: string) => rawPD.getGlobal(PLUGIN_ID, key),
     setGlobal: (key: string, value: any) => rawPD.setGlobal(PLUGIN_ID, key, value),
     removeGlobal: (key: string) => rawPD.removeGlobal(PLUGIN_ID, key),
+    list: (dossierId: string, prefix: string) => rawPD.list(PLUGIN_ID, dossierId, prefix),
+    shareKeys: (prefixes: string[]) => rawPD.shareKeys(PLUGIN_ID, prefixes),
+    onRemoteChange: (cb: Parameters<typeof rawPD.onRemoteChange>[1]) => rawPD.onRemoteChange(PLUGIN_ID, cb),
   };
 
   setHostAPI({

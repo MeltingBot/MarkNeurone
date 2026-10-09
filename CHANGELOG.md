@@ -20,6 +20,7 @@
 - Nouvel élément : il est placé dans la partie visible du canvas, même avec un zoom fort ; il pouvait apparaître hors de l'écran, ce qui se remarquait avec le lecteur dans une fenêtre séparée.
 - Propriété, événement ou localisation sans élément choisi : sélectionner un autre passage abandonne le premier, dont le surlignage restait affiché.
 - Choix d'un élément : les éléments du document ouvert viennent en premier. La recherche par référence (« 00347/2026 ») liste tous les documents qui portent cette référence, puis les éléments surlignés dans ces documents ; le survol affiche ces références.
+- Dossier partagé (ZeroNeurone 2.63) : les passages sont partagés avec les autres membres du dossier, et un lien de source vers un passage s'ouvre chez chacun d'eux. Deux analystes peuvent surligner le même document en même temps. Tous les membres doivent passer à cette version : un membre resté sur une version précédente n'envoie ni ne reçoit de passages. Les passages déjà enregistrés sont convertis à la première ouverture du dossier. Le texte reconnu par l'OCR reste sur le poste qui l'a produit.
 - Événement : seul l'élément affiché est coché dans « Éléments concernés ». Les éléments surlignés dans la même phrase restent proposés, non cochés.
 - Événement : la description n'est plus préremplie avec la phrase, qui dans un procès-verbal de forme tabulaire peut couvrir tout un bloc de texte. « Reprendre la phrase » l'insère sur demande.
 
