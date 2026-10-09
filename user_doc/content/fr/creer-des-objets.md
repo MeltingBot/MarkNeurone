@@ -1,3 +1,8 @@
+---
+title: "Créer des objets à partir d'un passage"
+weight: 4
+---
+
 # Créer des objets à partir d'un passage
 
 Sélectionnez un passage à la souris. Une barre apparaît au-dessus de la sélection. Choisissez ce que représente le passage avec une touche, avec la barre ou avec le menu du clic droit :

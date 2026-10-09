@@ -1,3 +1,8 @@
+---
+title: "Documents numérisés et reconnaissance du texte"
+weight: 3
+---
+
 # Documents numérisés et reconnaissance du texte
 
 Un PDF numérisé ne contient qu'une image de chaque page. MarkNeurone le détecte à l'ouverture et lance la reconnaissance du texte (OCR) avec Tesseract, sur le poste, sans service en ligne.

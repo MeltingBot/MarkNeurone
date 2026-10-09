@@ -1,3 +1,8 @@
+---
+title: "Ouvrir et lire un document"
+weight: 2
+---
+
 # Ouvrir et lire un document
 
 ## Formats pris en charge

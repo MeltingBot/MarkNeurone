@@ -4,7 +4,7 @@ Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zero
 
 Il convient à tout document rédigé dont on veut tirer des éléments du graphe : rapports, articles de presse, statuts de société, décisions de justice, courriels, auditions. Il reprend en particulier la pratique des analystes qui surlignent les procès-verbaux avant de construire le graphe, d'où la reconnaissance du texte des documents numérisés et la lecture des en-têtes de PV. Les tableaux (relevés bancaires, fadettes) relèvent plutôt d'un import structuré.
 
-**Documentation utilisateur : [`user_doc/`](user_doc/README.md).**
+**Documentation utilisateur : [mark.zeroneurone.com](https://mark.zeroneurone.com/), sources dans [`user_doc/`](user_doc/content/fr/_index.md).**
 
 ## Principes
 
@@ -28,12 +28,12 @@ Il convient à tout document rédigé dont on veut tirer des éléments du graph
 
 ## Prise en main
 
-1. Installer le plugin : voir [Installation](user_doc/installation.md).
+1. Installer le plugin : voir [Installation](user_doc/content/fr/installation.md).
 2. Déposer le document sur le canvas de ZeroNeurone.
 3. Faire un clic droit sur l'élément qui porte le document, puis choisir « Lire dans MarkNeurone ».
 4. Sélectionner un passage, puis appuyer sur E (élément), P (propriété), V (événement) ou G (localisation).
 
-La suite est décrite dans la [documentation utilisateur](user_doc/README.md).
+La suite est décrite dans la [documentation utilisateur](https://mark.zeroneurone.com/).
 
 ## Développement
 
@@ -64,7 +64,7 @@ src/
   profiles/      profil par défaut : tags, raccourcis, propriétés utilisées comme alias
   locales/       traductions FR et EN
 bench/ocr/       banc d'essai de l'OCR
-user_doc/        documentation utilisateur
+user_doc/        documentation utilisateur (site Hugo, voir user_doc/README.md)
 ```
 
 ### Banc d'essai OCR

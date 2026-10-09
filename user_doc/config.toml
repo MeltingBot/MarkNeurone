@@ -1,0 +1,48 @@
+# Hugo configuration for MarkNeurone documentation
+# Theme: hugo-book (https://github.com/alex-shpak/hugo-book)
+
+baseURL = "https://mark.zeroneurone.com/"
+title = "MarkNeurone"
+theme = "hugo-book"
+
+# Same layout as the ZeroNeurone documentation (French only for now)
+defaultContentLanguage = "fr"
+defaultContentLanguageInSubdir = true
+
+[languages]
+  [languages.fr]
+    languageName = "Français"
+    contentDir = "content/fr"
+    weight = 1
+    [languages.fr.params]
+      bookToC = true
+
+[params]
+  # Book theme settings
+  BookTheme = "auto"
+  BookToC = true
+  BookSection = "/"
+  BookRepo = "https://github.com/MeltingBot/MarkNeurone"
+  BookEditPath = "edit/main/user_doc/content"
+  BookDateFormat = "2 January 2006"
+  # Pages link to each other as `lecture.md`, readable on GitHub too; a
+  # missing target fails the build.
+  BookPortableLinks = "error"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 4
+
+[menu]
+  [[menu.after]]
+    name = "ZeroNeurone"
+    url = "https://doc.zeroneurone.com/"
+    weight = 10
+  [[menu.after]]
+    name = "GitHub"
+    url = "https://github.com/MeltingBot/MarkNeurone"
+    weight = 20

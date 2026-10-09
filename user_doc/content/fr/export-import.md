@@ -1,3 +1,8 @@
+---
+title: "Export, import et suppression"
+weight: 8
+---
+
 # Export, import et suppression
 
 ## Export et import d'un dossier

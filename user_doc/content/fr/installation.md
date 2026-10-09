@@ -1,3 +1,8 @@
+---
+title: "Installation"
+weight: 1
+---
+
 # Installation
 
 MarkNeurone est distribué sous la forme d'un fichier unique, `markneurone.js`, qui contient le plugin, le moteur de reconnaissance du texte et le modèle de langue française. Aucun téléchargement n'a lieu ensuite.
@@ -37,4 +42,4 @@ Retirez l'entrée de `manifest.json` et le fichier `markneurone.js`. Les éléme
 
 ## Licence
 
-MarkNeurone est distribué sous licence MIT. Les licences des composants inclus (PDF.js, Tesseract.js, JSZip et leurs dépendances) figurent dans [`THIRD-PARTY-LICENSES.md`](../THIRD-PARTY-LICENSES.md) et en tête du fichier `markneurone.js`.
+MarkNeurone est distribué sous licence MIT. Les licences des composants inclus (PDF.js, Tesseract.js, JSZip et leurs dépendances) figurent dans [`THIRD-PARTY-LICENSES.md`](https://github.com/MeltingBot/MarkNeurone/blob/main/THIRD-PARTY-LICENSES.md) et en tête du fichier `markneurone.js`.

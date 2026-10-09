@@ -1,3 +1,8 @@
+---
+title: "Réglages"
+weight: 9
+---
+
 # Réglages
 
 La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la page d'accueil de ZeroNeurone, ouvre les réglages. Ils valent pour tous les dossiers. « Valeurs par défaut » rétablit les réglages d'origine, « Enregistrer » les applique.

@@ -1,3 +1,8 @@
+---
+title: "Suggestions"
+weight: 6
+---
+
 # Suggestions
 
 Le bouton « Afficher les suggestions » de la barre d'outils signale dans le document, en surlignage atténué, deux types de passages.

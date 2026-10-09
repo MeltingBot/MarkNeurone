@@ -14,7 +14,8 @@
     "build:plugin:dev": "vite build --config vite.config.plugin.ts --minify false",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "doc:build": "export $(grep -v '^#' .env 2>/dev/null | xargs) 2>/dev/null; docker build -t ${DOCKER_REGISTRY:-markneurone}-doc:latest ./user_doc"
   },
   "peerDependencies": {
     "zeroneurone-app": "*"

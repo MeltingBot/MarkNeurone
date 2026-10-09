@@ -9,4 +9,5 @@ bench/ocr/out/
 .playwright-mcp/
 
 # Technical notes on the ZN plugin API, kept local
-docs/
+/docs/
+.env

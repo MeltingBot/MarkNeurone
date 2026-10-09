@@ -1,3 +1,8 @@
+---
+title: "Raccourcis clavier"
+weight: 10
+---
+
 # Raccourcis clavier
 
 | Touche | Action |
