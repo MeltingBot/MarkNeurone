@@ -1796,6 +1796,7 @@ function DocumentElements(p: { env: Env; onPick: (entry: IndexEntry) => void }) 
                   h('span', { className: 'block text-sm text-text-primary truncate' }, element.label || env.t('unnamed')),
                   h('span', { className: 'flex flex-wrap items-center gap-1 mt-0.5' },
                     h('span', { className: S.HINT }, [pdf ? `p.${entry.first.page}` : '', env.t('index_passages', { count: entry.count })].filter(Boolean).join(' · ')),
+                    entry.toCheck ? h('span', { className: 'text-[10px] text-warning' }, env.t('passage_to_check')) : null,
                     element.tags.slice(0, 2).map((tag) => h('span', { key: tag, className: 'text-[10px] px-1 py-0.5 bg-bg-tertiary rounded text-text-secondary' }, tag)))))))
         : h('p', { className: 'px-4 py-3 text-xs text-text-tertiary' }, env.t('picker_none'))
       : h('p', { className: 'px-4 py-3 text-xs text-text-tertiary' }, env.t('index_empty')));

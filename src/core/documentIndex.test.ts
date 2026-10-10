@@ -42,3 +42,14 @@ describe('documentIndex', () => {
     ).toEqual([]);
   });
 });
+
+describe('documentIndex, passages to check', () => {
+  it('lists elements whose passages are still to be checked, and counts them', () => {
+    const index = documentIndex([
+      ann('1', 1, 10, { targetId: 'claire', status: 'suggested', origin: 'oneneurone' }),
+      ann('2', 1, 50, { targetId: 'claire' }),
+      ann('3', 1, 70, { targetId: 'thomas', status: 'rejected' }),
+    ]);
+    expect(index.map((e) => [e.elementId, e.count, e.toCheck])).toEqual([['claire', 2, 1]]);
+  });
+});

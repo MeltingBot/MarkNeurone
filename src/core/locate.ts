@@ -33,6 +33,12 @@ export interface Located {
 
 const LETTER = /[\p{L}\p{N}]/u;
 
+// A table has no punctuation: the whole of it reads as one "sentence", and
+// two names far apart in it would be taken for one statement. Longer than
+// this, no passage: a wrong passage misleads more than a document link.
+const MAX_SPAN = 200;
+const MAX_SENTENCE = 300;
+
 /** A hit that is a whole word: "Paul" is not found in "Paulette". */
 function wholeWord(pages: string[], h: SearchHit): boolean {
   const text = pages[h.page - 1];
@@ -66,10 +72,19 @@ function sentencesOf(pages: string[], hint: LocateRequest['hint']): Located[] {
   return out;
 }
 
-/** First whole-word hit of `name` in the sentence, in page offsets. */
-function inSentence(pages: string[], s: Located, name: string): Located | null {
-  const hit = words([pages[s.page - 1].slice(s.start, s.end)], name, undefined)[0];
-  return hit ? { page: s.page, start: s.start + hit.start, end: s.start + hit.end } : null;
+/** Whole-word hits of `name` in the sentence, in page offsets. */
+function inSentence(pages: string[], s: Located, name: string): Located[] {
+  return words([pages[s.page - 1].slice(s.start, s.end)], name, undefined).map((h) => ({ page: s.page, start: s.start + h.start, end: s.start + h.end }));
+}
+
+/** The narrowest span holding one of `as` and one of `bs`. */
+function closest(as: Located[], bs: Located[]): Located | null {
+  let best: Located | null = null;
+  for (const a of as) for (const b of bs) {
+    const span = spanning([a, b]);
+    if (!best || span.end - span.start < best.end - best.start) best = span;
+  }
+  return best;
 }
 
 /** From the first to the last of the given spans: the words that state the fact. */
@@ -82,11 +97,12 @@ function day(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function dateIn(pages: string[], s: Located, iso: string): Located | null {
+function datesIn(pages: string[], s: Located, iso: string): Located[] {
   const wanted = iso.slice(0, 10);
   const year = Number(wanted.slice(0, 4)) || undefined;
-  const m = findDates(pages[s.page - 1].slice(s.start, s.end), year).find((d) => day(d.date) === wanted);
-  return m ? { page: s.page, start: s.start + m.start, end: s.start + m.end } : null;
+  return findDates(pages[s.page - 1].slice(s.start, s.end), year)
+    .filter((d) => day(d.date) === wanted)
+    .map((m) => ({ page: s.page, start: s.start + m.start, end: s.start + m.end }));
 }
 
 export function locatePassage(pages: string[], req: LocateRequest): Located | null {
@@ -114,9 +130,8 @@ export function locatePassage(pages: string[], req: LocateRequest): Located | nu
     // Within the sentence, from one name to the other: sentences are not always
     // cut where they should be ("déclare :" followed by a quotation).
     for (const s of sentences) {
-      const a = inSentence(pages, s, name);
-      const b = a && inSentence(pages, s, other);
-      if (a && b) return spanning([a, b]);
+      const span = closest(inSentence(pages, s, name), inSentence(pages, s, other));
+      if (span && span.end - span.start <= MAX_SPAN) return span;
     }
     return null;
   }
@@ -124,10 +139,11 @@ export function locatePassage(pages: string[], req: LocateRequest): Located | nu
   // Event: the name and the date in one sentence; else the date alone, only
   // when a single sentence bears it (a wrong passage would mislead).
   if (!req.date) return null;
-  const dated = sentences.filter((s) => dateIn(pages, s, req.date!) !== null);
+  const dated = sentences.filter((s) => datesIn(pages, s, req.date!).length > 0);
   for (const s of dated) {
-    const who = inSentence(pages, s, name);
-    if (who) return spanning([who, dateIn(pages, s, req.date)!]);
+    const span = closest(inSentence(pages, s, name), datesIn(pages, s, req.date));
+    if (span && span.end - span.start <= MAX_SPAN) return span;
   }
-  return dated.length === 1 ? dated[0] : null;
+  const only = dated.length === 1 ? dated[0] : null;
+  return only && only.end - only.start <= MAX_SENTENCE ? only : null;
 }

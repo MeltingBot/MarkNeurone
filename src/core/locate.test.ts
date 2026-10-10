@@ -40,6 +40,15 @@ describe('locatePassage', () => {
     expect(locatePassage(pages, { kind: 'event', text: 'X', date: '2020-01-01' })).toBeNull();
   });
 
+  it('gives no passage for names far apart in a table, which reads as one sentence', () => {
+    const row = 'Nom Rôle Téléphone\nClaire MORVAN\nOrganisatrice, conductrice principale\n06 39 98 12 40\nÉpouse de Thomas, amie d\'enfance de Léa\n'
+      + 'Thomas MORVAN\nConducteur, photographe\n06 39 98 12 41\nÉpoux de Claire\nLéa GARNIER\nRéservations et budget\n06 39 98 27 15\nAmie d\'enfance de Claire, compagne d\'Hugo\n'
+      + 'Hugo GARNIER\nNavigation et randonnées\n06 39 98 27 16\nCompagnon de Léa\nLe groupe voyage dans le Renault Scénic de Claire et Thomas.';
+    expect(locatePassage([row], { kind: 'link', text: 'Claire MORVAN', otherName: 'Renault Scénic' })).toBeNull();
+    // Close enough: the nearest pair of names is kept.
+    expect(locatePassage([row], { kind: 'link', text: 'Hugo GARNIER', otherName: 'Navigation' })?.end).toBe(row.indexOf('Navigation') + 'Navigation'.length);
+  });
+
   it('starts from a quotation when one is given', () => {
     expect(locatePassage(pages, { kind: 'element', text: 'ALPHA', context: 'La société ALPHA a été dissoute' })).toEqual(at(2, 'ALPHA'));
     expect(locatePassage(pages, { kind: 'link', text: 'Paul DURAND', otherName: 'ALPHA', context: 'Paul DURAND confirme' })).toEqual(at(2, 'Paul DURAND confirme'));

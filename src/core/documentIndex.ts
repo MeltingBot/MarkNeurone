@@ -8,6 +8,8 @@ export interface IndexEntry {
   count: number;
   /** First of them in reading order. */
   first: Annotation;
+  /** Of them, passages accepted all at once in OneNeurone, still to be checked. */
+  toCheck: number;
 }
 
 /** Reading order within a page: text offset, else top of the first box (PDF y grows upwards). */
@@ -19,17 +21,19 @@ function before(a: Annotation, b: Annotation): boolean {
   return pa < pb || (pa === pb && oa < ob);
 }
 
-/** Elements anchored by validated highlights (links and suggestions aside), by first appearance. */
+/** Elements anchored by highlights, validated or to check (links and suggestions aside), by first appearance. */
 export function documentIndex(annotations: Annotation[]): IndexEntry[] {
   const byElement = new Map<string, IndexEntry>();
   for (const a of annotations) {
-    if (a.kind === 'link' || a.kind === 'suggestion' || a.status !== 'validated' || a.orphan) continue;
+    if (a.kind === 'link' || a.kind === 'suggestion' || a.status === 'rejected' || a.orphan) continue;
+    const toCheck = a.status === 'suggested' ? 1 : 0;
     const ids = new Set([...(a.targetId ? [a.targetId] : []), ...Object.keys(a.eventIds ?? {})]);
     for (const id of ids) {
       const entry = byElement.get(id);
-      if (!entry) byElement.set(id, { elementId: id, count: 1, first: a });
+      if (!entry) byElement.set(id, { elementId: id, count: 1, first: a, toCheck });
       else {
         entry.count++;
+        entry.toCheck += toCheck;
         if (before(a, entry.first)) entry.first = a;
       }
     }
