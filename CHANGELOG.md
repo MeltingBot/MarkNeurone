@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 1.6.0 (2026-10-10)
 
 - Courriels : un fichier EML s'ouvre dans le lecteur. Il affiche l'expéditeur, les destinataires, la date et le sujet, puis le texte du message (la version texte, ou à défaut la version HTML) et les noms des pièces jointes. Un message transféré en pièce jointe est affiché à la suite. Le contenu des pièces jointes n'est pas lu.
 
