@@ -14,7 +14,7 @@ Cette fonction nécessite ZeroNeurone 2.64 ou une version ultérieure. Sans OneN
 - **Document entier** : bouton « Extraire avec OneNeurone » dans la barre d'outils du lecteur.
 - **Partie du document** : sélectionnez un passage, puis choisissez « Extraire la sélection avec OneNeurone » dans la barre qui apparaît à côté de la sélection.
 
-Le lecteur se ferme et le panneau de OneNeurone s'ouvre sur le résultat. Rien n'est créé dans le graphe avant votre validation dans ce panneau.
+Le lecteur se réduit et le panneau de OneNeurone s'ouvre sur le document. Les passages des objets que vous acceptez apparaissent dans le lecteur lorsque vous le rouvrez. Rien n'est créé dans le graphe avant votre validation dans ce panneau.
 
 ## Source des objets créés
 

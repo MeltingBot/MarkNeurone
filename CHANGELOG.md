@@ -4,7 +4,7 @@
 
 - Image : une photo, une signature, un tampon ou un schéma d'un PDF peut servir de source à un élément (« Encadrer une image », touche I). Aucune reconnaissance du texte n'est lancée, le libellé se saisit à la main, et l'image découpée peut être jointe à l'élément, que ZeroNeurone affiche en miniature.
 - Lecteur : « Encadrer un passage » et « Encadrer une image » sont aussi dans la barre d'outils, et plus seulement dans le menu du clic droit.
-- OneNeurone (ZeroNeurone 2.64) : « Extraire avec OneNeurone » dans la barre d'outils du lecteur, et « Extraire la sélection avec OneNeurone » sur une sélection, lorsque OneNeurone est installé avec sa licence d'extraction. Le lecteur se ferme et le panneau de OneNeurone s'ouvre.
+- OneNeurone (ZeroNeurone 2.64) : « Extraire avec OneNeurone » dans la barre d'outils du lecteur, et « Extraire la sélection avec OneNeurone » sur une sélection, lorsque OneNeurone est installé avec sa licence d'extraction. Le lecteur se réduit et le panneau de OneNeurone s'ouvre.
 - OneNeurone : les éléments, liens et événements acceptés dans OneNeurone ont pour source leur passage du document, surligné, au lieu du document entier, lorsque MarkNeurone le retrouve. Les objets acceptés tous ensemble donnent des passages à vérifier (trait pointillé, mention « à vérifier »), à valider ou rejeter un par un dans la fiche.
 
 ## 1.4.1 (2026-10-09)

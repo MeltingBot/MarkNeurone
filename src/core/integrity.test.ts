@@ -130,3 +130,19 @@ describe('property of an event', () => {
     expect(next).toMatchObject({ targetId: 'A', eventIds: { A: 'ev1' } });
   });
 });
+
+describe('reconcile, passages just recorded', () => {
+  // OneNeurone records a passage before its new element reaches ZN's store.
+  const fresh = ann(A_EL, 'element', { targetId: 'NEW', origin: 'oneneurone', createdAt: 'now' });
+  const graph = { elements: [{ id: 'C', source: '' }], links: [] };
+
+  it('does not take a settling passage for an orphan', () => {
+    const { annotations: out, changed } = reconcile([fresh], graph, { settling: (a) => a.createdAt === 'now' });
+    expect(changed).toBe(0);
+    expect(out[0]).toBe(fresh);
+  });
+
+  it('flags it once the delay is over and the object is still missing', () => {
+    expect(reconcile([fresh], graph, { settling: () => false }).annotations[0].orphan).toBe(true);
+  });
+});

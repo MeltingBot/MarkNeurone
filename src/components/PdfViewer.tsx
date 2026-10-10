@@ -28,7 +28,6 @@ import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, t
 import { deleteOcr, loadOcr, saveOcrPage } from '../services/ocrStore.ts';
 import { pdfPageText, type PdfTextItem } from '../core/pageText.ts';
 import { sendToExtraction, useExtraction } from '../services/oneneurone.ts';
-import { closeReader } from '../readerLauncher.ts';
 import { guardTextSelection } from '../services/textSelection.ts';
 import { renderOcrLayer } from '../services/ocrLayer.ts';
 import { renderTextBlocks, TEXT_SHEET_CSS, TEXT_SHEET_WIDTH } from '../services/textSheet.ts';
@@ -541,6 +540,8 @@ function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string
 }
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
+/** How long a new passage waits for its object before it can be taken for an orphan. */
+const SETTLING_MS = 10_000;
 /** Framed picture: longest side in pixels, and JPEG quality. */
 const AREA_MAX_PX = 1600;
 const AREA_JPEG_QUALITY = 0.9;
@@ -966,7 +967,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   );
   React.useEffect(() => {
     if (!dossierReady || !annotations.length || (!elements.length && !links.length)) return;
-    const { annotations: next, changed, moved } = reconcile(annotations, { elements, links });
+    // A passage just recorded (e.g. by OneNeurone while the reader is minimized)
+    // may come before its object reaches ZN's store: not taken for an orphan.
+    const settling = (a: Annotation) => Date.now() - Date.parse(a.createdAt) < SETTLING_MS;
+    const { annotations: next, changed, moved } = reconcile(annotations, { elements, links }, { settling });
     if (!changed) return;
     // The sheet follows a merged element to its target.
     setActiveElementId((id) => (id && moved[id] ? moved[id] : id));
@@ -2041,7 +2045,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   /**
    * Hands the document, or the selected part of it, to OneNeurone: its panel
-   * shows what it extracted, the reader closes. Offsets refer to these pages.
+   * shows what it extracted, the reader is minimized (its passages appear as
+   * they are accepted). Offsets refer to these pages.
    */
   const extractWithOne = (range?: { page: number; start: number; end: number }) => {
     if (!extraction) return;
@@ -2057,7 +2062,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       return;
     }
     setPending(null);
-    closeReader();
+    onMinimize();
     api.toast.info(t('extraction_sent'));
   };
 

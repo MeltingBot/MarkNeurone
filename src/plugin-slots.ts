@@ -9,7 +9,7 @@ import { MarkReaderModal } from './components/MarkReaderModal.tsx';
 import { MarkerPanel } from './components/MarkerPanel.tsx';
 import { SettingsModal } from './components/SettingsModal.tsx';
 import { loadSettings, openSettings, setSettingsOpener } from './services/settingsStore.ts';
-import { openReader, setReaderCloser, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
+import { openReader, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
 import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
 import { onDocumentDeleted } from './services/documentData.ts';
@@ -80,11 +80,9 @@ export async function registerSlots(): Promise<void> {
         setTarget(next);
         setMinimized(false);
       });
-      setReaderCloser(() => setTarget(null));
       setSettingsOpener(setSettingsOpen);
       return () => {
         setReaderOpener(null);
-        setReaderCloser(null);
         setSettingsOpener(null);
       };
     }, []);

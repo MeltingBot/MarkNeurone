@@ -37,7 +37,16 @@ function sameIds(a: Record<string, string> = {}, b: Record<string, string> = {})
  * the source field). Failing all that, the annotation is flagged orphan and
  * keeps its last target, so that an undo of a deletion restores it.
  */
-export function reconcile(annotations: Annotation[], graph: LiveGraph): Reconciled {
+export interface ReconcileOptions {
+  /**
+   * Passages just recorded whose object may not be in the store yet (ZN
+   * writes a new object to its Y.Doc first, to its store a little later):
+   * not flagged orphan while this holds.
+   */
+  settling?: (a: Annotation) => boolean;
+}
+
+export function reconcile(annotations: Annotation[], graph: LiveGraph, options: ReconcileOptions = {}): Reconciled {
   const elementIds = new Set(graph.elements.map((e) => e.id));
   const byToken = new Map<string, string[]>();
   for (const el of graph.elements) for (const t of anchorIds(el.source)) byToken.set(t, [...(byToken.get(t) ?? []), el.id]);
@@ -85,6 +94,7 @@ export function reconcile(annotations: Annotation[], graph: LiveGraph): Reconcil
       }
     }
 
+    if (next.orphan && !a.orphan && options.settling?.(a)) return a;
     if (next.orphan === undefined) delete next.orphan;
     const differs =
       next.targetId !== a.targetId ||
