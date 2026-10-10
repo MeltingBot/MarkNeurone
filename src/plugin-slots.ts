@@ -61,9 +61,14 @@ export async function registerSlots(): Promise<void> {
     icon: 'Highlighter',
     version: MN_PLUGIN_VERSION,
     license: 'MIT',
+    docUrl: 'https://mark.zeroneurone.com',
     features: [],
     onConfigure: () => openSettings(),
-    actions: [],
+    actions: [{
+      label: 'GitHub',
+      icon: 'Github',
+      onClick: () => { window.open('https://github.com/MeltingBot/MarkNeurone', '_blank', 'noopener,noreferrer'); },
+    }],
   }, PLUGIN_ID);
 
   // ─── app:global ──────────────────────────────────────────
