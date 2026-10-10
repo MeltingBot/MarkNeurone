@@ -191,9 +191,19 @@ export function concernedElements(a: Annotation): string[] {
 }
 
 export async function deleteAnnotation(ctx: DocumentContext, a: Annotation): Promise<void> {
+  await removePassage(ctx.dossierId, a);
+}
+
+/** The highlight and its anchor in the graph object's source; never the object. */
+async function removePassage(dossierId: string, a: Annotation): Promise<void> {
   if (a.kind === 'link' && a.targetId) await graph.detachLinkAnchor(a.targetId, a.id);
   for (const elementId of anchoredElements(a)) await graph.detachAnchor(elementId, a.id);
-  await removeAnnotation(ctx.dossierId, a.documentHash, a.id);
+  await removeAnnotation(dossierId, a.documentHash, a.id);
+}
+
+/** Removes highlights whose graph object is gone (orphans), on the user's request. */
+export async function removeOrphans(dossierId: string, annotations: Annotation[]): Promise<void> {
+  for (const a of annotations) if (a.orphan) await removePassage(dossierId, a);
 }
 
 /** A passage found by OneNeurone and accepted all at once, checked by the user. */

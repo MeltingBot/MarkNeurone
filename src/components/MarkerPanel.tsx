@@ -11,7 +11,7 @@ import type { Annotation } from '../core/model.ts';
 import { annotatedDocuments, getAnnotations, getVersion, loadAnnotations, subscribe } from '../services/annotationStore.ts';
 import { absentDocuments, forgetDocument, type AbsentDocument } from '../services/documentData.ts';
 import { getReferencesVersion, loadReference, subscribeReferences } from '../services/documentRef.ts';
-import { concernedElements } from '../services/qualify.ts';
+import { concernedElements, removeOrphans } from '../services/qualify.ts';
 import { isPdf, type DocumentAsset } from '../services/documentAssets.ts';
 import { openReader } from '../readerLauncher.ts';
 import * as S from './znStyles.ts';
@@ -94,14 +94,22 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
   }, [dossierId, version, assets]);
   const absentSection = absent.length ? h(AbsentSection, { key: 'absent', dossierId, documents: absent }) : null;
 
+  // Highlights whose graph object is gone, in documents still in the dossier.
+  const orphans = React.useMemo(
+    () => hashes.flatMap((hash) => getAnnotations(dossierId, hash).filter((a) => a.orphan && a.kind !== 'suggestion' && a.status !== 'rejected')),
+    [hashes, dossierId, version],
+  );
+  const orphanSection = orphans.length ? h(OrphanSection, { key: 'orphans', dossierId, orphans }) : null;
+  const sections = h(React.Fragment, null, orphanSection, absentSection);
+
   const icons: Record<string, ReactTypes.ElementType> = { element: Highlighter, property: Tag, event: Calendar, location: MapPin, link: Link2 };
   const open = (asset: DocumentAsset, a: Annotation) => openReader({ dossierId, assetId: asset.id, annotationId: a.id });
 
   if (!selectedElements.size && !selectedLinks.size) {
-    return h('div', null, h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_select')), absentSection);
+    return h('div', null, h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_select')), sections);
   }
   if (!groups.length) {
-    return h('div', null, h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_none')), absentSection);
+    return h('div', null, h('p', { className: 'p-4 text-xs text-text-tertiary' }, t('marker_none')), sections);
   }
   // With many documents, sections start closed.
   const startOpen = groups.length <= 3;
@@ -132,7 +140,35 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
                 row.items.some((a) => a.origin === 'oneneurone') ? h('span', null, `· ${t('origin_oneneurone')}`) : null,
                 row.items.some((a) => a.status === 'suggested') ? h('span', { className: 'text-warning' }, `· ${t('passage_to_check')}`) : null)));
         }))),
-    absentSection);
+    sections);
+}
+
+/** Highlights whose element, event or link was deleted: removed together, after confirmation. */
+function OrphanSection(p: { dossierId: string; orphans: Annotation[] }) {
+  const api = getHostAPI();
+  const React = api.React as typeof ReactTypes;
+  const h = React.createElement;
+  const t = (key: string, opts?: Record<string, unknown>) => api.i18n.t(key, { ns: I18N_NS, ...opts });
+  const [confirming, setConfirming] = React.useState(false);
+  const remove = () => {
+    setConfirming(false);
+    removeOrphans(p.dossierId, p.orphans).catch((err: unknown) => {
+      console.error('MarkNeurone: cannot remove orphan highlights', err);
+      api.toast.error(t('orphans_remove_error'));
+    });
+  };
+  const link = 'text-xs text-accent hover:underline shrink-0';
+  const count = p.orphans.length;
+  return h(DocSection, { title: t('orphans_title'), count, startOpen: false },
+    h('div', { className: 'flex items-center gap-2 px-2 py-1 text-xs' },
+      confirming
+        ? h(React.Fragment, null,
+            h('span', { className: 'flex-1 min-w-0 text-text-primary' }, t('orphans_remove_confirm', { count })),
+            h('button', { type: 'button', onClick: remove, className: link }, t('orphans_remove')),
+            h('button', { type: 'button', onClick: () => setConfirming(false), className: link }, t('cancel')))
+        : h(React.Fragment, null,
+            h('span', { className: 'flex-1 min-w-0 text-text-primary' }, t('orphans_count', { count })),
+            h('button', { type: 'button', onClick: () => setConfirming(true), className: link }, t('orphans_remove')))));
 }
 
 /** Deleted documents whose highlights are kept; each can be deleted, after confirmation. */

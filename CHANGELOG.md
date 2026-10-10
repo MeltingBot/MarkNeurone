@@ -2,6 +2,7 @@
 
 ## 1.5.0 (non publiée)
 
+- Onglet Marqueur : section « Surlignages orphelins », qui retire en une fois, après confirmation, les surlignages dont l'élément, l'événement ou le lien a été supprimé.
 - Image : une photo, une signature, un tampon ou un schéma d'un PDF peut servir de source à un élément (« Encadrer une image », touche I). Aucune reconnaissance du texte n'est lancée, le libellé se saisit à la main, et l'image découpée peut être jointe à l'élément, que ZeroNeurone affiche en miniature.
 - Lecteur : « Encadrer un passage » et « Encadrer une image » sont aussi dans la barre d'outils, et plus seulement dans le menu du clic droit.
 - OneNeurone (ZeroNeurone 2.64) : « Extraire avec OneNeurone » dans la barre d'outils du lecteur, et « Extraire la sélection avec OneNeurone » sur une sélection, lorsque OneNeurone est installé avec sa licence d'extraction. Le lecteur se réduit et le panneau de OneNeurone s'ouvre.

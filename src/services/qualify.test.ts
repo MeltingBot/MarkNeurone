@@ -15,12 +15,14 @@ vi.mock('./graphWriter.ts', () => ({
   },
   attachImage: async (...args: unknown[]) => void calls.push({ fn: 'attachImage', args }),
   getElement: (id: string) => (id === 'el' ? { id, label: 'Jean DUPONT' } : undefined),
+  detachAnchor: async (...args: unknown[]) => void calls.push({ fn: 'detachAnchor', args }),
+  detachLinkAnchor: async (...args: unknown[]) => void calls.push({ fn: 'detachLinkAnchor', args }),
 }));
 vi.mock('./annotationStore.ts', () => ({
   saveAnnotation: async (_dossierId: string, a: Annotation) => void saved.push(a),
-  removeAnnotation: async () => {},
+  removeAnnotation: async (...args: unknown[]) => void calls.push({ fn: 'removeAnnotation', args }),
 }));
-const { qualifyAsExistingElement, qualifyAsExistingProperty, qualifyAsNewElement, validatePassage } = await import('./qualify.ts');
+const { qualifyAsExistingElement, qualifyAsExistingProperty, qualifyAsNewElement, removeOrphans, validatePassage } = await import('./qualify.ts');
 
 const ctx = { dossierId: 'd', asset: { id: 'a', hash: 'h', filename: 'pv.pdf', mimeType: 'application/pdf', size: 1 }, reference: 'PV n° 347' };
 const passage = { page: 2, quads: [], text: '06 12 34 56 78', clientBox: { left: 0, top: 0, right: 0, bottom: 0 } };
@@ -90,5 +92,19 @@ describe('validatePassage', () => {
     const a = { id: 'x', documentId: 'a', documentHash: 'h', page: 1, quads: [], text: 'ALPHA', kind: 'element', status: 'suggested', origin: 'oneneurone', createdAt: '' } as Annotation;
     await validatePassage(ctx, a);
     expect(saved[0]).toMatchObject({ id: 'x', status: 'validated', origin: 'oneneurone' });
+  });
+});
+
+describe('removeOrphans', () => {
+  it('removes only the highlights whose object is gone, never a graph object', async () => {
+    calls.length = 0;
+    const base = { documentId: 'a', documentHash: 'h', page: 1, quads: [], text: 'x', status: 'validated', origin: 'oneneurone', createdAt: '' };
+    await removeOrphans('d', [
+      { ...base, id: 'o1', kind: 'element', targetId: 'gone', orphan: true },
+      { ...base, id: 'o2', kind: 'link', targetId: 'lost', linkEnds: ['a', 'b'], orphan: true },
+      { ...base, id: 'ok', kind: 'element', targetId: 'el' },
+    ] as Annotation[]);
+    expect(calls.filter((c) => c.fn === 'removeAnnotation').map((c) => c.args[2])).toEqual(['o1', 'o2']);
+    expect(calls.some((c) => c.args.includes('ok'))).toBe(false);
   });
 });
