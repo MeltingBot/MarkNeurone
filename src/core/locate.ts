@@ -38,6 +38,16 @@ const LETTER = /[\p{L}\p{N}]/u;
 // this, no passage: a wrong passage misleads more than a document link.
 const MAX_SPAN = 200;
 const MAX_SENTENCE = 300;
+// In a table each cell is a line of its own: a span over more lines than a
+// sentence wraps across crosses cells, even when it is short.
+const MAX_LINE_BREAKS = 2;
+
+/** Short enough, and over few enough lines, to be one statement. */
+function plausible(pages: string[], span: Located, maxLength: number): boolean {
+  if (span.end - span.start > maxLength) return false;
+  const breaks = pages[span.page - 1].slice(span.start, span.end).split('\n').length - 1;
+  return breaks <= MAX_LINE_BREAKS;
+}
 
 /** A hit that is a whole word: "Paul" is not found in "Paulette". */
 function wholeWord(pages: string[], h: SearchHit): boolean {
@@ -131,7 +141,7 @@ export function locatePassage(pages: string[], req: LocateRequest): Located | nu
     // cut where they should be ("déclare :" followed by a quotation).
     for (const s of sentences) {
       const span = closest(inSentence(pages, s, name), inSentence(pages, s, other));
-      if (span && span.end - span.start <= MAX_SPAN) return span;
+      if (span && plausible(pages, span, MAX_SPAN)) return span;
     }
     return null;
   }
@@ -142,8 +152,8 @@ export function locatePassage(pages: string[], req: LocateRequest): Located | nu
   const dated = sentences.filter((s) => datesIn(pages, s, req.date!).length > 0);
   for (const s of dated) {
     const span = closest(inSentence(pages, s, name), datesIn(pages, s, req.date));
-    if (span && span.end - span.start <= MAX_SPAN) return span;
+    if (span && plausible(pages, span, MAX_SPAN)) return span;
   }
   const only = dated.length === 1 ? dated[0] : null;
-  return only && only.end - only.start <= MAX_SENTENCE ? only : null;
+  return only && plausible(pages, only, MAX_SENTENCE) ? only : null;
 }

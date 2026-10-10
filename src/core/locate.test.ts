@@ -45,6 +45,8 @@ describe('locatePassage', () => {
       + 'Thomas MORVAN\nConducteur, photographe\n06 39 98 12 41\nÉpoux de Claire\nLéa GARNIER\nRéservations et budget\n06 39 98 27 15\nAmie d\'enfance de Claire, compagne d\'Hugo\n'
       + 'Hugo GARNIER\nNavigation et randonnées\n06 39 98 27 16\nCompagnon de Léa\nLe groupe voyage dans le Renault Scénic de Claire et Thomas.';
     expect(locatePassage([row], { kind: 'link', text: 'Claire MORVAN', otherName: 'Renault Scénic' })).toBeNull();
+    // Short, but from one row of the table to the next.
+    expect(locatePassage([row], { kind: 'link', text: 'Claire MORVAN', otherName: 'Thomas MORVAN' })).toBeNull();
     // Close enough: the nearest pair of names is kept.
     expect(locatePassage([row], { kind: 'link', text: 'Hugo GARNIER', otherName: 'Navigation' })?.end).toBe(row.indexOf('Navigation') + 'Navigation'.length);
   });
