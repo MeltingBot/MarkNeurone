@@ -9,13 +9,14 @@ import { MarkReaderModal } from './components/MarkReaderModal.tsx';
 import { MarkerPanel } from './components/MarkerPanel.tsx';
 import { SettingsModal } from './components/SettingsModal.tsx';
 import { loadSettings, openSettings, setSettingsOpener } from './services/settingsStore.ts';
-import { openReader, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
+import { openReader, setReaderCloser, setReaderOpener, type ReaderTarget } from './readerLauncher.ts';
 import { readableAssetsOfElements } from './services/documentAssets.ts';
 import { exportAnnotations, importAnnotations, type ZipLike } from './services/transfer.ts';
 import { onDocumentDeleted } from './services/documentData.ts';
 import { registerSourceScheme } from './services/sourceLinks.ts';
 import { shareAnnotations } from './services/annotationStore.ts';
 import { shareReferences } from './services/documentRef.ts';
+import { ANCHORS_SERVICE, markAnchorsV1 } from './services/anchorService.ts';
 
 export async function registerSlots(): Promise<void> {
   const api = getHostAPI();
@@ -42,6 +43,12 @@ export async function registerSlots(): Promise<void> {
   // Before any write: the other members of a shared dossier receive them.
   shareAnnotations();
   shareReferences();
+
+  // ─── Services for other plugins (ZN 2.64 and later) ─────
+  // OneNeurone asks for the passage of what it extracted.
+  if (api.features?.pluginServices && api.pluginServices) {
+    api.pluginServices.provide(ANCHORS_SERVICE, markAnchorsV1);
+  }
 
   // Settings apply to every dossier; defaults stay in use if they cannot be read.
   await loadSettings().catch((err: unknown) => console.error('MarkNeurone: cannot load settings', err));
@@ -73,9 +80,11 @@ export async function registerSlots(): Promise<void> {
         setTarget(next);
         setMinimized(false);
       });
+      setReaderCloser(() => setTarget(null));
       setSettingsOpener(setSettingsOpen);
       return () => {
         setReaderOpener(null);
+        setReaderCloser(null);
         setSettingsOpener(null);
       };
     }, []);

@@ -30,7 +30,12 @@ export interface MarkHostAPI {
     sourceSchemes?: boolean;
     /** pluginData.shareKeys / list / onRemoteChange (ZN 2.63 and later, required) */
     sharedPluginData?: boolean;
+    /** pluginServices (ZN 2.64 and later) */
+    pluginServices?: boolean;
   };
+
+  // ─── Services between plugins (ZN 2.64 and later) ─────────
+  pluginServices?: PluginServices;
 
   // ─── i18n ─────────────────────────────────────────────────
   i18n: I18nInstance;
@@ -116,6 +121,16 @@ export interface MarkHostAPI {
 }
 
 // ─── Supporting types ─────────────────────────────────────────
+
+/** Scoped: what MarkNeurone provides is its own (names start with "mark-neurone:"). */
+export interface PluginServices {
+  provide: (name: string, impl: { version: number }) => { revoke: () => void; changed: () => void };
+  get: <T>(name: string) => T | undefined;
+  subscribe: (cb: () => void) => () => void;
+  getVersion: () => number;
+  /** React hook */
+  use: <T>(name: string) => T | undefined;
+}
 
 export interface ImportDossierOptions {
   targetDossierId?: string;

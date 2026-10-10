@@ -34,6 +34,7 @@ export async function register(api: any): Promise<void> {
     events: api.events,
     toast: api.toast,
     pluginData: api.pluginData,
+    pluginServices: api.pluginServices,
     generateUUID: api.generateUUID,
   };
 

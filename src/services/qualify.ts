@@ -196,6 +196,11 @@ export async function deleteAnnotation(ctx: DocumentContext, a: Annotation): Pro
   await removeAnnotation(ctx.dossierId, a.documentHash, a.id);
 }
 
+/** A passage found by OneNeurone and accepted all at once, checked by the user. */
+export async function validatePassage(ctx: DocumentContext, a: Annotation): Promise<void> {
+  await saveAnnotation(ctx.dossierId, { ...a, status: 'validated' });
+}
+
 // ─── Reattaching an orphan ───────────────────────────────────
 // Always a user's choice: the element is picked in the sheet, never guessed.
 

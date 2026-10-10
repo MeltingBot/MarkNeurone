@@ -23,6 +23,7 @@ Cette documentation s'adresse aux utilisateurs du plugin. Les informations desti
 8. [Export, import et suppression](export-import.md)
 9. [Réglages](reglages.md)
 10. [Raccourcis clavier](raccourcis.md)
+11. [Extraction avec OneNeurone](oneneurone.md)
 
 ## Principes de fonctionnement
 

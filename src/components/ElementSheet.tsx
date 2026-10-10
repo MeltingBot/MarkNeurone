@@ -24,6 +24,7 @@ import type { Passage } from '../services/selectionCapture.ts';
 import {
   concernedElements,
   deleteAnnotation,
+  validatePassage,
   qualifyAsEvent,
   qualifyAsExistingElement,
   qualifyAsNewElement,
@@ -1534,13 +1535,29 @@ function PassageRows(p: { env: Env; items: Annotation[]; selectedId: string | nu
       h(a.area ? api.icons.Image : icons[a.kind] ?? Highlighter, { size: 12, className: 'text-text-tertiary shrink-0' }),
       h('button', { type: 'button', onClick: () => p.onGoto(a), className: 'flex-1 min-w-0 text-left' },
         h('span', { className: 'block text-xs text-text-primary truncate' }, a.text),
-        h('span', { className: S.HINT }, [isPdf(env.ctx.asset) ? `p.${a.page}` : '', a.kind === 'property' ? a.propertyKey : ''].filter(Boolean).join(' · ') || null)),
+        h('span', { className: S.HINT }, [
+          isPdf(env.ctx.asset) ? `p.${a.page}` : '',
+          a.kind === 'property' ? a.propertyKey : '',
+          a.origin === 'oneneurone' ? env.t('origin_oneneurone') : '',
+          a.status === 'suggested' ? env.t('passage_to_check') : '',
+        ].filter(Boolean).join(' · ') || null)),
+      // To check: kept (validated) or rejected, one by one.
+      a.status === 'suggested'
+        ? h('button', {
+            type: 'button',
+            onClick: () => env.run(() => validatePassage(env.ctx, a)),
+            title: env.t('passage_validate'),
+            'aria-label': env.t('passage_validate'),
+            className: S.ICON_BUTTON_ACCENT,
+          }, h(api.icons.Check, { size: 12 }))
+        : null,
       h('button', {
         type: 'button',
         onClick: () => env.run(() => deleteAnnotation(env.ctx, a)),
-        title: env.t('delete_passage'),
+        title: env.t(a.status === 'suggested' ? 'passage_reject' : 'delete_passage'),
+        'aria-label': env.t(a.status === 'suggested' ? 'passage_reject' : 'delete_passage'),
         className: S.ICON_BUTTON_DANGER,
-      }, h(Trash2, { size: 12 })))));
+      }, h(a.status === 'suggested' ? api.icons.X : Trash2, { size: 12 })))));
 }
 
 // ─── Links ───────────────────────────────────────────────────

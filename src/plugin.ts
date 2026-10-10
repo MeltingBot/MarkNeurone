@@ -45,6 +45,18 @@ export async function initMarkNeurone(): Promise<void> {
     onRemoteChange: (cb: Parameters<typeof rawPD.onRemoteChange>[1]) => rawPD.onRemoteChange(PLUGIN_ID, cb),
   };
 
+  // Same for pluginServices: the raw form takes the provider's id first.
+  const rawPS = (_pluginAPI as any).pluginServices;
+  const scopedPluginServices = rawPS
+    ? {
+        provide: (name: string, impl: { version: number }) => rawPS.provide(PLUGIN_ID, name, impl),
+        get: rawPS.get,
+        subscribe: rawPS.subscribe,
+        getVersion: rawPS.getVersion,
+        use: rawPS.use,
+      }
+    : undefined;
+
   setHostAPI({
     registerPlugin: _registerPlugin as any,
     registerPlugins: _registerPlugins as any,
@@ -75,6 +87,7 @@ export async function initMarkNeurone(): Promise<void> {
     events: _pluginAPI.events as any,
     toast: _pluginAPI.toast,
     pluginData: scopedPluginData,
+    pluginServices: scopedPluginServices,
     generateUUID: _generateUUID,
   });
 

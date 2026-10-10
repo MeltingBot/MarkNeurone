@@ -27,11 +27,13 @@ interface Props {
   onReread?: () => void;
   /** Verb mode (setting): the words of a relation become a link between the nearest elements. */
   onLink?: () => void;
+  /** OneNeurone: extract from the selected words. */
+  onExtract?: () => void;
 }
 
 const KEYS: Record<string, Gesture> = { e: 'element', p: 'property', v: 'event', g: 'location' };
 
-export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject, onReread, onLink }: Props) {
+export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, titleHint, onReject, onReread, onLink, onExtract }: Props) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -123,6 +125,11 @@ export function SelectionBar({ passage, onChoose, onCancel, title, titleColor, t
   passage.area ? null : button('event', `${t('gesture_event')} (V)`, icons.Calendar, () => onChoose('event')),
   passage.area ? null : button('location', `${t('gesture_location')} (G)`, icons.MapPin, () => onChoose('location')),
   onLink ? button('link', `${t('gesture_link')} (L)`, icons.Link2, onLink) : null,
+  onExtract
+    ? h(React.Fragment, null,
+        h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }),
+        button('extract', t('extraction_selection'), icons.BrainCircuit, onExtract))
+    : null,
   onReread
     ? h(React.Fragment, null,
         h('span', { className: 'mx-0.5 self-stretch border-l border-border-default' }),

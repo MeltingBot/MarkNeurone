@@ -121,8 +121,16 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
                 meta ? h('span', null, `${meta} ·`) : null,
                 isPdf(asset) ? h('span', null, 'p.') : null,
                 row.items.map((a, i) =>
-                  h('button', { key: a.id, type: 'button', onClick: () => open(asset, a), className: 'hover:text-accent hover:underline' },
-                    isPdf(asset) ? String(a.page) : String(i + 1))))));
+                  h('button', {
+                    key: a.id,
+                    type: 'button',
+                    onClick: () => open(asset, a),
+                    // To check: dotted, as its highlight in the document.
+                    className: `hover:text-accent hover:underline${a.status === 'suggested' ? ' underline decoration-dotted' : ''}`,
+                    title: a.status === 'suggested' ? t('passage_to_check') : undefined,
+                  }, isPdf(asset) ? String(a.page) : String(i + 1))),
+                row.items.some((a) => a.origin === 'oneneurone') ? h('span', null, `· ${t('origin_oneneurone')}`) : null,
+                row.items.some((a) => a.status === 'suggested') ? h('span', { className: 'text-warning' }, `· ${t('passage_to_check')}`) : null)));
         }))),
     absentSection);
 }

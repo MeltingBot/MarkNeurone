@@ -26,11 +26,14 @@ import { trimPunctuation } from '../core/sentences.ts';
 import { findInPages, type SearchHit } from '../core/search.ts';
 import { buildOcrPage, ocrPageText, rangeConfidence, rangeInBox, wordsInRange, type OcrPage } from '../core/ocrLayout.ts';
 import { deleteOcr, loadOcr, saveOcrPage } from '../services/ocrStore.ts';
+import { pdfPageText, type PdfTextItem } from '../core/pageText.ts';
+import { sendToExtraction, useExtraction } from '../services/oneneurone.ts';
+import { closeReader } from '../readerLauncher.ts';
 import { guardTextSelection } from '../services/textSelection.ts';
 import { renderOcrLayer } from '../services/ocrLayer.ts';
 import { renderTextBlocks, TEXT_SHEET_CSS, TEXT_SHEET_WIDTH } from '../services/textSheet.ts';
 import { blocksText, textFormatOf, type TextBlock } from '../core/textDocument.ts';
-import { getAnnotations, getVersion, loadAnnotations, subscribe, writeDocument } from '../services/annotationStore.ts';
+import { getAnnotations, getVersion, loadAnnotations, saveAnnotation, subscribe, writeDocument } from '../services/annotationStore.ts';
 import { reconcile } from '../core/integrity.ts';
 import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../services/znTypes.ts';
 import { SelectionBar, type Gesture } from './SelectionBar.tsx';
@@ -100,6 +103,8 @@ interface Highlight {
   color: string;
   kind: Annotation['kind'];
   selected: boolean;
+  /** Passage accepted all at once in OneNeurone: still to be checked. */
+  toCheck?: boolean;
 }
 
 /** A link shown in the document: dotted arc between two highlights of one page. */
@@ -132,6 +137,8 @@ interface PageProps {
   blocks: TextBlock[] | null;
   /** Text documents: called with the sheet height (page units) when it changes. */
   onHeight?: (height: number) => void;
+  /** The page's text layer was (re)rendered. */
+  onTextLayer?: () => void;
   pageNumber: number;
   size: PageInfo;
   scale: number;
@@ -168,6 +175,8 @@ interface PageText {
 }
 
 function highlightStyle(hl: Highlight): ReactTypes.CSSProperties {
+  // To check: faint, framed with a dashed line, until the user validates it.
+  if (hl.toCheck) return { background: `color-mix(in srgb, ${hl.color} 12%, transparent)`, outline: `1px dashed ${hl.color}`, outlineOffset: 1 };
   // Highlighter look: tinted background multiplied over the page.
   const tint = `color-mix(in srgb, ${hl.color} 38%, transparent)`;
   if (hl.kind === 'property') {
@@ -197,7 +206,7 @@ interface PageSuggestion {
   color: string;
 }
 
-function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, zoneMode, onZone, ocr, marks, onMark }: PageProps) {
+function PdfPage({ doc, blocks, onHeight, onTextLayer, pageNumber, size, scale, root, highlights, arcs, searchHits, suggestions, zoneMode, onZone, ocr, marks, onMark }: PageProps) {
   const api = getHostAPI();
   const React = api.React as typeof ReactTypes;
   const h = React.createElement;
@@ -289,6 +298,7 @@ function PdfPage({ doc, blocks, onHeight, pageNumber, size, scale, root, highlig
       if (cancelled) return;
       unguard = guardTextSelection(textDiv);
       setTextVersion((v) => v + 1);
+      onTextLayer?.();
     })().catch((err: unknown) => {
       if (!cancelled && (err as { name?: string })?.name !== 'RenderingCancelledException') {
         console.error('MarkNeurone: page rendering failed', pageNumber, err);
@@ -664,6 +674,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   }, [referencesVersion]);
   const docCtx = React.useMemo(() => ({ dossierId, asset, reference }), [dossierId, asset, reference]);
   const elements: ZnElement[] = api.stores.useDossierStore((s: { elements: ZnElement[] }) => s.elements);
+  // OneNeurone installed, enabled and licensed for extraction (ZN 2.64 and later).
+  const extraction = useExtraction();
   const links: ZnLink[] = api.stores.useDossierStore((s: { links: ZnLink[] }) => s.links);
 
   React.useEffect(() => {
@@ -719,19 +731,12 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       for (let n = 1; n <= current.doc.numPages; n++) {
         const content = await (await current.doc.getPage(n)).getTextContent();
         if (cancelled) return;
-        const items = content.items as { str?: string; hasEOL?: boolean; transform?: number[] }[];
+        const items = content.items as PdfTextItem[];
         chars.push(countTextChars(items));
-        // Built like the text layer: each item's string, a line break after EOL items.
-        let text = '';
-        const starts: number[] = [];
-        const ys: number[] = [];
+        // Built like the text layer (shared with passages found without the reader).
+        const { text, starts, kept } = pdfPageText(items);
         const transform = pageSizes[n - 1].transform;
-        for (const it of items) {
-          if (typeof it.str !== 'string') continue;
-          starts.push(text.length);
-          ys.push(applyTransform(transform, it.transform?.[4] ?? 0, it.transform?.[5] ?? 0)[1]);
-          text += it.str + (it.hasEOL ? '\n' : '');
-        }
+        const ys = kept.map((it) => applyTransform(transform, it.transform?.[4] ?? 0, it.transform?.[5] ?? 0)[1]);
         texts.push({ text, starts, ys });
       }
       setReport(analyseTextLayer(chars));
@@ -887,6 +892,28 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     });
   }, [annotations, textDoc, root, layoutVersion, scale]);
 
+  // Passages found without the reader (OneNeurone) only have offsets: their
+  // boxes are measured once their page's text layer is rendered, then kept.
+  const [textLayers, setTextLayers] = React.useState(0);
+  const onTextLayer = React.useCallback(() => setTextLayers((v) => v + 1), []);
+  const unmeasurable = React.useRef(new Set<string>());
+  React.useEffect(() => {
+    if (textDoc || !root || !sizes.length) return;
+    for (const a of annotations) {
+      if (a.quads.length || !a.textRange || a.kind === 'link' || a.status === 'rejected' || unmeasurable.current.has(a.id)) continue;
+      const layer = root.querySelector(`.mn-page[data-page-number="${a.page}"] .textLayer`) as HTMLElement | null;
+      if (!layer?.childNodes.length) continue;
+      const passage = passageFromOffsets(root, a.page, a.textRange[0], a.textRange[1], sizes, scale);
+      if (!passage?.quads.length) {
+        unmeasurable.current.add(a.id);
+        continue;
+      }
+      saveAnnotation(dossierId, { ...a, quads: passage.quads }).catch((err: unknown) => {
+        console.error('MarkNeurone: cannot keep the boxes of a passage', err);
+      });
+    }
+  }, [annotations, textLayers, textDoc, root, sizes, scale]);
+
   /** Highlights a click can hit: what is drawn. */
   const clickable = React.useMemo(() => placed.filter((a) => !isDeducedLinkPassage(a)), [placed]);
 
@@ -907,7 +934,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       else if (a.kind === 'event') color = tagColor('Événement') ?? EVENT_FALLBACK_COLOR;
       else color = tagColor(target.tags[0]) ?? 'var(--color-accent)';
       const list = byPage.get(a.page) ?? [];
-      list.push({ id: a.id, quads: a.quads, color, kind: a.kind, selected: selectedIds.includes(a.id) });
+      list.push({ id: a.id, quads: a.quads, color, kind: a.kind, selected: selectedIds.includes(a.id), toCheck: a.status === 'suggested' });
       byPage.set(a.page, list);
     }
     // The passage being qualified stays visible while the form has the focus
@@ -2010,6 +2037,28 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         h('button', { type: 'button', className: 'ml-2 text-xs text-accent hover:underline', onClick: () => setRelabel(null) }, t('reference_relabel_skip')))
     : null;
 
+  /**
+   * Hands the document, or the selected part of it, to OneNeurone: its panel
+   * shows what it extracted, the reader closes. Offsets refer to these pages.
+   */
+  const extractWithOne = (range?: { page: number; start: number; end: number }) => {
+    if (!extraction) return;
+    const documents = [{
+      label: reference || asset.filename,
+      documentHash: asset.hash,
+      elementIds: elements.filter((el) => el.assetIds?.includes(asset.id)).map((el) => el.id),
+      pages: effectiveTexts.map((p) => p.text),
+      ...(range ? { range } : {}),
+    }];
+    if (!sendToExtraction(extraction, dossierId, documents)) {
+      api.toast.error(t('extraction_error'));
+      return;
+    }
+    setPending(null);
+    closeReader();
+    api.toast.info(t('extraction_sent'));
+  };
+
   /** Toggles a framing tool; a pending selection is dropped, as with the keys. */
   const frameButton = (mode: 'text' | 'image', label: string, Icon: ReactTypes.ElementType) =>
     h('button', {
@@ -2075,6 +2124,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       ? h('div', { className: 'flex items-center gap-1' },
           frameButton('text', `${t('zone_read')} (Z)`, api.icons.SquareDashed),
           frameButton('image', `${t('area_read')} (I)`, api.icons.Image))
+      : null,
+    extraction
+      ? h('button', {
+          onClick: () => extractWithOne(),
+          disabled: !ready,
+          title: t('extraction_document'),
+          'aria-label': t('extraction_document'),
+          className: toolButton,
+        }, h(api.icons.BrainCircuit, { size: 14 }))
       : null,
     h('div', { className: 'flex items-center gap-1 ml-auto' },
       h('button', {
@@ -2215,6 +2273,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
               doc: opened?.doc ?? null,
               blocks: textDoc?.blocks ?? null,
               onHeight: textDoc ? onSheetHeight : undefined,
+              onTextLayer,
               pageNumber: i + 1,
               size,
               scale,
@@ -2275,6 +2334,9 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           // A selection on a scanned page can be read again, more finely.
           onReread: ocrPages[String(pending.page)] && !pending.preview?.framed ? () => rereadSelection(pending) : undefined,
           onLink: getSettings().links.verb && !pending.suggestion && !pending.area ? () => linkFromWords(pending) : undefined,
+          onExtract: extraction && pending.textRange && !pending.area
+            ? () => extractWithOne({ page: pending.page, start: pending.textRange![0], end: pending.textRange![1] })
+            : undefined,
         })
       : null,
     menu ? h(ReaderContextMenu, { ...menu, onClose: () => setMenu(null) }) : null,

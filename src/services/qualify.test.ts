@@ -20,7 +20,7 @@ vi.mock('./annotationStore.ts', () => ({
   saveAnnotation: async (_dossierId: string, a: Annotation) => void saved.push(a),
   removeAnnotation: async () => {},
 }));
-const { qualifyAsExistingElement, qualifyAsExistingProperty, qualifyAsNewElement } = await import('./qualify.ts');
+const { qualifyAsExistingElement, qualifyAsExistingProperty, qualifyAsNewElement, validatePassage } = await import('./qualify.ts');
 
 const ctx = { dossierId: 'd', asset: { id: 'a', hash: 'h', filename: 'pv.pdf', mimeType: 'application/pdf', size: 1 }, reference: 'PV n° 347' };
 const passage = { page: 2, quads: [], text: '06 12 34 56 78', clientBox: { left: 0, top: 0, right: 0, bottom: 0 } };
@@ -81,5 +81,14 @@ describe('framed picture', () => {
   it('leaves the element without the picture when the user unticks it', async () => {
     await qualifyAsNewElement(ctx, picture, 'Signature', [], { attachImage: false });
     expect(calls.map((c) => c.fn)).toEqual(['createElement']);
+  });
+});
+
+describe('validatePassage', () => {
+  it('turns a passage to check into a validated one, keeping its origin', async () => {
+    saved.length = 0;
+    const a = { id: 'x', documentId: 'a', documentHash: 'h', page: 1, quads: [], text: 'ALPHA', kind: 'element', status: 'suggested', origin: 'oneneurone', createdAt: '' } as Annotation;
+    await validatePassage(ctx, a);
+    expect(saved[0]).toMatchObject({ id: 'x', status: 'validated', origin: 'oneneurone' });
   });
 });

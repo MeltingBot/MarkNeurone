@@ -1,7 +1,7 @@
 // ─── Reader launcher ─────────────────────────────────────────
 //
-// Module-level opener set by the app:global overlay, so that context
-// menus and shortcuts can open the reader without sharing React state.
+// Module-level opener and closer set by the app:global overlay, so that
+// context menus and shortcuts can open the reader without sharing React state.
 
 export interface ReaderTarget {
   dossierId: string;
@@ -20,4 +20,15 @@ export function setReaderOpener(fn: Opener | null): void {
 
 export function openReader(target: ReaderTarget): void {
   opener?.(target);
+}
+
+let closer: (() => void) | null = null;
+
+export function setReaderCloser(fn: (() => void) | null): void {
+  closer = fn;
+}
+
+/** Closes the reader (an extraction handed over to OneNeurone). */
+export function closeReader(): void {
+  closer?.();
 }
