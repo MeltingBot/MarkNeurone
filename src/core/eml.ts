@@ -227,6 +227,12 @@ function htmlBlocks(html: string): TextBlock[] {
         const cells = Array.from(el.children).filter((c) => c.localName === 'td' || c.localName === 'th').map(cellText);
         if (cells.length > 1 && cells.some(Boolean)) blocks.push({ kind: 'row', text: cells.join('\t') });
         else if (cells.some(Boolean)) blocks.push({ kind: 'p', text: cells.filter(Boolean).join(' ') });
+      } else if (tag === 'a') {
+        // A link keeps its address, which may matter (as in Markdown).
+        walk(el);
+        const href = el.getAttribute('href')?.trim() ?? '';
+        const label = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+        if (/^https?:\/\//i.test(href) && label && label !== href) inline += ` (${href})`;
       } else if (HTML_BLOCK.has(tag) || tag === 'tr' || tag === 'td' || tag === 'th') {
         flush();
         walk(el);
@@ -257,7 +263,8 @@ function collect(part: Part, out: Collected, depth: number): void {
     return;
   }
   if (isAttachment(part)) {
-    const name = filenameOf(part);
+    // Tabs and line breaks separate fields and names: never in a name.
+    const name = filenameOf(part)?.replace(/\s+/g, ' ').trim();
     if (name) out.attachments.push(name);
     return;
   }

@@ -76,7 +76,7 @@ describe('parseEml', () => {
       'JVBERi0xLjQK',
       '--mix',
       'Content-Type: image/jpeg',
-      "Content-Disposition: attachment; filename*=utf-8''photo%20%C3%A9t%C3%A9.jpg",
+      "Content-Disposition: attachment; filename*=utf-8''photo%20%C3%A9t%C3%A9%09%0A2.jpg",
       '',
       '/9j/',
       '--mix--',
@@ -85,7 +85,7 @@ describe('parseEml', () => {
     expect(blocks).toEqual([
       { kind: 'field', text: 'De\ta@exemple.fr' },
       { kind: 'pre', text: 'Voir le relevé joint.' },
-      { kind: 'field', text: 'Pièces jointes\treleve.pdf\nphoto été.jpg' },
+      { kind: 'field', text: 'Pièces jointes\treleve.pdf\nphoto été 2.jpg' },
     ]);
   });
 
@@ -95,6 +95,7 @@ describe('parseEml', () => {
       '',
       '<html><head><style>p { color: red }</style></head><body>',
       '<h2>Commande</h2><p>Livraison au<br>12 rue des Lilas</p>',
+      '<p><a href="https://suivi.exemple.fr/c/42">Suivre le colis</a> ou <a href="https://exemple.fr">https://exemple.fr</a></p>',
       '<ul><li>Article A</li><li>Article B</li></ul>',
       '<table><tr><td>Total</td><td>45,00 €</td></tr></table>',
       '<table><tr><td><table><tr><td>Mise</td><td>en page</td></tr></table></td></tr></table>',
@@ -103,6 +104,7 @@ describe('parseEml', () => {
     expect(blocks).toEqual([
       { kind: 'h2', text: 'Commande' },
       { kind: 'p', text: 'Livraison au\n12 rue des Lilas' },
+      { kind: 'p', text: 'Suivre le colis (https://suivi.exemple.fr/c/42) ou https://exemple.fr' },
       { kind: 'li', text: 'Article A' },
       { kind: 'li', text: 'Article B' },
       { kind: 'row', text: 'Total\t45,00 €' },
