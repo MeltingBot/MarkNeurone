@@ -39,8 +39,9 @@ function wholeWord(pages: string[], h: SearchHit): boolean {
   return !LETTER.test(text[h.start - 1] ?? '') && !LETTER.test(text[h.end] ?? '');
 }
 
+/** Within the part the extraction came from: overlapping it is enough, a selection may cut a name. */
 function inside(hint: LocateRequest['hint'], page: number, start: number, end: number): boolean {
-  return !hint || (page === hint.page && start >= hint.start && end <= hint.end);
+  return !hint || (page === hint.page && start < hint.end && end > hint.start);
 }
 
 function words(pages: string[], query: string, hint: LocateRequest['hint']): SearchHit[] {

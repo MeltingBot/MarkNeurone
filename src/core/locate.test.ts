@@ -23,6 +23,11 @@ describe('locatePassage', () => {
     expect(locatePassage(pages, { kind: 'element', text: 'Paul DURAND', hint: { page: 2, start, end: p2.length } })).toEqual(at(2, 'Paul DURAND'));
   });
 
+  it('accepts a name that a selection cuts', () => {
+    const start = p2.indexOf('Paul');
+    expect(locatePassage(pages, { kind: 'element', text: 'Paul DURAND', hint: { page: 2, start, end: start + 4 } })).toEqual(at(2, 'Paul DURAND'));
+  });
+
   it('takes, in one sentence, the words from one end of a link to the other', () => {
     expect(locatePassage(pages, { kind: 'link', text: 'Paul DURAND', otherName: 'ALPHA' })).toEqual(at(1, 'Paul DURAND', 'ALPHA'));
     expect(locatePassage(pages, { kind: 'link', text: 'Paulette MARTIN', otherName: 'ALPHA' })).toBeNull();
