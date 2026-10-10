@@ -249,6 +249,7 @@
   "area_error": "Capturing the picture failed.",
   "origin_oneneurone": "OneNeurone",
   "passage_to_check": "to check",
+  "tip_orphan": "orphan",
   "passage_validate": "Validate the passage",
   "passage_reject": "Reject the passage",
   "extraction_document": "Extract with OneNeurone",

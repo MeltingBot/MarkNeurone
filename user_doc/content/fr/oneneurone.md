@@ -30,9 +30,9 @@ Le surlignage apparaît lorsque la page est affichée dans le lecteur pour la pr
 
 ## Passages à vérifier
 
-Les objets acceptés un par un dans OneNeurone donnent des passages ordinaires. Ceux acceptés tous ensemble donnent des passages à vérifier : ils sont encadrés d'un trait pointillé dans le document et portent la mention « à vérifier » dans la fiche et dans l'onglet Marqueur.
+Les objets acceptés un par un dans OneNeurone donnent des passages ordinaires. Ceux acceptés tous ensemble donnent des passages à vérifier : ils gardent la couleur de leur tag, sont encadrés d'un trait pointillé dans le document et portent la mention « à vérifier » dans la liste des éléments du document, dans la fiche et dans l'onglet Marqueur. Au survol, une info-bulle indique ce que représente le surlignage, par exemple « Claire Morvan · Personne · OneNeurone · à vérifier ».
 
-Dans la liste des passages de la fiche, chaque passage à vérifier se traite individuellement :
+Chaque passage à vérifier se traite individuellement, par un clic droit sur son surlignage ou dans la liste des passages de la fiche (celle de l'élément, ou celle du lien pour un lien) :
 
 - « Valider le passage » le rend ordinaire ;
 - « Rejeter le passage » le supprime et retire son lien de la source de l'objet. L'objet lui-même reste dans le graphe ; supprimez-le dans ZeroNeurone si l'extraction était fausse.

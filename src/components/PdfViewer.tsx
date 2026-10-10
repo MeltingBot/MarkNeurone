@@ -38,7 +38,7 @@ import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../s
 import { SelectionBar, type Gesture } from './SelectionBar.tsx';
 import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
-import { applyRelabel, deleteAnnotation, planRelabel, reattachToElement, rejectSuggestion, relabelCount, type RelabelPlan } from '../services/qualify.ts';
+import { applyRelabel, deleteAnnotation, planRelabel, reattachToElement, rejectSuggestion, relabelCount, validatePassage, type RelabelPlan } from '../services/qualify.ts';
 import { getReferencesVersion, loadReference, saveReference, subscribeReferences } from '../services/documentRef.ts';
 import { cleanReference, detectReference } from '../core/reference.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
@@ -175,8 +175,13 @@ interface PageText {
 }
 
 function highlightStyle(hl: Highlight): ReactTypes.CSSProperties {
-  // To check: faint, framed with a dashed line, until the user validates it.
-  if (hl.toCheck) return { background: `color-mix(in srgb, ${hl.color} 12%, transparent)`, outline: `1px dashed ${hl.color}`, outlineOffset: 1 };
+  // To check: the usual look of its kind (tag color kept), framed with a
+  // dashed line until the user validates it.
+  const base = kindStyle(hl);
+  return hl.toCheck ? { ...base, outline: `1px dashed ${hl.color}`, outlineOffset: 1 } : base;
+}
+
+function kindStyle(hl: Highlight): ReactTypes.CSSProperties {
   // Highlighter look: tinted background multiplied over the page.
   const tint = `color-mix(in srgb, ${hl.color} 38%, transparent)`;
   if (hl.kind === 'property') {
@@ -917,6 +922,32 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     }
   }, [annotations, textLayers, textDoc, root, sizes, scale]);
 
+  /** What a highlight is, shown when the pointer rests on it. */
+  const describeHighlight = (a: Annotation): string => {
+    const parts: string[] = [];
+    if (a.kind === 'link') {
+      const link = links.find((l) => l.id === a.targetId);
+      parts.push(link ? `${nameOf(link.fromId)} → ${link.label || t('link_unnamed')} → ${nameOf(link.toId)}` : t('link_unnamed'));
+    } else {
+      const el = elements.find((x) => x.id === a.targetId);
+      parts.push(el ? nameOf(el.id) : a.text);
+      if (a.kind === 'property' && a.propertyKey) parts.push(a.propertyKey);
+      else if (el?.tags[0]) parts.push(el.tags[0]);
+    }
+    if (a.origin === 'oneneurone') parts.push(t('origin_oneneurone'));
+    if (a.status === 'suggested') parts.push(t('passage_to_check'));
+    if (a.orphan) parts.push(t('tip_orphan'));
+    return parts.join(' · ');
+  };
+  const hoveredId = React.useRef<string | null>(null);
+  const onMouseMove = (e: ReactTypes.MouseEvent) => {
+    if (zoneMode || e.buttons) return;
+    const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, clickable);
+    if ((hit?.id ?? null) === hoveredId.current) return;
+    hoveredId.current = hit?.id ?? null;
+    (e.currentTarget as HTMLElement).title = hit ? describeHighlight(hit) : '';
+  };
+
   /** Highlights a click can hit: what is drawn. */
   const clickable = React.useMemo(() => placed.filter((a) => !isDeducedLinkPassage(a)), [placed]);
 
@@ -1595,10 +1626,24 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
             ...(hit.kind === 'link' || hit.area ? [] : [{ id: 'same', label: t('menu_select_same'), icon: api.icons.ListChecks, action: () => selectSameText(hit) }]),
           ],
           linkItems,
+          // Found by OneNeurone, accepted all at once: kept or rejected here, one by one.
+          ...(hit.status === 'suggested'
+            ? [[{
+                id: 'validate',
+                label: t('passage_validate'),
+                icon: api.icons.Check,
+                action: () => {
+                  validatePassage(docCtx, hit).catch((err: unknown) => {
+                    console.error('MarkNeurone: cannot validate a passage', err);
+                    api.toast.error(t('write_error'));
+                  });
+                },
+              }]]
+            : []),
           [{
             id: 'remove',
-            label: t('menu_remove_highlight'),
-            icon: Trash2,
+            label: t(hit.status === 'suggested' ? 'passage_reject' : 'menu_remove_highlight'),
+            icon: hit.status === 'suggested' ? api.icons.X : Trash2,
             danger: true,
             title: t('delete_passage'),
             action: () => {
@@ -2268,6 +2313,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         onScroll,
         onMouseDown,
         onMouseUp,
+        onMouseMove,
         onContextMenu,
         className: `flex-1 overflow-auto bg-bg-tertiary${grabbing ? ' mn-grabbing' : panMode ? ' mn-pan' : ''}${masked ? ' mn-masked' : ''}`,
         style: { padding: PADDING },
