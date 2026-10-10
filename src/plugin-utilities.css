@@ -1,0 +1,9 @@
+/* Tailwind utilities used by MarkNeurone, for the compiled plugin.
+   ZN's stylesheet only holds the classes found in ZN's own sources: a class
+   used here alone would be missing once the plugin runs in ZN. These are
+   generated from MarkNeurone's sources against ZN's theme (colors and sizes
+   come from ZN's CSS variables, dark mode included), and injected at
+   registration. No preflight, no theme: ZN provides them. */
+@reference "../../zeroneurone/src/index.css";
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "./";

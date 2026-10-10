@@ -9,6 +9,16 @@
 
 import { setHostAPI } from './hostAPI.ts';
 import type { MarkHostAPI } from './hostAPI.ts';
+// Utilities ZN's stylesheet may not hold (see plugin-utilities.css).
+import utilitiesCss from './plugin-utilities.css?inline';
+
+function injectUtilities(): void {
+  if (document.getElementById('markneurone-utilities')) return;
+  const style = document.createElement('style');
+  style.id = 'markneurone-utilities';
+  style.textContent = utilitiesCss;
+  document.head.appendChild(style);
+}
 
 /**
  * External plugin entry point.
@@ -16,6 +26,7 @@ import type { MarkHostAPI } from './hostAPI.ts';
  * Called by ZN's plugin loader: `mod.register(pluginAPI)`.
  */
 export async function register(api: any): Promise<void> {
+  injectUtilities();
   const hostAPI: MarkHostAPI = {
     registerPlugin: api.registerPlugin,
     registerPlugins: api.registerPlugins,

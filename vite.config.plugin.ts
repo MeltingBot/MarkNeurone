@@ -7,6 +7,7 @@
 
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { readFileSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
@@ -64,7 +65,7 @@ function licenseNotices(): Plugin {
 
 export default defineConfig({
   // Unminified builds keep the libraries' own headers; the banner would only shift their source map.
-  plugins: [react(), ...(isDev ? [] : [licenseNotices()])],
+  plugins: [react(), tailwindcss(), ...(isDev ? [] : [licenseNotices()])],
 
   // Tesseract's model, inlined in the bundle (?inline): never downloaded.
   assetsInclude: ['**/*.traineddata'],
