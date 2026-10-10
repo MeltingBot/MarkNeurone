@@ -1,5 +1,5 @@
 {
-  "card_description": "Lecture annotée de documents (PDF, DOCX, ODT, TXT, Markdown) : surligner un passage pour créer un élément, une propriété, un événement ou un lien, avec retour à la source.",
+  "card_description": "Lecture annotée de documents (PDF, DOCX, ODT, TXT, Markdown, EML) : surligner un passage pour créer un élément, une propriété, un événement ou un lien, avec retour à la source.",
   "menu_read": "Lire dans MarkNeurone",
   "reader_title": "Lecture de {{name}}",
   "reader_minimize": "Réduire (Échap)",

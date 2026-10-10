@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié
+
+- Courriels : un fichier EML s'ouvre dans le lecteur. Il affiche l'expéditeur, les destinataires, la date et le sujet, puis le texte du message (la version texte, ou à défaut la version HTML) et les noms des pièces jointes. Un message transféré en pièce jointe est affiché à la suite. Le contenu des pièces jointes n'est pas lu.
+
 ## 1.5.1 (2026-10-10)
 
 - Correctif : avec MarkNeurone installé, des boutons de ZeroNeurone disparaissaient (en haut du dossier : thème, côté du panneau, etc.). Les classes de mise en forme embarquées par le plugin passaient avant celles de ZeroNeurone ; elles passent désormais après.

@@ -13,8 +13,9 @@ weight: 2
 | PDF numérisé (sans couche texte) | Pages d'origine, texte reconnu en arrière-plan : voir [Documents numérisés](documents-numerises.md) |
 | DOCX, ODT | Texte sur une page continue, avec titres, paragraphes, listes et tableaux |
 | TXT (UTF-8 ou Windows-1252), Markdown | Texte sur une page continue |
+| Courriel EML | Expéditeur, destinataires, date et sujet, puis le texte du message et les noms des pièces jointes, sur une page continue |
 
-Pour les DOCX, ODT, TXT et Markdown, la mise en page d'origine n'est pas reproduite. Ces documents n'ont pas de numéro de page : la référence au passage ne mentionne alors que le document.
+Pour les DOCX, ODT, TXT, Markdown et EML, la mise en page d'origine n'est pas reproduite. Ces documents n'ont pas de numéro de page : la référence au passage ne mentionne alors que le document.
 
 ## Ouvrir un document
 

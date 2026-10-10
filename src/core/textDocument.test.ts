@@ -6,7 +6,7 @@ const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main
 const docx = (body: string) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${body}<w:sectPr/></w:body></w:document>`;
 
 describe('textFormatOf', () => {
-  it('recognizes the four formats by name or type', () => {
+  it('recognizes the formats by name or type', () => {
     expect(textFormatOf({ filename: 'PV.DOCX' })).toBe('docx');
     expect(textFormatOf({ filename: 'pv.odt' })).toBe('odt');
     expect(textFormatOf({ filename: 'notes.md' })).toBe('md');

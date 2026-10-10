@@ -3,7 +3,8 @@
 // Visible, selectable text of a text document, built with the structure the
 // selection code expects from a text layer: its text (text nodes, <br> as
 // "\n") is exactly blocksText(blocks). Bullets are CSS, not text; table
-// cells are separated by hidden "\t" so that offsets keep them.
+// cells, and the label and value of a field, are separated by hidden "\t"
+// so that offsets keep them.
 
 import type { TextBlock } from '../core/textDocument.ts';
 
@@ -28,6 +29,11 @@ export const TEXT_SHEET_CSS = `
   margin: 0; padding: 0.25em 0; border-bottom: 1px solid #d0d7de; }
 .mn-page .textLayer.mn-flow > .mn-row > .mn-sep, .mn-page .textLayer.mn-flow > .mn-row > br { display: none; }
 .mn-page .textLayer.mn-flow > .mn-pre { margin: 0; }
+.mn-page .textLayer.mn-flow > .mn-field { display: grid; grid-template-columns: 7em minmax(0, 1fr); column-gap: 1em; margin: 0; padding: 0.15em 0; }
+.mn-page .textLayer.mn-flow > .mn-field > span:first-child { color: #59636e; }
+.mn-page .textLayer.mn-flow > .mn-field > .mn-sep, .mn-page .textLayer.mn-flow > .mn-field > br { display: none; }
+.mn-page .textLayer.mn-flow > .mn-field + .mn-b:not(.mn-field) { margin-top: 0.8em; }
+.mn-page .textLayer.mn-flow > .mn-b:not(.mn-field) + .mn-field { margin-top: 0.8em; }
 .mn-page .textLayer.mn-flow > .mn-row + .mn-b:not(.mn-row) { margin-top: 0.6em; }
 `;
 
@@ -36,7 +42,7 @@ export function renderTextBlocks(container: HTMLElement, blocks: TextBlock[]): v
   for (const block of blocks) {
     const div = document.createElement('div');
     div.className = `mn-b mn-${block.kind}`;
-    if (block.kind === 'row') {
+    if (block.kind === 'row' || block.kind === 'field') {
       block.text.split('\t').forEach((cell, i) => {
         if (i > 0) {
           const sep = document.createElement('span');

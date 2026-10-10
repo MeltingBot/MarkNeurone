@@ -1,4 +1,4 @@
-// ─── Text documents (DOCX, ODT, TXT, Markdown) ───────────────
+// ─── Text documents (DOCX, ODT, TXT, Markdown, EML) ────────────
 //
 // A text document is read as a list of blocks (headings, paragraphs, list
 // items, table rows), shown on one continuous sheet. Its text is the blocks'
@@ -11,21 +11,22 @@
 
 export const TEXT_EXTRACTOR_ID = 'text-1';
 
-export type BlockKind = 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'row' | 'pre';
+export type BlockKind = 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'row' | 'pre' | 'field';
 
 export interface TextBlock {
   kind: BlockKind;
-  /** Table rows: cells separated by "\t". */
+  /** Table rows: cells separated by "\t"; fields (e-mail headers): label "\t" value. */
   text: string;
 }
 
-export type TextFormat = 'docx' | 'odt' | 'txt' | 'md';
+export type TextFormat = 'docx' | 'odt' | 'txt' | 'md' | 'eml';
 
 export function textFormatOf(file: { filename: string; mimeType?: string }): TextFormat | null {
   const name = file.filename.toLowerCase();
   const type = file.mimeType ?? '';
   if (name.endsWith('.docx') || type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
   if (name.endsWith('.odt') || type === 'application/vnd.oasis.opendocument.text') return 'odt';
+  if (name.endsWith('.eml') || type === 'message/rfc822') return 'eml';
   if (name.endsWith('.md') || name.endsWith('.markdown') || type === 'text/markdown') return 'md';
   if (name.endsWith('.txt') || type === 'text/plain') return 'txt';
   return null;

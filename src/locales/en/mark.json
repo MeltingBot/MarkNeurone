@@ -1,5 +1,5 @@
 {
-  "card_description": "Annotated reading of documents (PDF, DOCX, ODT, TXT, Markdown): highlight a passage to create an element, a property, an event or a link, with a way back to the source.",
+  "card_description": "Annotated reading of documents (PDF, DOCX, ODT, TXT, Markdown, EML): highlight a passage to create an element, a property, an event or a link, with a way back to the source.",
   "menu_read": "Read in MarkNeurone",
   "reader_title": "Reading {{name}}",
   "reader_minimize": "Minimize (Esc)",

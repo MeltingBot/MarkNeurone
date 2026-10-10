@@ -1,6 +1,6 @@
 # MarkNeurone
 
-Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zeroneurone). MarkNeurone affiche un document (PDF, DOCX, ODT, TXT, Markdown) dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé conserve une référence vers le passage d'origine.
+Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zeroneurone). MarkNeurone affiche un document (PDF, DOCX, ODT, TXT, Markdown, courriel EML) dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé conserve une référence vers le passage d'origine.
 
 Il convient à tout document rédigé dont on veut tirer des éléments du graphe : rapports, articles de presse, statuts de société, décisions de justice, courriels, auditions. Il reprend en particulier la pratique des analystes qui surlignent les procès-verbaux avant de construire le graphe, d'où la reconnaissance du texte des documents numérisés et la lecture des en-têtes de PV. Les tableaux (relevés bancaires, fadettes) relèvent plutôt d'un import structuré.
 
@@ -16,7 +16,7 @@ Il convient à tout document rédigé dont on veut tirer des éléments du graph
 
 ## Fonctionnalités
 
-- Lecture des PDF avec couche texte, des PDF numérisés (OCR locale en arrière-plan avec Tesseract, mise en cache avec le dossier), des DOCX, ODT, TXT et Markdown.
+- Lecture des PDF avec couche texte, des PDF numérisés (OCR locale en arrière-plan avec Tesseract, mise en cache avec le dossier), des DOCX, ODT, TXT et Markdown, et des courriels EML (en-têtes, texte du message, noms des pièces jointes).
 - Relecture d'une sélection à haute résolution, passage encadré à la souris pour l'écriture manuscrite, retrait de l'encre des tampons avant la reconnaissance.
 - Création d'éléments, de propriétés (les huit types de ZeroNeurone), d'événements datés et de localisations à partir d'un passage, par une touche (E, P, V, G).
 - Liens entre deux passages surlignés, et, en option, mode verbe et liens possibles signalés dans la marge.
