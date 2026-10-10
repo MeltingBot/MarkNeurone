@@ -124,7 +124,7 @@ export interface MarkHostAPI {
 
 /** Scoped: what MarkNeurone provides is its own (names start with "mark-neurone:"). */
 export interface PluginServices {
-  provide: (name: string, impl: { version: number }) => { revoke: () => void; changed: () => void };
+  provide: <T extends { version: number }>(name: string, impl: T) => { revoke: () => void; changed: () => void };
   get: <T>(name: string) => T | undefined;
   subscribe: (cb: () => void) => () => void;
   getVersion: () => number;
