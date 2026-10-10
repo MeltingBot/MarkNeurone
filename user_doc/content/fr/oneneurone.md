@@ -21,8 +21,8 @@ Le lecteur se ferme et le panneau de OneNeurone s'ouvre sur le résultat. Rien n
 Pour chaque élément, lien ou événement accepté dans OneNeurone, MarkNeurone cherche le passage du document dont il provient :
 
 - pour un élément, le nom tel qu'il est écrit dans le document ;
-- pour un lien, la phrase qui contient les noms des deux éléments ;
-- pour un événement, la phrase qui contient le nom de l'élément et la date.
+- pour un lien, les mots qui vont du nom d'un élément à celui de l'autre, dans une même phrase ;
+- pour un événement, les mots qui vont du nom de l'élément à la date, dans une même phrase, ou à défaut la seule phrase du document qui porte cette date.
 
 Lorsque le passage est trouvé, il est surligné dans le document et la source de l'objet pointe vers lui, comme pour un objet créé à la main. Sinon, la source désigne le document entier. C'est le cas notamment lorsque le modèle a reformulé un nom, ou pour une page numérisée dont le texte n'a pas encore été reconnu.
 

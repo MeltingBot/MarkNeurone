@@ -2,9 +2,9 @@
 //
 // Another plugin (OneNeurone) names what it extracted; the passage is found
 // here, without AI and without the reader: a quotation when one is given,
-// otherwise the name for an element, the sentence holding both names for a
-// link, the sentence holding the name and the date for an event. Nothing
-// found: null, and the source stays at document level.
+// otherwise the name for an element, the words from one name to the other
+// within a sentence for a link, from the name to the date for an event.
+// Nothing found: null, and the source stays at document level.
 
 import { findInPages, type SearchHit } from './search.ts';
 import { sentenceRanges } from './sentences.ts';
@@ -65,8 +65,15 @@ function sentencesOf(pages: string[], hint: LocateRequest['hint']): Located[] {
   return out;
 }
 
-function sentenceHas(pages: string[], s: Located, name: string): boolean {
-  return words([pages[s.page - 1].slice(s.start, s.end)], name, undefined).length > 0;
+/** First whole-word hit of `name` in the sentence, in page offsets. */
+function inSentence(pages: string[], s: Located, name: string): Located | null {
+  const hit = words([pages[s.page - 1].slice(s.start, s.end)], name, undefined)[0];
+  return hit ? { page: s.page, start: s.start + hit.start, end: s.start + hit.end } : null;
+}
+
+/** From the first to the last of the given spans: the words that state the fact. */
+function spanning(parts: Located[]): Located {
+  return { page: parts[0].page, start: Math.min(...parts.map((p) => p.start)), end: Math.max(...parts.map((p) => p.end)) };
 }
 
 /** Calendar day of a date match, as YYYY-MM-DD. */
@@ -74,10 +81,11 @@ function day(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function sentenceHasDate(pages: string[], s: Located, iso: string): boolean {
+function dateIn(pages: string[], s: Located, iso: string): Located | null {
   const wanted = iso.slice(0, 10);
   const year = Number(wanted.slice(0, 4)) || undefined;
-  return findDates(pages[s.page - 1].slice(s.start, s.end), year).some((m) => day(m.date) === wanted);
+  const m = findDates(pages[s.page - 1].slice(s.start, s.end), year).find((d) => day(d.date) === wanted);
+  return m ? { page: s.page, start: s.start + m.start, end: s.start + m.end } : null;
 }
 
 export function locatePassage(pages: string[], req: LocateRequest): Located | null {
@@ -102,12 +110,23 @@ export function locatePassage(pages: string[], req: LocateRequest): Located | nu
   if (req.kind === 'link') {
     const other = req.otherName?.trim();
     if (!other) return null;
-    return sentences.find((s) => sentenceHas(pages, s, name) && sentenceHas(pages, s, other)) ?? null;
+    // Within the sentence, from one name to the other: sentences are not always
+    // cut where they should be ("déclare :" followed by a quotation).
+    for (const s of sentences) {
+      const a = inSentence(pages, s, name);
+      const b = a && inSentence(pages, s, other);
+      if (a && b) return spanning([a, b]);
+    }
+    return null;
   }
 
   // Event: the name and the date in one sentence; else the date alone, only
   // when a single sentence bears it (a wrong passage would mislead).
   if (!req.date) return null;
-  const dated = sentences.filter((s) => sentenceHasDate(pages, s, req.date!));
-  return dated.find((s) => sentenceHas(pages, s, name)) ?? (dated.length === 1 ? dated[0] : null);
+  const dated = sentences.filter((s) => dateIn(pages, s, req.date!) !== null);
+  for (const s of dated) {
+    const who = inSentence(pages, s, name);
+    if (who) return spanning([who, dateIn(pages, s, req.date)!]);
+  }
+  return dated.length === 1 ? dated[0] : null;
 }

@@ -23,13 +23,13 @@ describe('locatePassage', () => {
     expect(locatePassage(pages, { kind: 'element', text: 'Paul DURAND', hint: { page: 2, start, end: p2.length } })).toEqual(at(2, 'Paul DURAND'));
   });
 
-  it('takes the sentence holding both ends of a link', () => {
-    expect(locatePassage(pages, { kind: 'link', text: 'Paul DURAND', otherName: 'ALPHA' })).toEqual(at(1, 'Se présente', 'ALPHA.'));
+  it('takes, in one sentence, the words from one end of a link to the other', () => {
+    expect(locatePassage(pages, { kind: 'link', text: 'Paul DURAND', otherName: 'ALPHA' })).toEqual(at(1, 'Paul DURAND', 'ALPHA'));
     expect(locatePassage(pages, { kind: 'link', text: 'Paulette MARTIN', otherName: 'ALPHA' })).toBeNull();
   });
 
-  it('takes the sentence holding the name and the date of an event', () => {
-    expect(locatePassage(pages, { kind: 'event', text: 'Hector PLANCHAUD', date: '2024-03-03' })).toEqual(at(1, 'Il déclare', '2024.'));
+  it('takes the words from the name to the date of an event, or the sentence of a date found once', () => {
+    expect(locatePassage(pages, { kind: 'event', text: 'Hector PLANCHAUD', date: '2024-03-03' })).toEqual(at(1, 'Hector PLANCHAUD', '2024'));
     // The date alone, borne by one sentence only.
     expect(locatePassage(pages, { kind: 'event', text: 'Dissolution ALPHA SAS', date: '2025-06-01' })).toEqual(at(2, 'La société', '2025.'));
     expect(locatePassage(pages, { kind: 'event', text: 'X', date: '2020-01-01' })).toBeNull();

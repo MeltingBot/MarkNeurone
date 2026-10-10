@@ -125,9 +125,10 @@ const EVENT_FALLBACK_COLOR = '#a855f7';
 /**
  * A link whose passage was deduced, in earlier versions, from the text
  * between its two highlights: neither drawn nor clickable, the arc between
- * the highlights shows it. Only the verb mode gives a link its own passage.
+ * the highlights shows it. Only the verb mode, and OneNeurone (the sentence
+ * naming both ends), give a link its own passage.
  */
-const isDeducedLinkPassage = (a: Annotation) => a.kind === 'link' && a.quads.length > 0 && !a.relationWords;
+const isDeducedLinkPassage = (a: Annotation) => a.kind === 'link' && a.quads.length > 0 && !a.relationWords && a.origin !== 'oneneurone';
 
 // ─── Single page ─────────────────────────────────────────────
 
@@ -900,7 +901,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   React.useEffect(() => {
     if (textDoc || !root || !sizes.length) return;
     for (const a of annotations) {
-      if (a.quads.length || !a.textRange || a.kind === 'link' || a.status === 'rejected' || unmeasurable.current.has(a.id)) continue;
+      // A link with words (OneNeurone: the sentence naming both ends) is underlined like one drawn by hand.
+      if (a.quads.length || !a.textRange || a.status === 'rejected' || unmeasurable.current.has(a.id)) continue;
       const layer = root.querySelector(`.mn-page[data-page-number="${a.page}"] .textLayer`) as HTMLElement | null;
       if (!layer?.childNodes.length) continue;
       const passage = passageFromOffsets(root, a.page, a.textRange[0], a.textRange[1], sizes, scale);
