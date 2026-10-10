@@ -5,5 +5,7 @@
    come from ZN's CSS variables, dark mode included), and injected at
    registration. No preflight, no theme: ZN provides them. */
 @reference "../../zeroneurone/src/index.css";
-@import "tailwindcss/utilities.css" layer(utilities) source(none);
+/* Sub-layer of ZN's utilities: ZN's own classes always win (a plugin's `.hidden`
+   must not override ZN's `lg:flex`), classes only the plugin uses still apply. */
+@import "tailwindcss/utilities.css" layer(utilities.plugin) source(none);
 @source "./";

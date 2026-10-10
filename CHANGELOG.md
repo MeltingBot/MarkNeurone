@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1 (2026-10-10)
+
+- Correctif : avec MarkNeurone installé, des boutons de ZeroNeurone disparaissaient (en haut du dossier : thème, côté du panneau, etc.). Les classes de mise en forme embarquées par le plugin passaient avant celles de ZeroNeurone ; elles passent désormais après.
+
 ## 1.5.0 (2026-10-10)
 
 - Onglet Marqueur : section « Surlignages orphelins », qui retire en une fois, après confirmation, les surlignages dont l'élément, l'événement ou le lien a été supprimé.
