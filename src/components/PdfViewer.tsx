@@ -928,6 +928,12 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     if (a.kind === 'link') {
       const link = links.find((l) => l.id === a.targetId);
       parts.push(link ? `${nameOf(link.fromId)} → ${link.label || t('link_unnamed')} → ${nameOf(link.toId)}` : t('link_unnamed'));
+    } else if (a.kind === 'event') {
+      // The event first: its passage may not name the element (a date alone).
+      const el = elements.find((x) => x.id === a.targetId);
+      const ev = el?.events?.find((e) => e.id === a.eventIds?.[el.id]);
+      parts.push(`${t('gesture_event')} : ${ev?.label || a.text}`);
+      if (el) parts.push(nameOf(el.id));
     } else {
       const el = elements.find((x) => x.id === a.targetId);
       parts.push(el ? nameOf(el.id) : a.text);
