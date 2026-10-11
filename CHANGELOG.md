@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2 (2026-10-11)
+
+- Correctif : dans le lecteur ouvert en fenêtre séparée, le texte ne pouvait pas être sélectionné. Le glisser déplaçait le document. Le clic sur un surlignage ou une suggestion restait aussi sans effet.
+
 ## 1.6.1 (2026-10-11)
 
 - Correctif : sur certains navigateurs, l'ouverture d'un PDF dans le lecteur échouait avec « getOrInsertComputed is not a function ». MarkNeurone utilise désormais la version compatible de pdf.js.
