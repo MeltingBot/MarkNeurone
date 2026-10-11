@@ -21,8 +21,10 @@ export interface Reconciled {
   moved: Record<string, string>;
 }
 
+/** Both missing counts as the same: an imported orphan link has no ends. */
 function sameEnds(a?: [string, string], b?: [string, string]): boolean {
-  return !!a && !!b && a[0] === b[0] && a[1] === b[1];
+  if (!a || !b) return a === b;
+  return a[0] === b[0] && a[1] === b[1];
 }
 
 function sameIds(a: Record<string, string> = {}, b: Record<string, string> = {}): boolean {

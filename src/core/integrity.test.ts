@@ -116,6 +116,13 @@ describe('reconcile after a deletion and an undo', () => {
     const { changed } = reconcile([ann(A_EL, 'element', { targetId: 'A' })], { elements: [{ id: 'A', source: label(A_EL) }], links: [] });
     expect(changed).toBe(0);
   });
+
+  it('reports no change for an orphan link without ends', () => {
+    // As imported when ZN dropped the link: no target, no ends.
+    const orphan = ann(B_LINK, 'link', { orphan: true });
+    const { changed } = reconcile([orphan], { elements: [], links: [] });
+    expect(changed).toBe(0);
+  });
 });
 
 describe('property of an event', () => {
