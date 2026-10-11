@@ -23,6 +23,15 @@ export function setReaderWindow(win: Window | null): void {
   current = (win as ReaderWin | null) ?? window;
 }
 
+/**
+ * Whether a node or event target is an element, whatever window it belongs
+ * to: `instanceof Element` is false for the nodes of the detached window,
+ * which have that window's constructors.
+ */
+export function isElement(target: EventTarget | Node | null | undefined): target is Element {
+  return !!target && (target as Node).nodeType === 1;
+}
+
 /** Whether the reader is in a window of its own. */
 export function isReaderDetached(): boolean {
   return readerWindow() !== window;

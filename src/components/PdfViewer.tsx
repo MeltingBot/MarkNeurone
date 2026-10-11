@@ -49,7 +49,7 @@ import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
 import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
-import { handOverView, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
+import { handOverView, isElement, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
 
 const PAGE_GAP = 12;
 const PADDING = 16;
@@ -1319,7 +1319,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     if (pressOnScrollbar.current || zoneMode) return;
     // The hand tool, the middle button, or the margin around the pages move
     // the document; elsewhere a drag selects text.
-    const onPage = e.target instanceof Element && !!e.target.closest('.mn-page');
+    const onPage = isElement(e.target) && !!e.target.closest('.mn-page');
     if (!(e.button === 1 || (e.button === 0 && (panMode || !onPage)))) return;
     // No text selection, and no autoscroll for the middle button.
     e.preventDefault();
@@ -1358,7 +1358,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     // The end of a pan, not a click.
     if (panning.current?.moved) return;
     // The end of a zone drag, handled by the zone layer.
-    if (e.target instanceof Element && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
+    if (isElement(e.target) && e.target.closest('[data-zone-layer], [data-cooccurrence]')) return;
     const selection = readerWindow().getSelection();
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, clickable);
@@ -1887,7 +1887,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   /** Suggestion under a click, measured on the rendered text layer. */
   const suggestionAt = (target: EventTarget | null, x: number, y: number): Suggestion | null => {
-    const pageEl = target instanceof Element ? (target.closest('.mn-page') as HTMLElement | null) : null;
+    const pageEl = isElement(target) ? (target.closest('.mn-page') as HTMLElement | null) : null;
     const layer = pageEl?.querySelector('.textLayer') as HTMLElement | null;
     if (!pageEl || !layer || !suggestions.length) return null;
     const page = Number(pageEl.dataset.pageNumber);

@@ -19,6 +19,7 @@ import {
 } from '../core/geometry.ts';
 import { cleanSelection, sentenceAt } from '../core/sentences.ts';
 import { findDates } from '../core/dates.ts';
+import { isElement } from './readerWindow.ts';
 
 export interface PageInfo {
   width: number;
@@ -85,7 +86,7 @@ export function pageText(textLayer: HTMLElement): string {
 }
 
 function pageOf(node: Node | null): HTMLElement | null {
-  const el = node instanceof Element ? node : node?.parentElement;
+  const el = isElement(node) ? node : node?.parentElement;
   return (el?.closest('.mn-page') as HTMLElement | null) ?? null;
 }
 
@@ -177,7 +178,7 @@ export function annotationAt<A extends { id: string; page: number; quads: Quad[]
   scale: number,
   annotations: A[],
 ): A | null {
-  const pageEl = target instanceof Element ? (target.closest('.mn-page') as HTMLElement | null) : null;
+  const pageEl = isElement(target) ? (target.closest('.mn-page') as HTMLElement | null) : null;
   const textLayer = pageEl?.querySelector('.textLayer') as HTMLElement | null;
   if (!pageEl || !textLayer) return null;
   const page = Number(pageEl.dataset.pageNumber);
