@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3 (2026-10-11)
+
+- Correctif : après l'import d'un dossier dont un lien n'avait pas pu être recréé, le lecteur s'arrêtait en erreur à l'ouverture du document qui portait le surlignage de ce lien.
+
 ## 1.6.2 (2026-10-11)
 
 - Correctif : dans le lecteur ouvert en fenêtre séparée, le texte ne pouvait pas être sélectionné. Le glisser déplaçait le document. Le clic sur un surlignage ou une suggestion restait aussi sans effet.
