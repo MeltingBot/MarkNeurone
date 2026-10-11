@@ -75,7 +75,7 @@ Le dépôt ne contient que des documents fictifs : les procès-verbaux de test s
 
 ## État du projet
 
-Version 1.6.0. Les fonctions de la première version sont en place. Elles ont été mesurées sur des procès-verbaux fictifs dégradés et restent à éprouver sur des pièces réelles. Voir le [changelog](CHANGELOG.md).
+Version 1.6.1. Les fonctions de la première version sont en place. Elles ont été mesurées sur des procès-verbaux fictifs dégradés et restent à éprouver sur des pièces réelles. Voir le [changelog](CHANGELOG.md).
 
 ## Licence
 

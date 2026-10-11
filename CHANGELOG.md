@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1 (2026-10-11)
+
+- Correctif : sur certains navigateurs, l'ouverture d'un PDF dans le lecteur échouait avec « getOrInsertComputed is not a function ». MarkNeurone utilise désormais la version compatible de pdf.js.
+
 ## 1.6.0 (2026-10-10)
 
 - Courriels : un fichier EML s'ouvre dans le lecteur. Il affiche l'expéditeur, les destinataires, la date et le sujet, puis le texte du message (la version texte, ou à défaut la version HTML) et les noms des pièces jointes. Un message transféré en pièce jointe est affiché à la suite. Le contenu des pièces jointes n'est pas lu.

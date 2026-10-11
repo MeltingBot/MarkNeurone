@@ -6,10 +6,14 @@
 // GlobalWorkerOptions is NOT touched: in workspace mode this module is the
 // same instance as ZN's pdf.js, and ZN configures its own worker there.
 // Each document gets a dedicated PDFWorker instead.
+//
+// Legacy build: the modern one calls recent built-ins
+// (Map.prototype.getOrInsertComputed...) without polyfilling them and throws
+// in browsers that lack them.
 
-import * as pdfjs from 'pdfjs-dist';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
-import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import PdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker&inline';
 
 export { pdfjs };
 export type { PDFDocumentProxy };

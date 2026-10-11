@@ -1,6 +1,6 @@
 {
   "name": "markneurone",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": true,
   "type": "module",
   "description": "Annotated document reading plugin for ZeroNeurone (PDF, DOCX, ODT, TXT, Markdown; highlights to graph elements, local OCR)",
