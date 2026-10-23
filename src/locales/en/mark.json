@@ -246,6 +246,7 @@
   "zone_error": "Reading the area failed.",
   "area_read": "Frame a picture",
   "area_attach": "Attach the picture to the element",
+  "area_attach_existing": "Attach to an existing element",
   "area_error": "Capturing the picture failed.",
   "origin_oneneurone": "OneNeurone",
   "passage_to_check": "to check",

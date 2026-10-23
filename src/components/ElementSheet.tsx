@@ -509,6 +509,7 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
   // Framed picture: it goes onto the element unless the user unticks it.
   const [attachImage, setAttachImage] = React.useState(true);
   const options = { attachImage: !!passage.area && attachImage };
+  const [existingId, setExistingId] = React.useState<string | null>(null);
 
   const candidates = React.useMemo(() => {
     const named = env.elements.map((el) => ({
@@ -588,6 +589,30 @@ function NewElementForm(p: { env: Env; passage: Passage; onCreated: (id: string)
               h('div', { className: `${S.HINT} ${d ? 'break-words' : 'truncate'}` }, [kindLabel[c.kind], ...details].join(' · '))),
             h('button', { type: 'button', disabled: busy, onClick: () => attach(c.elementId), className: `${S.BUTTON_GHOST_SMALL} shrink-0` }, env.t('attach')));
         }))
+    : null,
+  // A picture has no text to find candidates by: any element can be picked.
+  passage.area
+    ? h('div', { className: 'space-y-1.5' },
+        h('label', { className: S.LABEL }, env.t('area_attach_existing')),
+        h('div', { className: 'flex items-center gap-2' },
+          h('div', { className: 'flex-1 min-w-0' },
+            h(ElementPicker, {
+              elements: env.elements,
+              tagSets: env.tagSets,
+              links: env.links,
+              first: env.documentElementIds,
+              documentReferences: env.documentReferences,
+              value: existingId,
+              onChange: setExistingId,
+              onEscape: p.onCancel,
+              inputClass: S.INPUT,
+            })),
+          h('button', {
+            type: 'button',
+            disabled: busy || !existingId,
+            onClick: () => existingId && attach(existingId),
+            className: `${S.BUTTON_GHOST_SMALL} shrink-0`,
+          }, env.t('attach'))))
     : null,
   h('div', { className: S.BUTTON_ROW },
     h('button', { type: 'button', onClick: p.onCancel, className: S.BUTTON_SECONDARY_SMALL }, env.t('cancel')),

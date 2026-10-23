@@ -246,6 +246,7 @@
   "zone_error": "La lecture de la zone a échoué.",
   "area_read": "Encadrer une image",
   "area_attach": "Joindre l'image à l'élément",
+  "area_attach_existing": "Rattacher à un élément existant",
   "area_error": "La capture de l'image a échoué.",
   "origin_oneneurone": "OneNeurone",
   "passage_to_check": "à vérifier",
