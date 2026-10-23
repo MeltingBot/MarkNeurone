@@ -12,6 +12,7 @@ import { I18N_NS } from '../constants.ts';
 import type { DocumentAsset } from '../services/documentAssets.ts';
 import type { OpenedPdf, PDFDocumentProxy } from '../services/pdfjs.ts';
 import { analyseTextLayer, countTextChars, type TextLayerReport } from '../core/textLayerDetection.ts';
+import { fitTextStyles } from '../core/textLayerFonts.ts';
 import type { Annotation, Quad } from '../core/model.ts';
 import { applyTransform, linkArc, pdfQuadToViewport, scaleTransform, viewportRectToPdf, type Rect, type Transform } from '../core/geometry.ts';
 import {
@@ -297,8 +298,13 @@ function PdfPage({ doc, blocks, onHeight, onTextLayer, pageNumber, size, scale, 
         renderOcrLayer(textDiv, ocr, scale);
         await renderTask.promise;
       } else {
-        textLayer = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: textDiv, viewport });
-        await Promise.all([renderTask.promise, textLayer.render()]);
+        // The PDF font names are known once the page is drawn.
+        const [, content] = await Promise.all([renderTask.promise, page.getTextContent()]);
+        if (cancelled) return;
+        fitTextStyles(content.styles, (key) =>
+          page.commonObjs.has(key) ? (page.commonObjs.get(key) as { name?: string } | null)?.name : undefined);
+        textLayer = new pdfjs.TextLayer({ textContentSource: content, container: textDiv, viewport });
+        await textLayer.render();
       }
       if (cancelled) return;
       unguard = guardTextSelection(textDiv);
