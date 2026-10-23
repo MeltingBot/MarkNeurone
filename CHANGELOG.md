@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.0 (2026-10-23)
+
+- Image : une image encadrée peut être rattachée à n'importe quel élément existant du dossier (« Rattacher à un élément existant »), et pas seulement à un élément dont le nom ressemble au libellé saisi. La création d'un nouvel élément reste proposée.
+- Correctif : dans Firefox, la sélection d'un passage prenait des caractères voisins et le surlignage était décalé par rapport au texte. Le texte invisible posé sur la page utilise désormais une police de même largeur que celle du PDF (Times, Arial, Courier, Calibri, Cambria).
+
 ## 1.6.3 (2026-10-11)
 
 - Correctif : après l'import d'un dossier dont un lien n'avait pas pu être recréé, le lecteur s'arrêtait en erreur à l'ouverture du document qui portait le surlignage de ce lien.
