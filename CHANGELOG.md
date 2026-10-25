@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.1 (2026-10-25)
+
+- Correctif : l'outil « Encadrer un passage » lisait mal un tableau quadrillé, souvent sans aucun texte exploitable. Les traits du tableau sont désormais effacés avant la reconnaissance, et le tableau est lu ligne par ligne.
+
 ## 1.7.0 (2026-10-23)
 
 - Image : une image encadrée peut être rattachée à n'importe quel élément existant du dossier (« Rattacher à un élément existant »), et pas seulement à un élément dont le nom ressemble au libellé saisi. La création d'un nouvel élément reste proposée.
