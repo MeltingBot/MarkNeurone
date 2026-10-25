@@ -551,6 +551,8 @@ function isDocumentCarrier(el: ZnElement, assets: { id: string; filename: string
 }
 /** Pages are recognized at 300 dpi, the resolution the bench was run at. */
 const OCR_SCALE = 300 / 72;
+/** Framed zone: table rules erased from about 1 cm at 300 dpi, longer than any character. */
+const ZONE_RULE_MIN_RUN = 120;
 /** How long a new passage waits for its object before it can be taken for an orphan. */
 const SETTLING_MS = 10_000;
 /** Framed picture: longest side in pixels, and JPEG quality. */
@@ -1160,9 +1162,9 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   /**
    * Reads a rectangle drawn on a page: rendered at 300 dpi, cleaned (without
-   * deskew, unreliable on a few words), recognized. The passage keeps what
-   * was read; the form shows the image so that the user corrects it, or
-   * types a handwritten passage the OCR could not read.
+   * deskew, unreliable on a few words, and without table rules), recognized.
+   * The passage keeps what was read; the form shows the image so that the
+   * user corrects it, or types a handwritten passage the OCR could not read.
    */
   const onZone = (pageNumber: number, rect: Rect, client: Rect) => {
     const mode = zoneMode;
@@ -1262,7 +1264,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         piece.width = Math.max(1, Math.round((part.right - part.left) * OCR_SCALE));
         piece.height = Math.max(1, Math.round((part.bottom - part.top) * OCR_SCALE));
         piece.getContext('2d')!.drawImage(canvas, x, y, piece.width, piece.height, 0, 0, piece.width, piece.height);
-        const prepared = await engine.preprocessImage(piece, { deskew: false, dropColor: getSettings().ocr.dropColor });
+        const prepared = await engine.preprocessImage(piece, { deskew: false, dropColor: getSettings().ocr.dropColor, ruleMinRun: ZONE_RULE_MIN_RUN });
         const read = buildOcrPage(await engine.recognize(prepared.canvas), { width: prepared.canvas.width, height: prepared.canvas.height, scale: OCR_SCALE, skew: 0 });
         const text = ocrPageText(read).text.trim();
         if (text) texts.push(text);

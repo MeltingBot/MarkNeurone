@@ -18,6 +18,8 @@ export interface PreprocessOptions {
   maxSkewDeg: number;
   /** Drop coloured ink (stamps) by keeping the lightest channel, see rgbaToGray. */
   dropColor?: boolean;
+  /** Erase table rules: dark runs at least this long, in pixels. Absent or 0 keeps them. */
+  ruleMinRun?: number;
 }
 
 export const DEFAULT_PREPROCESS: PreprocessOptions = {
@@ -207,6 +209,39 @@ export function rotate(img: GrayImage, deg: number): GrayImage {
   return { data: out, width: w, height: h };
 }
 
+/**
+ * Whitens horizontal and vertical runs of dark pixels at least `minRun` long,
+ * with a margin of `pad` pixels across: the rules of a table. Tesseract reads
+ * a framed zone as one block of text, and rules turn that reading into noise.
+ * No character is that long, so the text stays. Run on the grey image, before
+ * binarization: a blurred rule is still solid there, while Sauvola hollows it
+ * out at the crossings.
+ */
+export function removeRules(img: GrayImage, minRun: number, pad = 2, threshold = 128): GrayImage {
+  const { data, width, height } = img;
+  const out = new Uint8ClampedArray(data);
+  const scan = (count: number, length: number, index: (line: number, pos: number) => number) => {
+    for (let line = 0; line < count; line++) {
+      let start = -1;
+      for (let pos = 0; pos <= length; pos++) {
+        const dark = pos < length && data[index(line, pos)] < threshold;
+        if (dark && start < 0) start = pos;
+        if (!dark && start >= 0) {
+          if (pos - start >= minRun) {
+            for (let l = Math.max(0, line - pad); l <= Math.min(count - 1, line + pad); l++) {
+              for (let k = start; k < pos; k++) out[index(l, k)] = 255;
+            }
+          }
+          start = -1;
+        }
+      }
+    }
+  };
+  scan(height, width, (y, x) => y * width + x);
+  scan(width, height, (x, y) => y * width + x);
+  return { data: out, width, height };
+}
+
 export function preprocess(img: GrayImage, options: PreprocessOptions = DEFAULT_PREPROCESS): PreprocessResult {
   let current = img;
   let skewDeg = 0;
@@ -217,6 +252,7 @@ export function preprocess(img: GrayImage, options: PreprocessOptions = DEFAULT_
     skewDeg = estimateSkew(probe, options.maxSkewDeg);
     if (skewDeg !== 0) current = rotate(current, skewDeg);
   }
+  if (options.ruleMinRun) current = removeRules(current, options.ruleMinRun);
   if (options.binarize) current = sauvola(current, options.sauvolaWindow, options.sauvolaK);
   return { image: current, skewDeg };
 }
