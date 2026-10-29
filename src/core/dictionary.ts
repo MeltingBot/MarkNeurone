@@ -5,6 +5,8 @@
 // offered as the default action; reordered names and initials are shown as
 // candidates, never chosen for the user.
 
+import { asPhone } from './patterns/identifiers.ts';
+
 export type MatchKind = 'exact' | 'reordered' | 'initials';
 
 export interface NamedElement {
@@ -53,6 +55,11 @@ function initialsMatch(a: string[], b: string[]): boolean {
 }
 
 export function matchName(passage: string, name: string): MatchKind | null {
+  // Phone numbers compare by their digits: "06 39 98 41 17", "06.39.98.41.17"
+  // and "+33 6 39 98 41 17" are the same line
+  const phoneA = asPhone(passage);
+  const phoneB = phoneA ? asPhone(name) : null;
+  if (phoneA && phoneB) return phoneA === phoneB ? 'exact' : null;
   const a = tokens(passage);
   const b = tokens(name);
   if (!a.length || !b.length) return null;

@@ -36,6 +36,13 @@ const IBAN = /(?<![A-Z0-9])[A-Z]{2}\d{2}(?:\s{0,2}[A-Z0-9]{4}){2,7}(?:\s{0,2}[A-
 
 const SIRET = /(?<!\d)\d{3}\s{0,2}\d{3}\s{0,2}\d{3}\s{0,2}\d{5}(?!\d)/g;
 
+const PHONE_FR_WHOLE = new RegExp(`^\\s*(?:${PHONE_FR.source})\\s*$`);
+
+/** Canonical form of `text` when the whole of it is a French phone number, else null. */
+export function asPhone(text: string): string | null {
+  return PHONE_FR_WHOLE.test(text) ? normalizePhone(text) : null;
+}
+
 export function normalizePhone(raw: string): string {
   let digits = raw.replace(/\(0\)/, '').replace(/[^\d+]/g, '');
   if (digits.startsWith('+33')) digits = '0' + digits.slice(3);

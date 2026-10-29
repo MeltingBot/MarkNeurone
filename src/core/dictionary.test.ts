@@ -8,6 +8,18 @@ describe('normalizeName', () => {
 });
 
 describe('matchName', () => {
+  it('compares phone numbers by their digits', () => {
+    expect(matchName('0639984117', '06 39 98 41 17')).toBe('exact');
+    expect(matchName('06 39 98 41 17', '06.39.98.41.17')).toBe('exact');
+    expect(matchName('06 39 98 41 17', '+33 6 39 98 41 17')).toBe('exact');
+    expect(matchName('06 39 98 41 17', '06 39 98 41 18')).toBeNull();
+  });
+
+  it('leaves values that are not phone numbers to the name rules', () => {
+    expect(matchName('12.03.2024', '12 03 2024')).toBe('exact');
+    expect(matchName('0639984117', 'Ligne 0639984117')).toBeNull();
+  });
+
   it('detects an exact match', () => {
     expect(matchName('jean MARTIN', 'Jean Martin')).toBe('exact');
     expect(matchName('Trévoux', 'TREVOUX')).toBe('exact');
