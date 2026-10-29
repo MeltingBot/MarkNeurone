@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.2 (2026-10-29)
+
+- Correctif : un numéro de téléphone surligné ne retrouvait pas l'élément existant quand celui-ci était écrit avec des espaces, des points ou en +33 (`06 39 98 41 17`, `06.39.98.41.17`, `+33 6 39 98 41 17`). Les numéros sont désormais comparés par leurs chiffres, sans toucher aux libellés du dossier.
+
 ## 1.7.1 (2026-10-25)
 
 - Correctif : l'outil « Encadrer un passage » lisait mal un tableau quadrillé, souvent sans aucun texte exploitable. Les traits du tableau sont désormais effacés avant la reconnaissance, et le tableau est lu ligne par ligne.
