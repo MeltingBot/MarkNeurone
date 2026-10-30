@@ -48,20 +48,20 @@ function FieldRows(p: { fields: DraftField[]; allowEvent: boolean; onChange: (fi
       return h('div', { key: `${f.label}-${i}`, className: 'space-y-0.5' },
         h('div', { className: `text-[11px] font-medium truncate ${skipped ? 'text-text-tertiary' : 'text-text-secondary'}`, title: f.label }, f.label),
         h('div', { className: 'flex items-center gap-1' },
-          h('input', {
-            className: `${S.INPUT_COMPACT} flex-1 min-w-0`,
+          h('div', { className: 'flex-1 min-w-0' }, h('input', {
+            className: S.INPUT_COMPACT,
             value: f.property,
             disabled: skipped || f.type === 'event',
             'aria-label': t('model_property'),
             title: t('model_property'),
             onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => set({ property: e.target.value }),
-          }),
-          h('select', {
-            className: `${S.INPUT_COMPACT} w-28 shrink-0`,
+          })),
+          h('div', { className: 'w-28 shrink-0' }, h('select', {
+            className: S.INPUT_COMPACT,
             value: f.type,
             'aria-label': t('model_type'),
             onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => set({ type: e.target.value as DraftFieldType }),
-          }, types.map((ty) => h('option', { key: ty, value: ty }, t(`model_type_${ty}`))))));
+          }, types.map((ty) => h('option', { key: ty, value: ty }, t(`model_type_${ty}`)))))));
     }));
 }
 
@@ -114,12 +114,12 @@ function SectionBody(p: { draft: FormDraft; section: DraftSection; tagSets: ZnTa
               }),
               h('span', { className: 'text-xs text-text-primary truncate flex-1 min-w-0', title: o.title }, o.title),
               link
-                ? h('input', {
-                    className: `${S.INPUT_COMPACT} w-32 shrink-0`,
+                ? h('div', { className: 'w-32 shrink-0' }, h('input', {
+                    className: S.INPUT_COMPACT,
                     value: link.label,
                     'aria-label': t('model_link_label'),
                     onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLink(e.target.value),
-                  })
+                  }))
                 : null);
           }))
       : null);
