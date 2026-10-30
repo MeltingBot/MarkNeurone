@@ -15,7 +15,7 @@ import { blockDraft, blockState, documentRows, isAnswered, valueDate, valuePerio
 import { findCandidates } from '../core/dictionary.ts';
 import { discriminants, homonymGroups } from '../core/elementSearch.ts';
 import { getProfile } from '../services/settingsStore.ts';
-import { rejectBlock, rejectRows, validateBlock, validateDocumentFields, type PassageOf } from '../services/formQualify.ts';
+import { linkBlocks, rejectBlock, rejectRows, validateBlock, validateDocumentFields, type PassageOf } from '../services/formQualify.ts';
 import type { DocumentContext } from '../services/qualify.ts';
 import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../services/znTypes.ts';
 import { linkedLabelsOf } from './ElementPicker.tsx';
@@ -117,15 +117,43 @@ interface Env {
   onGoto: (anchor: ValueAnchor) => void;
 }
 
-function BlockSheet(p: { env: Env; draft: BlockDraft; linkTargets: { elementId: string; label: string }[]; onDone: () => void }) {
+/** What the user made of a block's sheet: kept while other blocks are read. */
+interface BlockEdit {
+  label: string;
+  tag: string | null;
+  attachTo: string | null;
+  rows: DraftRow[];
+  /** Links chosen, by the key of the target block, with their label. */
+  links: Map<string, string>;
+}
+
+interface DocumentEdit {
+  rows: DraftRow[];
+  carrier: string;
+}
+
+const defaultEdit = (d: BlockDraft): BlockEdit => ({ label: d.label, tag: d.tag, attachTo: null, rows: d.rows, links: new Map() });
+
+/** A block the link may point to: created already, or reviewed and still to add. */
+interface LinkTarget {
+  key: string;
+  label: string;
+  name: string;
+}
+
+function BlockSheet(p: {
+  env: Env;
+  edit: BlockEdit;
+  onEdit: (edit: BlockEdit) => void;
+  linkTargets: LinkTarget[];
+  busy: boolean;
+  onSubmit: () => void;
+  onReject: () => void;
+}) {
   const { React, h, t } = host();
-  const { env, draft } = p;
-  const [label, setLabel] = React.useState(draft.label);
-  const [tag, setTag] = React.useState<string | null>(draft.tag);
-  const [attachTo, setAttachTo] = React.useState<string | null>(null);
-  const [rows, setRows] = React.useState<DraftRow[]>(draft.rows);
-  const [linkChecks, setLinkChecks] = React.useState<Set<string>>(new Set());
-  const [busy, setBusy] = React.useState(false);
+  const { env, edit } = p;
+  const { label, tag, attachTo, rows } = edit;
+  const set = (patch: Partial<BlockEdit>) => p.onEdit({ ...edit, ...patch });
 
   // Never attached by default: the user picks a candidate (homonyms).
   const candidates = React.useMemo(() => {
@@ -141,42 +169,18 @@ function BlockSheet(p: { env: Env; draft: BlockDraft; linkTargets: { elementId: 
   const groups = React.useMemo(() => homonymGroups(env.elements), [env.elements]);
   const linkedLabels = React.useMemo(() => linkedLabelsOf(env.elements, env.links), [env.elements, env.links]);
 
-  const submit = async () => {
-    if (busy || (!attachTo && !label.trim())) return;
-    setBusy(true);
-    const ok = await run(() =>
-      validateBlock(
-        env.ctx,
-        {
-          name: { anchor: draft.nameAnchor, text: draft.nameText || label },
-          target: attachTo ? { kind: 'existing', elementId: attachTo } : { kind: 'new', label, tags: tag ? [tag] : [] },
-          rows: usable(rows),
-          links: p.linkTargets.filter((l) => linkChecks.has(l.elementId)).map((l) => ({ toId: l.elementId, label: l.label })),
-        },
-        env.passageOf,
-      ));
-    setBusy(false);
-    if (ok) p.onDone();
-  };
-  const reject = async () => {
-    setBusy(true);
-    const ok = await run(() => rejectBlock(env.ctx, { anchor: draft.nameAnchor, text: draft.nameText || label }, env.passageOf));
-    setBusy(false);
-    if (ok) p.onDone();
-  };
-
   return h('div', { className: 'space-y-3 pt-2' },
     h('div', { className: 'space-y-1' },
       h('label', { className: S.LABEL }, t('field_label')),
-      h('input', { className: S.INPUT, value: label, disabled: !!attachTo, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value) })),
+      h('input', { className: S.INPUT, value: label, disabled: !!attachTo, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => set({ label: e.target.value }) })),
     h('div', { className: 'space-y-1' },
       h('label', { className: S.LABEL }, t('field_tags')),
-      h(TagSetPicker, { value: tag, tagSets: env.tagSets, allowNone: true, colorOf: (name: string) => tagColor(env.tagSets, name), onChange: setTag })),
+      h(TagSetPicker, { value: tag, tagSets: env.tagSets, allowNone: true, colorOf: (name: string) => tagColor(env.tagSets, name), onChange: (next: string | null) => set({ tag: next }) })),
     candidates.length
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('candidates_title')),
           h('label', { className: `flex items-center gap-2 px-2 py-1.5 rounded border text-xs ${attachTo === null ? 'border-accent' : 'border-border-default'}` },
-            h('input', { type: 'radio', checked: attachTo === null, onChange: () => setAttachTo(null) }),
+            h('input', { type: 'radio', checked: attachTo === null, onChange: () => set({ attachTo: null }) }),
             t('form_new_element')),
           candidates.map((c) => {
             const el = env.elements.find((x) => x.id === c.elementId)!;
@@ -185,7 +189,7 @@ function BlockSheet(p: { env: Env; draft: BlockDraft; linkTargets: { elementId: 
               ? [...el.tags, ...d.properties.map((pr) => `${pr.key} : ${pr.value}`), ...(d.linked.length ? [t('picker_linked', { labels: d.linked.join(', ') })] : [])]
               : [...el.tags, ...el.properties.slice(0, 2).map((pr) => `${pr.key} : ${pr.value instanceof Date ? pr.value.toLocaleDateString('fr-FR') : String(pr.value)}`)];
             return h('label', { key: c.elementId, className: `flex items-start gap-2 px-2 py-1.5 rounded border ${attachTo === c.elementId ? 'border-accent' : 'border-border-default'}` },
-              h('input', { type: 'radio', className: 'mt-0.5', checked: attachTo === c.elementId, onChange: () => setAttachTo(c.elementId) }),
+              h('input', { type: 'radio', className: 'mt-0.5', checked: attachTo === c.elementId, onChange: () => set({ attachTo: c.elementId }) }),
               h('div', { className: 'flex-1 min-w-0' },
                 h('div', { className: 'text-xs font-medium text-text-primary truncate' }, el.label),
                 h('div', { className: `${S.HINT} break-words` }, [t(`match_${c.kind}`), ...details].join(' · '))));
@@ -197,7 +201,7 @@ function BlockSheet(p: { env: Env; draft: BlockDraft; linkTargets: { elementId: 
             h(RowEditor, {
               key: r.id,
               row: r,
-              onChange: (next: DraftRow) => setRows(rows.map((x, j) => (j === i ? next : x))),
+              onChange: (next: DraftRow) => set({ rows: rows.map((x, j) => (j === i ? next : x)) }),
               onGoto: () => env.onGoto(r.anchor),
             })))
       : null,
@@ -205,39 +209,39 @@ function BlockSheet(p: { env: Env; draft: BlockDraft; linkTargets: { elementId: 
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('form_links')),
           p.linkTargets.map((l) =>
-            h('label', { key: l.elementId, className: 'flex items-center gap-2 text-xs text-text-primary' },
+            h('label', { key: l.key, className: 'flex items-center gap-2 text-xs text-text-primary' },
               h('input', {
                 type: 'checkbox',
-                checked: linkChecks.has(l.elementId),
+                checked: edit.links.has(l.key),
                 onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => {
-                  const next = new Set(linkChecks);
-                  if (e.target.checked) next.add(l.elementId);
-                  else next.delete(l.elementId);
-                  setLinkChecks(next);
+                  const next = new Map(edit.links);
+                  if (e.target.checked) next.set(l.key, l.label);
+                  else next.delete(l.key);
+                  set({ links: next });
                 },
               }),
-              h('span', { className: 'truncate' }, `${l.label} > ${env.elements.find((el) => el.id === l.elementId)?.label ?? ''}`))))
+              h('span', { className: 'truncate' }, `${l.label} > ${l.name}`))))
       : null,
     h('div', { className: S.BUTTON_ROW },
-      h('button', { type: 'button', disabled: busy, onClick: reject, className: S.BUTTON_SECONDARY_SMALL }, t('form_reject')),
-      h('button', { type: 'button', disabled: busy || (!attachTo && !label.trim()), onClick: submit, className: S.BUTTON_PRIMARY_SMALL },
+      h('button', { type: 'button', disabled: p.busy, onClick: p.onReject, className: S.BUTTON_SECONDARY_SMALL }, t('form_reject')),
+      h('button', { type: 'button', disabled: p.busy || (!attachTo && !label.trim()), onClick: p.onSubmit, className: S.BUTTON_PRIMARY_SMALL },
         t(attachTo ? 'attach' : 'create'))));
 }
 
 // ─── Document sheet ──────────────────────────────────────────
 
-function DocumentSheet(p: { env: Env; rows: DraftRow[]; carrierIds: string[]; onDone: () => void }) {
-  const { React, h, t } = host();
-  const { env } = p;
-  const [rows, setRows] = React.useState<DraftRow[]>(p.rows);
-  const [carrier, setCarrier] = React.useState<string>(p.carrierIds[0] ?? '');
-  const [busy, setBusy] = React.useState(false);
-  const write = async (action: () => Promise<unknown>) => {
-    setBusy(true);
-    const ok = await run(action);
-    setBusy(false);
-    if (ok) p.onDone();
-  };
+function DocumentSheet(p: {
+  env: Env;
+  edit: DocumentEdit;
+  onEdit: (edit: DocumentEdit) => void;
+  carrierIds: string[];
+  busy: boolean;
+  onAdd: () => void;
+  onReject: () => void;
+}) {
+  const { h, t } = host();
+  const { env, edit } = p;
+  const { rows, carrier } = edit;
   return h('div', { className: 'space-y-3 pt-2' },
     p.carrierIds.length > 1
       ? h('div', { className: 'space-y-1' },
@@ -245,23 +249,44 @@ function DocumentSheet(p: { env: Env; rows: DraftRow[]; carrierIds: string[]; on
           h('select', {
             className: S.INPUT,
             value: carrier,
-            onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => setCarrier(e.target.value),
+            onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => p.onEdit({ ...edit, carrier: e.target.value }),
           }, p.carrierIds.map((id) => h('option', { key: id, value: id }, env.elements.find((el) => el.id === id)?.label ?? id))))
       : null,
     h('div', { className: 'space-y-2' },
       rows.map((r, i) =>
-        h(RowEditor, { key: r.id, row: r, onChange: (next: DraftRow) => setRows(rows.map((x, j) => (j === i ? next : x))), onGoto: () => env.onGoto(r.anchor) }))),
+        h(RowEditor, {
+          key: r.id,
+          row: r,
+          onChange: (next: DraftRow) => p.onEdit({ ...edit, rows: rows.map((x, j) => (j === i ? next : x)) }),
+          onGoto: () => env.onGoto(r.anchor),
+        }))),
     h('div', { className: S.BUTTON_ROW },
-      h('button', { type: 'button', disabled: busy, onClick: () => write(() => rejectRows(env.ctx, rows, env.passageOf)), className: S.BUTTON_SECONDARY_SMALL }, t('form_reject')),
-      h('button', {
-        type: 'button',
-        disabled: busy || !carrier || !usable(rows).length,
-        onClick: () => write(() => validateDocumentFields(env.ctx, carrier, usable(rows), env.passageOf)),
-        className: S.BUTTON_PRIMARY_SMALL,
-      }, t('form_add'))));
+      h('button', { type: 'button', disabled: p.busy, onClick: p.onReject, className: S.BUTTON_SECONDARY_SMALL }, t('form_reject')),
+      h('button', { type: 'button', disabled: p.busy || !carrier || !usable(rows).length, onClick: p.onAdd, className: S.BUTTON_PRIMARY_SMALL }, t('form_add'))));
 }
 
 // ─── Panel ───────────────────────────────────────────────────
+
+/** A link chosen toward a block not created yet: made when that block is. */
+interface PendingLink {
+  fromId: string;
+  page: number;
+  toKey: string;
+  label: string;
+}
+
+/** The review of a document, kept until the page reloads: closing the form loses nothing. */
+interface Review {
+  edits: Map<string, BlockEdit>;
+  docEdit: DocumentEdit | null;
+  pending: PendingLink[];
+}
+const reviews = new Map<string, Review>();
+const reviewOf = (key: string): Review => {
+  let r = reviews.get(key);
+  if (!r) reviews.set(key, (r = { edits: new Map(), docEdit: null, pending: [] }));
+  return r;
+};
 
 export function FormPanel(p: Props) {
   const { api, React, h, t } = host();
@@ -280,6 +305,43 @@ export function FormPanel(p: Props) {
   const docRows = React.useMemo(() => documentRows(reading), [reading]);
   const openDocRows = docRows.filter((r) => !isAnswered(r.anchor, annotations));
 
+  // A block is reviewed once the user opens it or changes it (not when it
+  // opens by itself after a creation); its edits stay until it is added.
+  const review = reviewOf(`${p.ctx.dossierId}:${p.ctx.asset.id}:${model.id}`);
+  const [, rerender] = React.useState(0);
+  const refresh = () => rerender((n) => n + 1);
+  const edits = review.edits;
+  const docEdit = review.docEdit;
+  const pending = {
+    get current() {
+      return review.pending;
+    },
+    set current(v: PendingLink[]) {
+      review.pending = v;
+    },
+  };
+  const [busy, setBusy] = React.useState(false);
+  const setEdit = (key: string, edit: BlockEdit) => {
+    edits.set(key, edit);
+    refresh();
+  };
+  const setDocEdit = (edit: DocumentEdit | null) => {
+    review.docEdit = edit;
+    refresh();
+  };
+  const dropEdits = (keys: string[]) => {
+    for (const k of keys) edits.delete(k);
+    refresh();
+  };
+  const markReviewed = (key: string | null) => {
+    if (key === DOCUMENT_KEY) {
+      if (!docEdit && openDocRows.length) setDocEdit({ rows: openDocRows, carrier: p.carrierIds[0] ?? '' });
+      return;
+    }
+    const d = key ? drafts.find((x) => x.key === key) : undefined;
+    if (d && !edits.has(d.key)) setEdit(d.key, defaultEdit(d));
+  };
+
   /** Next block to check after this one, in reading order. */
   const nextOpen = (key: string) => {
     const from = drafts.findIndex((d) => d.key === key);
@@ -287,8 +349,98 @@ export function FormPanel(p: Props) {
     return next?.key ?? null;
   };
   const select = (key: string | null, anchor?: ValueAnchor) => {
+    if (key !== p.selectedKey) markReviewed(key);
     p.onSelect(key === p.selectedKey ? null : key);
     if (anchor && key !== p.selectedKey) p.onGoto(anchor);
+  };
+
+  const createdIds = () => {
+    const out = new Map<string, string>();
+    drafts.forEach((d, i) => {
+      const s = states[i];
+      if (s.status === 'done') out.set(d.key, s.elementId);
+    });
+    return out;
+  };
+
+  /** Creates one block; links toward blocks not created yet wait for them. */
+  const createBlock = async (d: BlockDraft, edit: BlockEdit, created: Map<string, string>) => {
+    const now: { toId: string; label: string }[] = [];
+    const later: { toKey: string; label: string }[] = [];
+    for (const [toKey, label] of edit.links) {
+      const toId = created.get(toKey);
+      if (toId) now.push({ toId, label });
+      else later.push({ toKey, label });
+    }
+    const id = await validateBlock(
+      env.ctx,
+      {
+        name: { anchor: d.nameAnchor, text: d.nameText || edit.label },
+        target: edit.attachTo ? { kind: 'existing', elementId: edit.attachTo } : { kind: 'new', label: edit.label, tags: edit.tag ? [edit.tag] : [] },
+        rows: usable(edit.rows),
+        links: now,
+      },
+      env.passageOf,
+    );
+    created.set(d.key, id);
+    const waiting = pending.current.filter((l) => l.toKey === d.key);
+    pending.current = pending.current.filter((l) => l.toKey !== d.key);
+    for (const l of waiting) await linkBlocks(env.ctx, l.page, l.fromId, id, l.label);
+    pending.current.push(...later.map((l) => ({ ...l, fromId: id, page: d.nameAnchor.page })));
+  };
+
+  const write = async (action: () => Promise<unknown>, then?: () => void) => {
+    setBusy(true);
+    const ok = await run(action);
+    setBusy(false);
+    if (ok) then?.();
+  };
+
+  const submitBlock = (d: BlockDraft) => {
+    const edit = edits.get(d.key) ?? defaultEdit(d);
+    return write(() => createBlock(d, edit, createdIds()), () => {
+      dropEdits([d.key]);
+      p.onSelect(nextOpen(d.key));
+    });
+  };
+  const rejectOne = (d: BlockDraft) => {
+    const edit = edits.get(d.key) ?? defaultEdit(d);
+    return write(() => rejectBlock(env.ctx, { anchor: d.nameAnchor, text: d.nameText || edit.label }, env.passageOf), () => {
+      dropEdits([d.key]);
+      pending.current = pending.current.filter((l) => l.toKey !== d.key);
+      p.onSelect(nextOpen(d.key));
+    });
+  };
+
+  // Reviewed and still open: the blocks "add reviewed" writes, in section order.
+  const reviewed = model.sections.flatMap((s) =>
+    drafts.filter((d, i) => d.sectionId === s.id && states[i].status === 'open' && edits.has(d.key)),
+  );
+  const docReviewed = !!docEdit && openDocRows.length > 0 && !!docEdit.carrier && usable(docEdit.rows).length > 0;
+  const reviewedCount = reviewed.length + (docReviewed ? 1 : 0);
+
+  const addReviewed = () => {
+    const done: string[] = [];
+    return write(
+      async () => {
+        try {
+          const created = createdIds();
+          for (const d of reviewed) {
+            const edit = edits.get(d.key)!;
+            if (!edit.attachTo && !edit.label.trim()) continue;
+            await createBlock(d, edit, created);
+            done.push(d.key);
+          }
+          if (docReviewed) await validateDocumentFields(env.ctx, docEdit!.carrier, usable(docEdit!.rows), env.passageOf);
+        } finally {
+          dropEdits(done);
+        }
+      },
+      () => {
+        setDocEdit(null);
+        p.onSelect(null);
+      },
+    );
   };
 
   const [closedSections, setClosedSections] = React.useState<Set<string>>(new Set());
@@ -304,11 +456,18 @@ export function FormPanel(p: Props) {
       h('span', { className: S.SECTION_TITLE }, title),
       open ? h('span', { className: S.SECTION_BADGE }, open) : null);
 
+  const blockName = (d: BlockDraft, i: number) => {
+    const state = states[i];
+    const created = state.status === 'done' ? elements.find((el) => el.id === state.elementId) : undefined;
+    return created?.label || edits.get(d.key)?.label || d.label || `${model.sections.find((s) => s.id === d.sectionId)?.titles[0] ?? ''} ${d.index + 1}`;
+  };
+
   const blockRow = (d: BlockDraft, i: number) => {
     const state = states[i];
     const selected = p.selectedKey === d.key;
-    const created = state.status === 'done' ? elements.find((el) => el.id === state.elementId) : undefined;
-    const name = created?.label || d.label || `${model.sections.find((s) => s.id === d.sectionId)?.titles[0] ?? ''} ${d.index + 1}`;
+    const isReviewed = state.status === 'open' && edits.has(d.key);
+    const status = state.status === 'open' ? (isReviewed ? 'form_status_reviewed' : null) : state.status === 'done' ? 'form_status_done' : 'form_status_rejected';
+    const edit = edits.get(d.key) ?? defaultEdit(d);
     return h('div', { key: d.key, className: `rounded border ${selected ? 'border-accent' : 'border-border-default'}` },
       h('button', {
         type: 'button',
@@ -317,20 +476,24 @@ export function FormPanel(p: Props) {
       },
         state.status === 'done' ? h(Check, { size: 12, className: 'text-success shrink-0' }) : null,
         state.status === 'rejected' ? h(X, { size: 12, className: 'text-text-tertiary shrink-0' }) : null,
-        h('span', { className: `flex-1 min-w-0 truncate text-xs ${state.status === 'open' ? 'text-text-primary' : 'text-text-tertiary'}` }, name),
-        state.status !== 'open' ? h('span', { className: S.HINT }, t(state.status === 'done' ? 'form_status_done' : 'form_status_rejected')) : null),
+        h('span', { className: `flex-1 min-w-0 truncate text-xs ${state.status === 'open' ? 'text-text-primary' : 'text-text-tertiary'}` }, blockName(d, i)),
+        status ? h('span', { className: S.HINT }, t(status)) : null),
       selected && state.status === 'open'
         ? h('div', { className: 'px-2 pb-2' },
             h(BlockSheet, {
               key: d.key,
               env,
-              draft: d,
+              edit,
+              onEdit: (next: BlockEdit) => setEdit(d.key, next),
               linkTargets: d.links.flatMap((l) =>
                 drafts.flatMap((o, j) => {
                   const s = states[j];
-                  return o.sectionId === l.to && s.status === 'done' ? [{ elementId: s.elementId, label: l.label }] : [];
+                  const ok = o.sectionId === l.to && (s.status === 'done' || (s.status === 'open' && edits.has(o.key)));
+                  return ok ? [{ key: o.key, label: l.label, name: blockName(o, j) }] : [];
                 })),
-              onDone: () => p.onSelect(nextOpen(d.key)),
+              busy,
+              onSubmit: () => submitBlock(d),
+              onReject: () => rejectOne(d),
             }))
         : null);
   };
@@ -348,6 +511,7 @@ export function FormPanel(p: Props) {
 
   // A row like a block: one sheet open at a time, so one primary button.
   const documentSelected = p.selectedKey === DOCUMENT_KEY;
+  const docView: DocumentEdit = docEdit ?? { rows: openDocRows, carrier: p.carrierIds[0] ?? '' };
   const documentSection = openDocRows.length && p.carrierIds.length
     ? h('div', { className: S.SECTION },
         sectionHeader(DOCUMENT_KEY, t('form_document'), openDocRows.length),
@@ -359,15 +523,31 @@ export function FormPanel(p: Props) {
                   type: 'button',
                   onClick: () => select(DOCUMENT_KEY, openDocRows[0].anchor),
                   className: 'w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-bg-secondary rounded',
-                }, h('span', { className: 'flex-1 min-w-0 truncate text-xs text-text-primary' }, openDocRows.map((r) => r.key).join(', '))),
+                },
+                  h('span', { className: 'flex-1 min-w-0 truncate text-xs text-text-primary' }, openDocRows.map((r) => r.key).join(', ')),
+                  docEdit ? h('span', { className: S.HINT }, t('form_status_reviewed')) : null),
                 documentSelected
                   ? h('div', { className: 'px-2 pb-2' },
-                      h(DocumentSheet, { key: openDocRows.map((r) => r.id).join(), env, rows: openDocRows, carrierIds: p.carrierIds, onDone: () => p.onSelect(drafts.find((_, i) => states[i].status === 'open')?.key ?? null) }))
+                      h(DocumentSheet, {
+                        env,
+                        edit: docView,
+                        onEdit: setDocEdit,
+                        carrierIds: p.carrierIds,
+                        busy,
+                        onAdd: () => write(() => validateDocumentFields(env.ctx, docView.carrier, usable(docView.rows), env.passageOf), () => {
+                          setDocEdit(null);
+                          p.onSelect(drafts.find((_, i) => states[i].status === 'open')?.key ?? null);
+                        }),
+                        onReject: () => write(() => rejectRows(env.ctx, docView.rows, env.passageOf), () => {
+                          setDocEdit(null);
+                          p.onSelect(drafts.find((_, i) => states[i].status === 'open')?.key ?? null);
+                        }),
+                      }))
                   : null)))
     : null;
 
   return h('aside', {
-    className: 'flex flex-col shrink-0 border-l border-border-default bg-bg-primary overflow-y-auto',
+    className: 'flex flex-col shrink-0 border-l border-border-default bg-bg-primary',
     style: { width: 360 },
     'aria-label': model.name,
   },
@@ -377,9 +557,15 @@ export function FormPanel(p: Props) {
       h('button', { type: 'button', onClick: p.onClose, title: t('form_close'), 'aria-label': t('form_close'), className: `${S.ICON_BUTTON} shrink-0` }, h(X, { size: 14 })),
       h('button', { type: 'button', onClick: p.onCollapse, title: t('sheet_collapse'), 'aria-label': t('sheet_collapse'), className: `${S.ICON_BUTTON} shrink-0` },
         h(api.icons.PanelRightClose, { size: 14 }))),
-    !reading.blocks.length && !docRows.length
-      ? h('p', { className: 'px-4 py-3 text-xs text-text-tertiary' }, t('form_nothing'))
-      : null,
-    documentSection,
-    sections);
+    h('div', { className: 'flex-1 min-h-0 overflow-y-auto' },
+      !reading.blocks.length && !docRows.length
+        ? h('p', { className: 'px-4 py-3 text-xs text-text-tertiary' }, t('form_nothing'))
+        : null,
+      documentSection,
+      sections),
+    reviewedCount
+      ? h('div', { className: 'px-4 py-3 border-t border-border-default bg-bg-secondary' },
+          h('button', { type: 'button', disabled: busy, onClick: addReviewed, className: `${S.BUTTON_SECONDARY_SMALL} w-full justify-center` },
+            t('form_add_reviewed', { count: reviewedCount })))
+      : null);
 }

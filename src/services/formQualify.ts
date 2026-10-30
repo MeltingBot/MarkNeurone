@@ -84,10 +84,13 @@ export async function validateBlock(ctx: DocumentContext, v: BlockValidation, pa
       ? await qualifyAsNewElement(ctx, passage, v.target.label.trim(), v.target.tags)
       : await qualifyAsExistingElement(ctx, passage, v.target.elementId);
   await writeRows(ctx, elementId, v.rows, passageOf);
-  for (const link of v.links) {
-    await qualifyAsLink(ctx, { page: v.name.anchor.page, text: link.label, origin: 'profile' }, elementId, link.toId, link.label);
-  }
+  for (const link of v.links) await linkBlocks(ctx, v.name.anchor.page, elementId, link.toId, link.label);
   return elementId;
+}
+
+/** Link between the elements of two blocks, placed on the page of the first. */
+export async function linkBlocks(ctx: DocumentContext, page: number, fromId: string, toId: string, label: string): Promise<void> {
+  await qualifyAsLink(ctx, { page, text: label, origin: 'profile' }, fromId, toId, label);
 }
 
 /** Fields of the document, onto the element carrying it. */

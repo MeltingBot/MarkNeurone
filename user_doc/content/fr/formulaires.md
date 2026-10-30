@@ -29,11 +29,21 @@ Un clic sur un bloc ouvre sa fiche :
 - **Libellé** et **Tags** de l'élément, proposés par le modèle et modifiables ;
 - **Éléments existants proches** : lorsque le nom ressemble à celui d'un élément du dossier, les candidats sont affichés avec ce qui les distingue (date de naissance, adresse, éléments liés). La création d'un nouvel élément reste le choix par défaut. Pour rattacher le bloc à un élément existant, sélectionnez-le explicitement ;
 - **les champs** du bloc, chacun avec sa case à cocher et sa valeur modifiable. Une période (« Entre le ... et le ... ») devient un événement de l'élément, avec une date de début et de fin. Un libellé absent du modèle est proposé décoché. Une date illisible est signalée et proposée décochée ;
-- **Liens** : lorsque le modèle le prévoit, des liens vers les éléments déjà créés depuis une autre rubrique (par exemple d'une personne vers un fait), décochés par défaut.
+- **Liens** : lorsque le modèle le prévoit, des liens vers les éléments créés ou relus depuis une autre rubrique (par exemple d'une personne vers un fait), décochés par défaut.
 
-« Créer » (ou « Rattacher ») crée l'élément et les champs cochés. « Écarter » retire le bloc des propositions pour ce document. Chaque bloc se valide séparément : il n'y a pas de validation d'une rubrique ou d'un document entier.
+« Créer » (ou « Rattacher ») crée l'élément et les champs cochés. « Écarter » retire le bloc des propositions pour ce document.
 
 Un bloc créé apparaît coché dans la liste et le bloc suivant s'ouvre.
+
+## Relire puis tout ajouter
+
+Vous pouvez aussi relire tous les blocs avant d'ajouter quoi que ce soit. Un bloc sur lequel vous avez cliqué, ou dont vous avez modifié une valeur, est marqué « Relu » et garde vos corrections. Un bloc ouvert automatiquement après une création ne compte pas comme relu tant que vous n'y avez rien modifié.
+
+« Ajouter les blocs relus », en bas du panneau, crée en une fois les blocs relus, rubrique par rubrique, avec les choix faits dans chaque fiche, puis les informations du document si vous les avez relues. Les blocs que vous n'avez pas ouverts ne sont pas ajoutés.
+
+Un lien coché vers un bloc relu mais pas encore créé (par exemple d'une personne vers un fait) est créé en même temps que ce bloc.
+
+Les corrections restent en mémoire si vous fermez le formulaire ou changez de document, jusqu'au rechargement de la page.
 
 Lorsque le bloc est rattaché à un élément qui a déjà une propriété de même nom et de même valeur, cette propriété n'est pas ajoutée une seconde fois : le passage est seulement ajouté à ses sources.
 

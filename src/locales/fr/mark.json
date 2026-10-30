@@ -308,6 +308,8 @@
   "form_close": "Fermer le formulaire",
   "form_choose": "Modèle de formulaire",
   "form_document": "Document",
+  "form_status_reviewed": "Relu",
+  "form_add_reviewed": "Ajouter les blocs relus ({{count}})",
   "form_status_done": "Créé",
   "form_status_rejected": "Écarté",
   "form_reject": "Écarter",
