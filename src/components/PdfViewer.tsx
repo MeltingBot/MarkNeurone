@@ -50,6 +50,9 @@ import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
 import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
+import { matchesSignature, readForm, type FormPageInput, type FormTextItem, type ValueAnchor } from '../core/formReader.ts';
+import { blockDraft, documentRows, formHighlights, type FormHighlight } from '../core/formSession.ts';
+import { DOCUMENT_KEY, FormPanel } from './FormPanel.tsx';
 import { handOverView, isElement, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
 
 const PAGE_GAP = 12;
@@ -518,6 +521,7 @@ const NO_SEARCH_HITS: { start: number; end: number; current: boolean }[] = [];
 const NO_SUGGESTIONS: PageSuggestion[] = [];
 const NO_MARKS: PageMark[] = [];
 const SUGGESTION_COLOR = 'var(--color-text-tertiary)';
+const FORM_COLOR = 'var(--color-accent)';
 
 /**
  * Image of quads (page units) from the page as rendered on screen, with a
@@ -583,6 +587,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [rootWidth, setRootWidth] = React.useState(0);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageTexts, setPageTexts] = React.useState<PageText[]>([]);
+  /** Text items with their positions and fonts, for form reading (PDF only). */
+  const [formPages, setFormPages] = React.useState<FormPageInput[]>([]);
   // ─── OCR ──
   const [ocrPages, setOcrPages] = React.useState<Record<string, OcrPage>>({});
   const [ocrLoaded, setOcrLoaded] = React.useState(false);
@@ -712,6 +718,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     setReport(null);
     setError(null);
     setPageTexts([]);
+    setFormPages([]);
     (async () => {
       const file = await api.fileService.getAssetFile(asset);
       const data = new Uint8Array(await file.arrayBuffer());
@@ -743,11 +750,13 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       setOpened(current);
       const chars: number[] = [];
       const texts: PageText[] = [];
+      const formInputs: FormPageInput[] = [];
       for (let n = 1; n <= current.doc.numPages; n++) {
         const content = await (await current.doc.getPage(n)).getTextContent();
         if (cancelled) return;
         const items = content.items as PdfTextItem[];
         chars.push(countTextChars(items));
+        formInputs.push({ items: items as FormTextItem[], height: pageSizes[n - 1].height });
         // Built like the text layer (shared with passages found without the reader).
         const { text, starts, kept } = pdfPageText(items);
         const transform = pageSizes[n - 1].transform;
@@ -756,6 +765,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       }
       setReport(analyseTextLayer(chars));
       setPageTexts(texts);
+      setFormPages(formInputs);
     })().catch((err: unknown) => {
       if (!cancelled) {
         console.error('MarkNeurone: cannot open document', err);
@@ -1374,6 +1384,12 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         selectHighlight(hit, e.ctrlKey || e.metaKey);
         return;
       }
+      const formHit = formMarkAt(e.target, e.clientX, e.clientY);
+      if (formHit) {
+        setFormSelected(formHit.blockKey ?? DOCUMENT_KEY);
+        setSheetCollapsed(false);
+        return;
+      }
       const suggestion = suggestionAt(e.target, e.clientX, e.clientY);
       const passage = suggestion ? suggestionPassage(suggestion) : null;
       if (passage) {
@@ -1870,10 +1886,51 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     [elements, assets, settingsVersion],
   );
 
-  const suggestions = React.useMemo<Suggestion[]>(
-    () => (suggestionsOn ? buildSuggestions(effectiveTexts.map((p) => p.text), named, annotations, getSettings().identifiers.countries) : []),
-    [suggestionsOn, effectiveTexts, named, annotations, settingsVersion],
+  // ─── Form reading ────────────────────────────────────────
+  // Offered when the first page matches an imported model, applied on request.
+
+  const [formModelId, setFormModelId] = React.useState<string | null>(null);
+  const [formSelected, setFormSelected] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    setFormModelId(null);
+    setFormSelected(null);
+  }, [asset.id]);
+  const matchingModels = React.useMemo(
+    () => (formPages.length ? getSettings().formModels.filter((m) => matchesSignature(formPages[0], m)) : []),
+    [formPages, settingsVersion],
   );
+  const formModel = matchingModels.find((m) => m.id === formModelId) ?? null;
+  const formReading = React.useMemo(() => (formModel ? readForm(formPages, formModel) : null), [formModel, formPages]);
+  const formMarks = React.useMemo<FormHighlight[]>(
+    () => (formModel && formReading ? formHighlights(formReading.blocks.map((b) => blockDraft(b, formModel)), documentRows(formReading), annotations) : []),
+    [formModel, formReading, annotations],
+  );
+  const openForm = (id: string) => {
+    setFormModelId(id);
+    setFormSelected(null);
+    setSheetCollapsed(false);
+  };
+  const toggleForm = (e: ReactTypes.MouseEvent) => {
+    if (formModel) {
+      setFormModelId(null);
+      setFormSelected(null);
+    } else if (matchingModels.length === 1) openForm(matchingModels[0].id);
+    else {
+      const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setMenu({
+        x: box.left,
+        y: box.bottom,
+        header: t('form_choose'),
+        sections: [matchingModels.map((m) => ({ id: m.id, label: m.name, icon: api.icons.ClipboardList, action: () => openForm(m.id) }))],
+      });
+    }
+  };
+
+  // A value of the form says more than a pattern on the same passage.
+  const suggestions = React.useMemo<Suggestion[]>(() => {
+    const all = suggestionsOn ? buildSuggestions(effectiveTexts.map((p) => p.text), named, annotations, getSettings().identifiers.countries) : [];
+    return formMarks.length ? all.filter((s) => !formMarks.some((f) => f.page === s.page && f.start < s.end && s.start < f.end)) : all;
+  }, [suggestionsOn, effectiveTexts, named, annotations, settingsVersion, formMarks]);
 
   const suggestionsByPage = React.useMemo(() => {
     const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
@@ -1890,8 +1947,29 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       list.push({ key: s.key, start: s.start, end: s.end, color });
       byPage.set(s.page, list);
     }
+    for (const f of formMarks) {
+      const list = byPage.get(f.page) ?? [];
+      list.push({ key: f.key, start: f.start, end: f.end, color: FORM_COLOR });
+      byPage.set(f.page, list);
+    }
     return byPage;
-  }, [suggestions, elements, tagSetMap]);
+  }, [suggestions, elements, tagSetMap, formMarks]);
+
+  /** Form value under a click, measured on the rendered text layer. */
+  const formMarkAt = (target: EventTarget | null, x: number, y: number): FormHighlight | null => {
+    const pageEl = isElement(target) ? (target.closest('.mn-page') as HTMLElement | null) : null;
+    const layer = pageEl?.querySelector('.textLayer') as HTMLElement | null;
+    if (!pageEl || !layer || !formMarks.length) return null;
+    const page = Number(pageEl.dataset.pageNumber);
+    const origin = layer.getBoundingClientRect();
+    const px = x - origin.left;
+    const py = y - origin.top;
+    return (
+      formMarks.find(
+        (f) => f.page === page && rangeBoxes(layer, f.start, f.end).some((r) => px >= r.left - 1 && px <= r.right + 1 && py >= r.top - 1 && py <= r.bottom + 1),
+      ) ?? null
+    );
+  };
 
   /** Suggestion under a click, measured on the rendered text layer. */
   const suggestionAt = (target: EventTarget | null, x: number, y: number): Suggestion | null => {
@@ -2139,6 +2217,18 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       className: `p-1.5 rounded disabled:opacity-40 ${zoneMode === mode ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
     }, h(Icon, { size: 14 }));
 
+  /** Passage of a form value: measured when its page is rendered, later otherwise. */
+  const formPassageOf = (anchor: ValueAnchor, text: string): Passage => {
+    const measured = root ? passageFromOffsets(root, anchor.page, anchor.start, anchor.end, sizes, scale) : null;
+    return {
+      ...(measured ?? { page: anchor.page, quads: [], clientBox: { left: 0, top: 0, right: 0, bottom: 0 } }),
+      text,
+      textRange: [anchor.start, anchor.end],
+      origin: 'profile',
+    };
+  };
+  const formGoto = (anchor: ValueAnchor) => scrollToHit({ page: anchor.page, start: anchor.start, end: anchor.end });
+
   const toolbar = h(
     'div',
     { className: 'flex items-center gap-3 px-4 py-1.5 border-b border-border-default bg-bg-secondary text-xs text-text-secondary' },
@@ -2185,6 +2275,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       // Grey when off, accent when on: the icon alone tells the state.
       className: `p-1.5 rounded disabled:opacity-40 ${suggestionsOn ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
     }, h(api.icons.Sparkles, { size: 14 })),
+    matchingModels.length
+      ? h('button', {
+          onClick: toggleForm,
+          disabled: !ready,
+          'aria-pressed': !!formModel,
+          title: formModel ? t('form_close') : matchingModels.length === 1 ? t('form_open_named', { name: matchingModels[0].name }) : t('form_open'),
+          className: `p-1.5 rounded disabled:opacity-40 ${formModel ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
+        }, h(api.icons.ClipboardList, { size: 14 }))
+      : null,
     // Framing tools, as in the context menu (PDF only).
     opened
       ? h('div', { className: 'flex items-center gap-1' },
@@ -2372,7 +2471,22 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
             className: 'p-2 rounded text-text-secondary hover:text-text-primary hover:bg-bg-secondary',
           }, h(api.icons.PanelRightOpen, { size: 18 })))
       : null,
-    sheetCollapsed ? null : h(ElementSheet, {
+    sheetCollapsed ? null : formModel && formReading ? h(FormPanel, {
+      ctx: docCtx,
+      model: formModel,
+      reading: formReading,
+      annotations,
+      carrierIds: elements.filter((el) => el.assetIds?.includes(asset.id)).map((el) => el.id),
+      selectedKey: formSelected,
+      onSelect: setFormSelected,
+      onGoto: formGoto,
+      passageOf: formPassageOf,
+      onClose: () => {
+        setFormModelId(null);
+        setFormSelected(null);
+      },
+      onCollapse: () => setSheetCollapsed(true),
+    }) : h(ElementSheet, {
       ctx: docCtx,
       elementId: sheetElementId,
       draft,

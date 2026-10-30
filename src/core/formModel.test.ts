@@ -77,4 +77,11 @@ describe('fillTemplate', () => {
     expect(fillTemplate('{Qualification} ({Code})', (l) => values[l])).toBe('Vol de matériel (1234)');
     expect(fillTemplate('{Qualification} ({Absent})', (l) => values[l])).toBe('Vol de matériel');
   });
+
+  it('keeps the first date of a value with |date', () => {
+    const values: Record<string, string> = { Qualification: 'Vol', Période: 'Entre le 03/02/2026 22:00 et le 04/02/2026 06:30', Jour: 'le 5 mars 2026' };
+    expect(fillTemplate('{Qualification} {Période|date}', (l) => values[l])).toBe('Vol 03/02/2026 22:00');
+    expect(fillTemplate('{Qualification} {Jour|date}', (l) => values[l])).toBe('Vol 05/03/2026');
+    expect(fillTemplate('{Qualification} {Absent|date}', (l) => values[l])).toBe('Vol');
+  });
 });

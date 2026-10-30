@@ -50,7 +50,14 @@ export interface FormBlock {
   anchor: ValueAnchor;
   values: FormValue[];
   /** Free block: its text, and the "Key : value" pairs found in it. */
-  free?: { text: string; anchor: ValueAnchor; whole: boolean; pairs: { key: string; value: string }[] };
+  free?: { text: string; anchor: ValueAnchor; whole: boolean; pairs: FreePair[] };
+}
+
+/** "Key : value" pair of a free block; its anchor is the value itself when found on one line. */
+export interface FreePair {
+  key: string;
+  value: string;
+  anchor?: ValueAnchor;
 }
 
 export interface FormReading {
@@ -277,6 +284,30 @@ export function keyValuePairs(text: string): { key: string; value: string }[] {
   return out;
 }
 
+/**
+ * Each pair's value looked for in the lines of the block, in reading order:
+ * a value found on one line gets its own anchor.
+ */
+function anchoredPairs(pairs: { key: string; value: string }[], spans: Span[], pages: PageData[]): FreePair[] {
+  const ranges = spans
+    .map((span) => ({ page: span.line.page, range: spanRange(span, pages[span.line.page - 1]) }))
+    .filter((r): r is { page: number; range: [number, number] } => r.range !== null);
+  let line = 0;
+  let from = ranges[0]?.range[0] ?? 0;
+  return pairs.map((pair) => {
+    for (let i = line; i < ranges.length; i++) {
+      const { page, range } = ranges[i];
+      const text = pages[page - 1].text;
+      const start = text.slice(0, range[1]).indexOf(pair.value, i === line ? from : range[0]);
+      if (start < 0) continue;
+      line = i;
+      from = start + pair.value.length;
+      return { ...pair, anchor: { page, start, end: from } };
+    }
+    return pair;
+  });
+}
+
 /** Reads the form; pages in document order, from the first. */
 export function readForm(pages: FormPageInput[], model: FormModel): FormReading {
   const { data, lines } = buildPages(pages);
@@ -336,7 +367,7 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
     if (block && freeSpans) {
       const text = freeSpans.map((s) => s.line.raw.slice(s.from, s.to).trim()).join(' ').replace(/\s+/g, ' ').trim();
       const at = anchorOf(freeSpans, data);
-      if (at && !isEmpty(text)) block.free = { text, anchor: at.anchor, whole: at.whole, pairs: keyValuePairs(text) };
+      if (at && !isEmpty(text)) block.free = { text, anchor: at.anchor, whole: at.whole, pairs: anchoredPairs(keyValuePairs(text), freeSpans, data) };
     }
     if (block && (block.values.length || block.free)) reading.blocks.push(block);
     block = null;

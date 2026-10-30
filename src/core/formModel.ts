@@ -5,6 +5,8 @@
 // value becomes in the graph. Models are user configuration, imported as
 // JSON (docs/lecture-formulaires.md, section 3); none is built in.
 
+import { findDates } from './dates.ts';
+
 export interface FormField {
   /** Label and its alternative wordings. */
   labels: string[];
@@ -83,7 +85,7 @@ const TYPES = ['text', 'date', 'number'] as const;
 
 function field(raw: unknown, section: string | undefined, dropped: ModelIssue[]): FormField | null {
   const f = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const labels = textList(f.label);
+  const labels = textList(f.label ?? f.labels);
   if (!labels.length) {
     dropped.push({ reason: 'no_label', section });
     return null;
@@ -125,7 +127,8 @@ function block(raw: unknown, section: string, dropped: ModelIssue[]): FormBlockD
 
 /**
  * Imported JSON to a usable model, or null when it cannot be one. What is
- * left out is listed in `dropped`, to be shown to the user.
+ * left out is listed in `dropped`, to be shown to the user. A model already
+ * normalized (exported) is accepted as well: `labels`, `titles`, `documentFields`.
  */
 export function normalizeFormModel(raw: unknown): { model: FormModel | null; dropped: ModelIssue[] } {
   const dropped: ModelIssue[] = [];
@@ -135,11 +138,11 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
   if (!name) return { model: null, dropped: [{ reason: 'no_name' }] };
   if (!signature.length) return { model: null, dropped: [{ reason: 'no_signature' }] };
   const doc = (m.document && typeof m.document === 'object' ? m.document : {}) as Record<string, unknown>;
-  const documentFields = fields(doc.fields, undefined, dropped);
+  const documentFields = fields(doc.fields ?? m.documentFields, undefined, dropped);
   const sections: FormSection[] = [];
   for (const rawSection of (Array.isArray(m.sections) ? m.sections : [])) {
     const s = (rawSection && typeof rawSection === 'object' ? rawSection : {}) as Record<string, unknown>;
-    const titles = textList(s.title);
+    const titles = textList(s.title ?? s.titles);
     if (!titles.length) {
       dropped.push({ reason: 'no_title' });
       continue;
@@ -173,10 +176,26 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
   };
 }
 
-/** Replaces each {Label} by the value of that field, or empties the template's part. */
+/** First date of a value as dd/mm/yyyy, with its hour when it has one. */
+function firstDate(value: string): string | undefined {
+  const d = findDates(value)[0];
+  if (!d) return undefined;
+  const p = (n: number) => String(n).padStart(2, '0');
+  const day = `${p(d.date.getDate())}/${p(d.date.getMonth() + 1)}/${d.date.getFullYear()}`;
+  return d.hasTime ? `${day} ${p(d.date.getHours())}:${p(d.date.getMinutes())}` : day;
+}
+
+/**
+ * Replaces each {Label} by the value of that field, or empties the
+ * template's part. {Label|date} keeps the first date of the value, to tell
+ * apart blocks of one kind ("{Qualification} {Période|date}").
+ */
 export function fillTemplate(template: string, valueOf: (label: string) => string | undefined): string {
   return template
-    .replace(/\{([^}]+)\}/g, (_, label: string) => valueOf(label.trim()) ?? '')
+    .replace(/\{([^}|]+)(\|date)?\}/g, (_, label: string, date?: string) => {
+      const value = valueOf(label.trim());
+      return (value !== undefined && date ? firstDate(value) : value) ?? '';
+    })
     .replace(/\(\s*\)/g, '')
     .replace(/\s+/g, ' ')
     .trim();

@@ -16,6 +16,7 @@ import type { ZnTagSet } from '../services/znTypes.ts';
 import { ColorDot } from './ColorDot.tsx';
 import { TagSetPicker } from './TagSetPicker.tsx';
 import * as S from './znStyles.ts';
+import { normalizeFormModel, type FormModel, type ModelIssue } from '../core/formModel.ts';
 
 
 const INPUT = 'w-full px-2 py-1 text-xs rounded border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:border-accent';
@@ -34,7 +35,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [colors, setColors] = React.useState<Record<string, string | null>>({});
   const [aliasInput, setAliasInput] = React.useState('');
   const [busy, setBusy] = React.useState(false);
-  const [tab, setTab] = React.useState<'tags' | 'recognition' | 'links'>('tags');
+  const [tab, setTab] = React.useState<'tags' | 'recognition' | 'links' | 'forms'>('tags');
+  const fileRef = React.useRef<HTMLInputElement>(null);
   const tagSets: ZnTagSet[] = api.stores.useTagSetStore.getState().getAll();
   const colorOf = (tag: string) =>
     tag in colors ? colors[tag] : tagSets.find((ts) => ts.name.toLowerCase() === tag.toLowerCase())?.defaultVisual.color ?? null;
@@ -77,7 +79,36 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     { id: 'tags' as const, label: t('settings_tab_tags'), icon: api.icons.Tag },
     { id: 'recognition' as const, label: t('settings_tab_recognition'), icon: api.icons.ScanSearch },
     { id: 'links' as const, label: t('settings_tab_links'), icon: api.icons.Link2 },
+    { id: 'forms' as const, label: t('settings_tab_forms'), icon: api.icons.ClipboardList },
   ];
+
+  // ─── Form models: imported from JSON, kept on save ───────
+  const issueText = (i: ModelIssue) => t(`form_issue_${i.reason}`, { section: i.section ?? t('form_document'), subject: i.subject ?? '' });
+  const importModel = async (file: File) => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await file.text());
+    } catch {
+      api.toast.error(t('settings_forms_invalid'));
+      return;
+    }
+    const { model, dropped } = normalizeFormModel(raw);
+    if (!model) {
+      api.toast.error(`${t('settings_forms_invalid')} ${dropped.map(issueText).join(' ; ')}`);
+      return;
+    }
+    const others = draft.formModels.filter((m) => m.id !== model.id);
+    setDraft({ ...draft, formModels: [...others, model] });
+    if (dropped.length) api.toast.warning(t('settings_forms_dropped', { name: model.name, list: dropped.map(issueText).join(' ; ') }));
+  };
+  const exportModel = (model: FormModel) => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${model.name.replace(/[\\/:*?"<>|]/g, '_')}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const scopes: CooccurrenceScope[] = ['off', 'sentence', 'paragraph'];
   const countries = draft.identifiers.countries;
   const toggleCountry = (c: Country, on: boolean) =>
@@ -244,10 +275,44 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   'aria-checked': draft.links.cooccurrence === scope,
                   onClick: () => setDraft({ ...draft, links: { ...draft.links, cooccurrence: scope } }),
                   className: `flex-1 px-2 py-1 ${draft.links.cooccurrence === scope ? 'bg-accent/10 text-accent font-medium' : 'bg-bg-primary text-text-secondary hover:bg-bg-secondary'}`,
-                }, t(`settings_cooccurrence_${scope}`)))))))),
+                }, t(`settings_cooccurrence_${scope}`))))))),
+
+        section('forms', h('div', { className: 'space-y-2' },
+          draft.formModels.length
+            ? draft.formModels.map((m) =>
+                h('div', { key: m.id, className: 'flex items-center gap-2 px-2 py-1.5 rounded border border-border-default' },
+                  h('div', { className: 'flex-1 min-w-0' },
+                    h('div', { className: 'text-xs font-medium text-text-primary truncate' }, m.name),
+                    h('div', { className: S.HINT }, m.sections.filter((x) => x.block).map((x) => x.titles[0]).join(' · '))),
+                  h('button', { type: 'button', onClick: () => exportModel(m), title: t('settings_forms_export'), 'aria-label': t('settings_forms_export'), className: S.ICON_BUTTON },
+                    h(api.icons.Download, { size: 14 })),
+                  h('button', {
+                    type: 'button',
+                    onClick: () => setDraft({ ...draft, formModels: draft.formModels.filter((x) => x.id !== m.id) }),
+                    title: t('settings_remove'),
+                    'aria-label': t('settings_remove'),
+                    className: S.ICON_BUTTON_DANGER,
+                  }, h(X, { size: 14 }))))
+            : h('p', { className: 'text-xs text-text-tertiary' }, t('settings_forms_none')),
+          h('input', {
+            ref: fileRef,
+            type: 'file',
+            accept: '.json,application/json',
+            className: 'hidden',
+            onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) importModel(file).catch((err: unknown) => console.error('MarkNeurone: cannot import the form model', err));
+            },
+          }),
+          h('button', {
+            type: 'button',
+            onClick: () => fileRef.current?.click(),
+            className: 'inline-flex items-center gap-1 px-2 py-0.5 text-xs text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary rounded border border-dashed border-border-default',
+          }, h(api.icons.Upload, { size: 12 }), t('settings_forms_import'))))),
 
       h('div', { className: 'flex items-center gap-2 px-4 py-3 border-t border-border-default bg-bg-secondary' },
-        h('button', { type: 'button', onClick: () => setDraft(structuredClone(normalizeSettings(DEFAULT_SETTINGS))), className: `${S.BUTTON_GHOST_SMALL} mr-auto` }, t('settings_defaults')),
+        h('button', { type: 'button', onClick: () => setDraft({ ...structuredClone(normalizeSettings(DEFAULT_SETTINGS)), formModels: draft.formModels }), className: `${S.BUTTON_GHOST_SMALL} mr-auto` }, t('settings_defaults')),
         h('button', { type: 'button', onClick: onClose, className: BUTTON_SECONDARY }, t('cancel')),
         h('button', { type: 'button', disabled: busy, onClick: save, className: BUTTON_PRIMARY }, t('settings_save')))));
 }

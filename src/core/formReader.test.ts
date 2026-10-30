@@ -261,9 +261,7 @@ describe('readForm', () => {
   });
 
   it('reads free blocks, one per bullet, with their key-value pairs', () => {
-    const r = readForm(
-      [
-        page([
+    const p = page([
           T('Objets'),
           L('Véhicule'),
           V('* Véhicule utilitaire (retrouvé) : Marque : EXEMPLAR - Modèle : CARGO 2 -'),
@@ -271,20 +269,21 @@ describe('readForm', () => {
           V('* Sac de sport noir'),
           T('Récit'),
           V('Texte libre sans proposition.'),
-        ]),
-      ],
-      MODEL,
-    );
+        ]);
+    const r = readForm([p], MODEL);
     expect(r.blocks.map((b) => [b.sectionId, b.free?.text])).toEqual([
       ['objets', 'Véhicule utilitaire (retrouvé) : Marque : EXEMPLAR - Modèle : CARGO 2 - Couleur : Blanc - Immatriculation : AB-123-CD'],
       ['objets', 'Sac de sport noir'],
     ]);
-    expect(r.blocks[0].free?.pairs).toEqual([
+    expect(r.blocks[0].free?.pairs.map(({ key, value }) => ({ key, value }))).toEqual([
       { key: 'Marque', value: 'EXEMPLAR' },
       { key: 'Modèle', value: 'CARGO 2' },
       { key: 'Couleur', value: 'Blanc' },
       { key: 'Immatriculation', value: 'AB-123-CD' },
     ]);
+    // Each value is anchored on itself, the second line included.
+    const text = pdfPageText(p.items).text;
+    expect(r.blocks[0].free?.pairs.map((x) => x.anchor && text.slice(x.anchor.start, x.anchor.end))).toEqual(['EXEMPLAR', 'CARGO 2', 'Blanc', 'AB-123-CD']);
   });
 
   it('anchors a value split apart in the file on its first piece', () => {

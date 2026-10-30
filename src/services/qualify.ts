@@ -5,7 +5,7 @@
 // and its anchor token, never the graph object: the user decides in ZN.
 
 import { getHostAPI } from '../hostAPI.ts';
-import type { Annotation, AnnotationKind } from '../core/model.ts';
+import type { Annotation, AnnotationKind, AnnotationOrigin } from '../core/model.ts';
 import { anchorLabel, relabelAnchor } from '../core/anchors.ts';
 import type { Passage } from './selectionCapture.ts';
 import { isPdf, type DocumentAsset } from './documentAssets.ts';
@@ -139,7 +139,7 @@ export async function qualifyAsEvent(
 }
 
 /** Where a link was read: the words between its ends, or just a page. */
-export type LinkPlace = { passage: Passage } | { page: number; text: string; context?: string };
+export type LinkPlace = { passage: Passage } | { page: number; text: string; context?: string; origin?: AnnotationOrigin };
 
 /**
  * Link between two elements. When both ends sit in one sentence the words
@@ -167,7 +167,7 @@ export async function qualifyAsLink(
           ...(place.context ? { context: place.context } : {}),
           kind: 'link',
           status: 'validated',
-          origin: 'manual',
+          origin: place.origin ?? 'manual',
           createdAt: new Date().toISOString(),
         };
   const link = await graph.createLink(fromId, toId, label, anchorOf(ctx, a));

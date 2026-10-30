@@ -8,6 +8,7 @@
 import { DEFAULT_PROFILE, type ReadingProfile } from '../profiles/default.ts';
 import { SUGGESTION_KINDS, type SuggestionKind } from './suggestions.ts';
 import { COUNTRIES, type Country } from './patterns/regional.ts';
+import { normalizeFormModel, type FormModel } from './formModel.ts';
 
 export interface Settings {
   profile: ReadingProfile;
@@ -30,6 +31,8 @@ export interface Settings {
     /** Marks in the margin for two elements of one sentence or paragraph not linked yet. */
     cooccurrence: CooccurrenceScope;
   };
+  /** Form models imported by the user (docs/lecture-formulaires.md). */
+  formModels: FormModel[];
 }
 
 export type CooccurrenceScope = 'off' | 'sentence' | 'paragraph';
@@ -44,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   labels: { uppercase: false },
   identifiers: { countries: [] },
   links: { verb: false, cooccurrence: 'off' },
+  formModels: [],
 };
 
 const clean = (s: unknown) => (typeof s === 'string' ? s.trim() : '');
@@ -74,6 +78,19 @@ function cleanMap(value: unknown, fallback: Record<string, string | undefined>, 
   return out;
 }
 
+/** Usable models, one per id (the last one imported wins). */
+function formModels(value: unknown): FormModel[] {
+  const out: FormModel[] = [];
+  for (const raw of Array.isArray(value) ? value : []) {
+    const { model } = normalizeFormModel(raw);
+    if (!model) continue;
+    const i = out.findIndex((m) => m.id === model.id);
+    if (i >= 0) out[i] = model;
+    else out.push(model);
+  }
+  return out;
+}
+
 /**
  * Stored settings to usable ones: defaults for anything missing, tag names
  * trimmed and without duplicates, shortcuts given by the order (Alt+1 first).
@@ -85,6 +102,7 @@ export function normalizeSettings(stored: unknown): Settings {
     labels?: Partial<Settings['labels']>;
     identifiers?: { countries?: unknown };
     links?: Partial<Record<keyof Settings['links'], unknown>>;
+    formModels?: unknown;
   };
   const p: Partial<ReadingProfile> = s.profile ?? {};
   const known = Array.isArray(p.suggestionKinds) ? p.suggestionKinds.filter((k) => typeof k === 'string') : FIRST_KINDS;
@@ -108,5 +126,6 @@ export function normalizeSettings(stored: unknown): Settings {
       verb: typeof s.links?.verb === 'boolean' ? s.links.verb : DEFAULT_SETTINGS.links.verb,
       cooccurrence: SCOPES.includes(s.links?.cooccurrence as CooccurrenceScope) ? (s.links!.cooccurrence as CooccurrenceScope) : DEFAULT_SETTINGS.links.cooccurrence,
     },
+    formModels: formModels(s.formModels),
   };
 }
