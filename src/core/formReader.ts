@@ -218,6 +218,19 @@ function buildPages(pages: FormPageInput[]): { data: PageData[]; lines: Line[] }
   return { data, lines: withoutRunningLines(lines, pages.map((p) => p.height)) };
 }
 
+/** A line of the form in reading order, running headers and page numbers left out. */
+export interface FormLine {
+  text: string;
+  fonts: string[];
+  size: number;
+  page: number;
+}
+
+/** Lines of the pages, as the reader rebuilds them: for drafting a model. */
+export function formLines(pages: FormPageInput[]): FormLine[] {
+  return buildPages(pages).lines.map((l) => ({ text: l.text, fonts: [...l.fonts].sort(), size: l.size, page: l.page }));
+}
+
 /** Whether every signature label of the model is on the first page. */
 export function matchesSignature(firstPage: FormPageInput, model: FormModel): boolean {
   const texts = buildPages([firstPage]).lines.map((l) => foldLabel(l.text));

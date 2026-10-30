@@ -49,9 +49,27 @@ Lorsque le bloc est rattaché à un élément qui a déjà une propriété de m�
 
 Un clic sur un passage déjà surligné ferme le formulaire et affiche la fiche de l'élément. Le bouton « Lire comme formulaire » le rouvre.
 
+## Créer un modèle depuis un document
+
+Lorsqu'aucun modèle ne correspond au document, le même bouton de la barre d'outils propose « Créer un modèle de formulaire depuis ce document ». MarkNeurone analyse les polices du document et propose un premier modèle : les titres (plus grands) délimitent les rubriques, les libellés (dans une police à part) sont suivis de leur valeur, un libellé qui revient dans une rubrique ouvre des blocs, et une rubrique de lignes à puce ou de paires « Clé : valeur » devient une liste.
+
+Le panneau de droite affiche ce modèle, rubrique par rubrique, et le document montre au fur et à mesure les valeurs qu'il lit. Pour chaque rubrique, choisissez son type :
+
+- **Document** : ses champs deviennent des propriétés de l'élément qui porte le document ;
+- **Blocs** : un élément par bloc. Choisissez le libellé qui ouvre un bloc, le tag, le nom de l'élément (par exemple `{Qualification} {Période|date}`) et, pour chaque champ, le nom de la propriété et son type (texte, date, nombre, événement ou ignoré) ;
+- **Liste** : un élément par objet de la liste ;
+- **Texte** : rien n'est proposé ;
+- **Note du document** : le texte de la rubrique est ajouté à la note de l'élément qui porte le document.
+
+Les liens entre rubriques (par exemple d'une personne vers un fait) et le lien de chaque élément vers le document se règlent aussi dans ce panneau. « Enregistrer » ajoute le modèle aux réglages et ouvre le formulaire. « Exporter » produit le fichier JSON, à partager avec d'autres postes.
+
+Le crayon, en haut du panneau d'un formulaire, rouvre son modèle dans cet éditeur. Les libellés du document absents du modèle y apparaissent comme ignorés.
+
+Le modèle des réglages et un fichier exporté sont deux copies distinctes : importer à nouveau un ancien fichier remplace le modèle des réglages et efface les modifications faites depuis dans l'éditeur.
+
 ## Le modèle de formulaire
 
-Un modèle est un fichier JSON, importé dans l'onglet « Formulaires » des [réglages](reglages.md). MarkNeurone n'en fournit aucun : chaque service décrit les formulaires qu'il reçoit.
+Un modèle est un fichier JSON, importé dans l'onglet « Formulaires » des [réglages](reglages.md), ou créé depuis un document comme ci-dessus. MarkNeurone n'en fournit aucun : chaque service décrit les formulaires qu'il reçoit.
 
 Les libellés sont comparés sans tenir compte des majuscules, des accents, des espaces en trop ni des deux-points finaux. La valeur peut se trouver sous son libellé ou sur la même ligne après deux-points (« Nom : Camille ARNOUX »), y compris dans une liste à tirets (« - Date du dépôt : 21/09/2026 »).
 

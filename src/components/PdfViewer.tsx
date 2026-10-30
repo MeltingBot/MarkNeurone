@@ -47,12 +47,15 @@ import { cooccurrences, elementHighlights, pairKey, verbEnds } from '../core/lin
 import { loadDismissedPairs, saveDismissedPairs } from '../services/linkAssistStore.ts';
 import type { NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
-import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
+import { getProfile, getSettings, getSettingsVersion, saveSettings, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
 import { matchesSignature, readForm, type FormPageInput, type FormTextItem, type ValueAnchor } from '../core/formReader.ts';
 import { blockDraft, documentRows, formHighlights, type FormHighlight } from '../core/formSession.ts';
 import { DOCUMENT_KEY, FormPanel } from './FormPanel.tsx';
+import { FormModelEditor } from './FormModelEditor.tsx';
+import { draftFromModel, draftFromPages, draftToRaw, withDetected, type FormDraft } from '../core/formDraft.ts';
+import { normalizeFormModel, type FormModel } from '../core/formModel.ts';
 import { handOverView, isElement, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
 
 const PAGE_GAP = 12;
@@ -1389,7 +1392,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         selectHighlight(hit, e.ctrlKey || e.metaKey);
         return;
       }
-      const formHit = formMarkAt(e.target, e.clientX, e.clientY);
+      const formHit = modelDraft ? null : formMarkAt(e.target, e.clientX, e.clientY);
       if (formHit) {
         setFormSelected(formHit.blockKey ?? DOCUMENT_KEY);
         setSheetCollapsed(false);
@@ -1896,30 +1899,76 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   const [formModelId, setFormModelId] = React.useState<string | null>(null);
   const [formSelected, setFormSelected] = React.useState<string | null>(null);
+  /** A model being drafted or changed: the reader shows what it reads. */
+  const [modelDraft, setModelDraft] = React.useState<FormDraft | null>(null);
   React.useEffect(() => {
     setFormModelId(null);
     setFormSelected(null);
+    setModelDraft(null);
   }, [asset.id]);
   const matchingModels = React.useMemo(
     () => (formPages.length ? getSettings().formModels.filter((m) => matchesSignature(formPages[0], m)) : []),
     [formPages, settingsVersion],
   );
-  const formModel = matchingModels.find((m) => m.id === formModelId) ?? null;
+  const savedModel = matchingModels.find((m) => m.id === formModelId) ?? null;
+  const drafted = React.useMemo(() => (modelDraft ? normalizeFormModel(draftToRaw(modelDraft)) : null), [modelDraft]);
+  const formModel: FormModel | null = modelDraft ? drafted?.model ?? null : savedModel;
   const formReading = React.useMemo(() => (formModel ? readForm(formPages, formModel) : null), [formModel, formPages]);
   const formMarks = React.useMemo<FormHighlight[]>(
-    () => (formModel && formReading ? formHighlights(formReading.blocks.map((b) => blockDraft(b, formModel)), documentRows(formReading), annotations) : []),
-    [formModel, formReading, annotations],
+    () => (formModel && formReading ? formHighlights(formReading.blocks.map((b) => blockDraft(b, formModel)), documentRows(formReading), modelDraft ? [] : annotations) : []),
+    [formModel, formReading, annotations, modelDraft],
   );
+  /** A new model from the document's fonts, or the open model with the labels it lacks. */
+  const editModel = (model: FormModel | null) => {
+    const detected = draftFromPages(formPages, model?.name ?? '');
+    let next = model ? withDetected(draftFromModel(model), detected) : detected;
+    if (!model) {
+      const taken = new Set(getSettings().formModels.map((m) => m.id));
+      let id = next.id;
+      for (let n = 2; taken.has(id); n++) id = `${next.id}-${n}`;
+      next = { ...next, id };
+    }
+    setModelDraft(next);
+    setFormSelected(null);
+    setSheetCollapsed(false);
+  };
+  const saveModel = () => {
+    const model = drafted?.model;
+    if (!model) return;
+    const settings = getSettings();
+    saveSettings({ ...settings, formModels: [...settings.formModels.filter((m) => m.id !== model.id), model] })
+      .then(() => {
+        setModelDraft(null);
+        setFormModelId(model.id);
+        api.toast.success(t('model_saved', { name: model.name }));
+      })
+      .catch((err: unknown) => {
+        console.error('MarkNeurone: cannot save the form model', err);
+        api.toast.error(t('write_error'));
+      });
+  };
+  const exportModel = () => {
+    const model = drafted?.model;
+    if (!model) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${model.name.replace(/[\\/:*?"<>|]/g, '_')}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const openForm = (id: string) => {
     setFormModelId(id);
     setFormSelected(null);
     setSheetCollapsed(false);
   };
   const toggleForm = (e: ReactTypes.MouseEvent) => {
-    if (formModel) {
+    if (modelDraft) setModelDraft(null);
+    else if (formModel) {
       setFormModelId(null);
       setFormSelected(null);
-    } else if (matchingModels.length === 1) openForm(matchingModels[0].id);
+    } else if (!matchingModels.length) editModel(null);
+    else if (matchingModels.length === 1) openForm(matchingModels[0].id);
     else {
       const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setMenu({
@@ -2312,12 +2361,18 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       // Grey when off, accent when on: the icon alone tells the state.
       className: `p-1.5 rounded disabled:opacity-40 ${suggestionsOn ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
     }, h(api.icons.Sparkles, { size: 14 })),
-    matchingModels.length
+    formPages.length
       ? h('button', {
           onClick: toggleForm,
           disabled: !ready,
           'aria-pressed': !!formModel,
-          title: formModel ? t('form_close') : matchingModels.length === 1 ? t('form_open_named', { name: matchingModels[0].name }) : t('form_open'),
+          title: modelDraft
+            ? t('model_close')
+            : formModel
+              ? t('form_close')
+              : !matchingModels.length
+                ? t('form_model_create')
+                : matchingModels.length === 1 ? t('form_open_named', { name: matchingModels[0].name }) : t('form_open'),
           className: `p-1.5 rounded disabled:opacity-40 ${formModel ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
         }, h(api.icons.ClipboardList, { size: 14 }))
       : null,
@@ -2509,7 +2564,17 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
             className: 'p-2 rounded text-text-secondary hover:text-text-primary hover:bg-bg-secondary',
           }, h(api.icons.PanelRightOpen, { size: 18 })))
       : null,
-    sheetCollapsed ? null : formModel && formReading ? h(FormPanel, {
+    sheetCollapsed ? null : modelDraft ? h(FormModelEditor, {
+      draft: modelDraft,
+      onChange: setModelDraft,
+      reading: formReading,
+      issues: drafted?.dropped ?? [],
+      canSave: !!drafted?.model,
+      onSave: saveModel,
+      onExport: exportModel,
+      onClose: () => setModelDraft(null),
+      onCollapse: () => setSheetCollapsed(true),
+    }) : formModel && formReading ? h(FormPanel, {
       ctx: docCtx,
       model: formModel,
       reading: formReading,
@@ -2525,6 +2590,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       },
       onCollapse: () => setSheetCollapsed(true),
       onClearAll: annotations.length ? askClear : undefined,
+      onEditModel: () => editModel(formModel),
     }) : h(ElementSheet, {
       ctx: docCtx,
       elementId: sheetElementId,

@@ -26,4 +26,4 @@ La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la 
 
 ## Onglet « Formulaires »
 
-Les modèles de formulaire importés, avec leurs rubriques. « Importer un modèle » ajoute un fichier JSON ; un modèle de même identifiant remplace le précédent. Chaque modèle peut être exporté ou supprimé. « Valeurs par défaut » ne supprime pas les modèles. Voir [Formulaires](formulaires.md).
+Les modèles de formulaire importés, avec leurs rubriques. « Importer un modèle » ajoute un fichier JSON ; un modèle de même identifiant remplace le précédent. Chaque modèle peut être exporté ou supprimé. Un modèle peut aussi être créé ou modifié depuis le lecteur, à partir d'un document. « Valeurs par défaut » ne supprime pas les modèles. Voir [Formulaires](formulaires.md).
