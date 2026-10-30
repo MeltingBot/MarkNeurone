@@ -118,10 +118,12 @@ En haut de l'éditeur se règlent le nom du modèle, les textes de la première 
 Pour chaque rubrique, choisissez son type :
 
 - **Document** : ses champs deviennent des propriétés de l'élément qui porte le document ;
-- **Blocs** : un élément par bloc. Choisissez le libellé qui ouvre un bloc (sauf pour un formulaire à cases), le tag, le nom de l'élément (par exemple `{Qualification} {Période|date}`, les champs disponibles sont rappelés dessous) et, pour chaque champ, le nom de la propriété et son type : texte, date, nombre, événement, lu sans être proposé (pour servir au nom ou à un champ composé) ou ignoré ;
+- **Blocs** : un élément par bloc. Choisissez le libellé qui ouvre un bloc (sauf pour un formulaire à cases), le tag, le nom de l'élément (par exemple `{Qualification} {Période|date}`, les champs disponibles sont rappelés dessous) et, pour chaque champ, le nom de la propriété et son type : texte, date, nombre, oui / non, événement, lu sans être proposé (pour servir au nom ou à un champ composé) ou ignoré ;
 - **Liste** : un élément par objet de la liste, avec ses paires « Clé : valeur » en propriétés ;
 - **Texte** : rien n'est proposé, les suggestions habituelles s'appliquent ;
 - **Note du document** : le texte de la rubrique est proposé pour la note de l'élément qui porte le document.
+
+Un champ de type « Oui / non » crée une propriété booléenne : « oui », « x », « coché » ou « vrai » donnent oui, « non » ou « faux » donnent non, toute autre valeur reste du texte. Dans un formulaire à cases ou un PDF à champs, chaque case est aussi proposée comme champ « Oui / non », désactivé au départ : activé, il vaut oui si la case est cochée et non sinon, alors que « Cases cochées » ne retient que les cases cochées.
 
 « Ajouter un champ composé » crée un champ fait d'autres champs, par exemple une adresse `{N° de la voie} {Type de voie} {Libellé de voie}` ou une date `{Jour}/{Mois}/{Année}`.
 
@@ -199,7 +201,7 @@ Exemple :
 | `block.startsWith` | Libellé qui ouvre un nouveau bloc. `*` ouvre un bloc à chaque ligne commençant par un astérisque ou un tiret |
 | `block.element` | Tag et nom proposés pour l'élément du bloc. `{Libellé}` reprend la valeur d'un champ. `{Libellé\|date}` ne garde que la première date de la valeur |
 | `fields[].label` | Libellé du champ, ou liste de formulations |
-| `fields[].property` | Nom de la propriété créée. `type` vaut `text` (par défaut), `date` ou `number` |
+| `fields[].property` | Nom de la propriété créée. `type` vaut `text` (par défaut), `date`, `number` ou `boolean` |
 | `fields[].event` | La valeur est une date ou une période : elle devient un événement de l'élément, nommé selon ce modèle de nom |
 | `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés. Un bloc commence à chaque ligne à puce, à la première ligne sous un libellé (« Objets perdus ») et à chaque ligne précédée d'un espace vide. Une ligne qui suit directement la précédente continue le même bloc |
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |

@@ -5,7 +5,7 @@
 // defaults, and the values to highlight in the document.
 
 import type { Annotation } from './model.ts';
-import { fillTemplate, foldLabel, type FormModel } from './formModel.ts';
+import { booleanOf, fillTemplate, foldLabel, type FormModel } from './formModel.ts';
 import { blockValue, type FormBlock, type FormReading, type FormValue, type ValueAnchor } from './formReader.ts';
 import { findDateRange, findDates } from './dates.ts';
 
@@ -19,7 +19,7 @@ export interface DraftRow {
   /** Value as read, editable before validation. */
   text: string;
   anchor: ValueAnchor;
-  type: 'text' | 'date' | 'number';
+  type: 'text' | 'date' | 'number' | 'boolean';
   checked: boolean;
   /** Label absent from the model. */
   unknown?: true;
@@ -89,7 +89,8 @@ function row(v: FormValue, i: number, valueOf: (label: string) => string | undef
     const ok = valuePeriod(v.text) !== null;
     return { id: `e${i}`, kind: 'event', key: fillTemplate(f.event, valueOf) || v.label, text: v.text, anchor: v.anchor, type: 'date', checked: ok, ...(ok ? {} : { unreadable: true as const }) };
   }
-  const type = f.type ?? 'text';
+  // A yes or no that reads as neither stays text.
+  const type = f.type === 'boolean' && booleanOf(v.text) === null ? 'text' : (f.type ?? 'text');
   const unreadable = type === 'date' && valueDate(v.text) === null;
   return {
     id: `p${i}`,

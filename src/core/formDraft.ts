@@ -12,7 +12,7 @@ import { findDateRange, findDates } from './dates.ts';
 import { bandsOf, choiceGroups, fieldName, fieldsLayout, isFilled, positionalLayout, positionalValues, widgetLabel, widgetOption, widgetSection } from './formPositional.ts';
 
 /** 'read': read for names and composed fields, not offered; 'checks': the options checked in the section. */
-export type DraftFieldType = 'text' | 'date' | 'number' | 'event' | 'skip' | 'read' | 'checks';
+export type DraftFieldType = 'text' | 'date' | 'number' | 'boolean' | 'event' | 'skip' | 'read' | 'checks';
 export type DraftSectionKind = 'document' | 'block' | 'list' | 'text' | 'note';
 
 export interface DraftField {
@@ -224,7 +224,7 @@ export function draftToRaw(d: FormDraft): Record<string, unknown> {
   const field = (f: DraftField, eventName?: string): Record<string, unknown> => {
     if (f.type === 'read') return { label: labelOf(f), offer: false };
     if (f.type === 'checks') return { ...(f.label ? { label: labelOf(f) } : {}), property: f.property.trim(), checks: true };
-    if (f.template !== undefined) return { property: f.property.trim(), value: f.template.trim(), ...(f.type === 'date' || f.type === 'number' ? { type: f.type } : {}) };
+    if (f.template !== undefined) return { property: f.property.trim(), value: f.template.trim(), ...(f.type === 'date' || f.type === 'number' || f.type === 'boolean' ? { type: f.type } : {}) };
     return f.type === 'event'
       ? { label: labelOf(f), event: eventName ?? `{${f.label}}` }
       : { label: labelOf(f), property: f.property.trim(), ...(f.type !== 'text' ? { type: f.type } : {}) };
@@ -363,6 +363,23 @@ function draftPositional(pages: FormPageInput[], name: string): FormDraft | null
     fieldsBySection.set(v.section, list);
   }
   const checksIn = new Set(checked.map((c) => c.section));
+  // Every printed box, crossed or not, as a yes or no of its own, unused.
+  const booleans = new Map<string | null, DraftField[]>();
+  const bandYs = new Set(bands.map((b) => `${b.page}:${b.y}`));
+  const optionPhrases = layout.printed.filter((p) => !bandYs.has(`${p.page}:${p.y}`));
+  for (const box of layout.boxes) {
+    const near = optionPhrases.filter((p) => p.page === box.page && Math.abs(p.y - box.y) <= Math.max(p.size, box.size) * 0.6 && !/:\s*$/.test(p.text));
+    const option = near.reduce<typeof near[number] | null>((a, p) => {
+      const d = Math.max(0, p.x0 - box.x1, box.x0 - p.x1);
+      return d < 40 && (!a || d < Math.max(0, a.x0 - box.x1, box.x0 - a.x1)) ? p : a;
+    }, null);
+    if (!option) continue;
+    let section: string | null = null;
+    for (const b of bands) if (b.page < box.page || (b.page === box.page && b.y > box.y)) section = b.id;
+    const list = booleans.get(section) ?? [];
+    if (!list.some((f) => foldLabel(f.label) === foldLabel(option.text))) list.push({ label: option.text, property: option.text, type: 'skip' });
+    booleans.set(section, list);
+  }
   const checksField = (): DraftField => ({ label: 'Cases cochées', property: 'Cases cochées', type: 'checks' });
 
   // A band left empty in this copy takes the fields of a band with the same labels.
@@ -380,6 +397,7 @@ function draftPositional(pages: FormPageInput[], name: string): FormDraft | null
     const twins = known.filter((f, j) => texts.has(foldLabel(f.label)) && known.findIndex((o) => foldLabel(o.label) === foldLabel(f.label)) === j);
     fields = [...twins.filter((f) => !fields.some((o) => foldLabel(o.label) === foldLabel(f.label))).map((f) => ({ ...f })), ...fields];
     if (checksIn.has(b.id)) fields = [...fields, checksField()];
+    fields = [...fields, ...(booleans.get(b.id) ?? [])];
     // Day, month and year in three boxes: one date, the parts read only.
     const part = (l: string) => fields.find((f) => foldLabel(f.label) === l);
     if (part('jour') && part('mois') && part('annee')) {
@@ -400,7 +418,7 @@ function draftPositional(pages: FormPageInput[], name: string): FormDraft | null
       links: [],
     };
   });
-  const header = [...(fieldsBySection.get(null) ?? []), ...(checksIn.has(null) ? [checksField()] : [])];
+  const header = [...(fieldsBySection.get(null) ?? []), ...(checksIn.has(null) ? [checksField()] : []), ...(booleans.get(null) ?? [])];
   const formName = name || capitalized(bands[0]?.title ?? '') || 'Formulaire';
   return {
     id: slug(formName),
@@ -445,6 +463,9 @@ function draftFields(pages: FormPageInput[], name: string): FormDraft | null {
     if (w.kind === 'check' && !groups.has(w.name)) {
       checksOf.set(i, [...(checksOf.get(i) ?? []), w.name]);
       seen.add(w.name);
+      // Also offered as a yes or no of its own, unused: checked or not, both answer.
+      const option = widgetOption(w, layout.phrases);
+      if (option) add(i, { label: w.name, property: option.text.replace(/\s*:\s*$/, ''), type: 'skip' });
       continue;
     }
     // A choice: its value is the option checked, wherever the group's boxes are.

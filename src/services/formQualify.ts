@@ -7,6 +7,7 @@
 
 import type { ValueAnchor } from '../core/formReader.ts';
 import { valueDate, valuePeriod, type DraftRow } from '../core/formSession.ts';
+import { booleanOf } from '../core/formModel.ts';
 import type { Passage } from './selectionCapture.ts';
 import type { ZnProperty } from './znTypes.ts';
 import { getElement, updateElement } from './graphWriter.ts';
@@ -41,6 +42,10 @@ export function rowProperty(row: DraftRow): ZnProperty {
     const date = valueDate(text);
     // At noon, as the element sheet stores a day: no time zone moves it to another day.
     if (date) return { key: row.key, value: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12), type: 'date' };
+  }
+  if (row.type === 'boolean') {
+    const yes = booleanOf(text);
+    if (yes !== null) return { key: row.key, value: yes, type: 'boolean' };
   }
   if (row.type === 'number') {
     const n = Number(text.replace(/\s/g, '').replace(',', '.'));

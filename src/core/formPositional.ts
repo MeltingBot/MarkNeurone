@@ -351,6 +351,19 @@ export function readPositional(pages: FormPageInput[], model: FormModel): FormRe
     const at = wordsAnchor(sorted.flatMap((c) => c.words), layout.data);
     if (at) push(sectionId, { label: field.labels[0], field, unknown: false, text: sorted.map((c) => c.label.text).join(', '), anchor: at.anchor, whole: false });
   }
+  // Printed boxes as yes or no: the option next to each box, crossed or not.
+  const bandYs = new Set(bands.map((b) => `${b.page}:${b.y}`));
+  const options = new Map<Phrase, string | null>();
+  for (const box of layout.boxes) {
+    const option = optionOf(box, layout.printed.filter((p) => !bandYs.has(`${p.page}:${p.y}`)), []);
+    if (option && !options.has(option)) options.set(option, sectionAt(box.page, box.y, bands));
+  }
+  const crossed = new Set(checked.map((c) => c.label));
+  for (const [option, sectionId] of options) {
+    const field = fieldsOf(sectionId).find((f) => f.type === 'boolean' && f.labels.some((l) => foldLabel(l) === foldLabel(option.text)));
+    const at = field ? wordsAnchor(option.words, layout.data) : null;
+    if (field && at) push(sectionId, { label: option.text, field, unknown: false, text: crossed.has(option) ? 'Oui' : 'Non', anchor: at.anchor, whole: at.whole });
+  }
   // Blocks in the order of the model.
   for (const s of model.sections) {
     const b = blocks.get(s.id);
@@ -492,14 +505,11 @@ export function readFields(pages: FormPageInput[], model: FormModel): FormReadin
   const empty = new Set(model.empty.map(foldLabel));
   const reading: FormReading = { document: [], blocks: [] };
   const blocks = new Map<string, FormBlock>();
-  const owner = (name: string): { field: FormField; sectionId: string | null } | null => {
-    for (const s of model.sections) {
-      const f = s.block?.fields.find((x) => x.labels.includes(name));
-      if (f) return { field: f, sectionId: s.id };
-    }
-    const f = model.documentFields.find((x) => x.labels.includes(name));
-    return f ? { field: f, sectionId: null } : null;
-  };
+  // Every field naming the widget: a box may be both a yes or no and one of the checked options.
+  const owners = (name: string): { field: FormField; sectionId: string | null }[] => [
+    ...model.sections.flatMap((s) => (s.block?.fields ?? []).filter((x) => x.labels.includes(name)).map((field) => ({ field, sectionId: s.id }))),
+    ...model.documentFields.filter((x) => x.labels.includes(name)).map((field) => ({ field, sectionId: null })),
+  ];
   const push = (sectionId: string | null, v: FormValue) => {
     if (!sectionId) {
       reading.document.push(v);
@@ -512,11 +522,14 @@ export function readFields(pages: FormPageInput[], model: FormModel): FormReadin
   const anchorOn = (p: Phrase | null) => (p ? wordsAnchor(p.words, layout.data) : null);
 
   const checked = new Map<FormField, { sectionId: string | null; options: Phrase[] }>();
-  for (const w of layout.widgets) {
+  for (const w of layout.widgets) for (const { field, sectionId } of owners(w.name)) {
+    // A box as a yes or no: checked or not, both are answers.
+    if (w.kind === 'check' && field.type === 'boolean' && !groups.has(w.name)) {
+      const at = anchorOn(widgetOption(w, layout.phrases));
+      if (at) push(sectionId, { label: w.name, field, unknown: false, text: isFilled(w) ? 'Oui' : 'Non', anchor: at.anchor, whole: at.whole });
+      continue;
+    }
     if (!isFilled(w)) continue;
-    const own = owner(w.name);
-    if (!own) continue;
-    const { field, sectionId } = own;
     if (w.kind === 'check') {
       const option = widgetOption(w, layout.phrases);
       if (!option) continue;

@@ -358,6 +358,7 @@
   "model_composed": "Composé",
   "model_template": "Composition, par exemple {Jour}/{Mois}/{Année}",
   "model_add_composed": "Ajouter un champ composé",
+  "model_type_boolean": "Oui / non",
   "form_status_done": "Créé",
   "form_status_rejected": "Écarté",
   "form_reject": "Écarter",

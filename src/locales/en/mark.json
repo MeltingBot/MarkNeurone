@@ -358,6 +358,7 @@
   "model_composed": "Composed",
   "model_template": "Composition, e.g. {Day}/{Month}/{Year}",
   "model_add_composed": "Add a composed field",
+  "model_type_boolean": "Yes / no",
   "form_status_done": "Created",
   "form_status_rejected": "Dismissed",
   "form_reject": "Dismiss",

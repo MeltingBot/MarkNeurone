@@ -42,8 +42,8 @@ function FieldRows(p: { fields: DraftField[]; allowEvent: boolean; onChange: (fi
   const { h, t } = host();
   const typesOf = (f: DraftField): DraftFieldType[] =>
     f.type === 'checks' ? ['checks', 'skip']
-      : f.template !== undefined ? ['text', 'date', 'number', 'skip']
-        : p.allowEvent ? ['text', 'date', 'number', 'event', 'read', 'skip'] : ['text', 'date', 'number', 'read', 'skip'];
+      : f.template !== undefined ? ['text', 'date', 'number', 'boolean', 'skip']
+        : p.allowEvent ? ['text', 'date', 'number', 'boolean', 'event', 'read', 'skip'] : ['text', 'date', 'number', 'boolean', 'read', 'skip'];
   return h('div', { className: 'space-y-1.5' },
     p.fields.map((f, i) => {
       const set = (patch: Partial<DraftField>) => p.onChange(p.fields.map((x, j) => (j === i ? { ...x, ...patch } : x)));

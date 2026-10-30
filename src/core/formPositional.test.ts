@@ -74,7 +74,9 @@ describe('positional forms', () => {
       ['MANDATAIRE', 'block'],
     ]);
     const demandeur = draft.sections[2];
-    expect(demandeur.fields.map((f) => [f.label, f.type])).toEqual([
+    // Each printed box is also offered as a yes or no, unused.
+    expect(demandeur.fields.filter((f) => f.type === 'skip').map((f) => f.label)).toEqual(['M', 'F']);
+    expect(demandeur.fields.filter((f) => f.type !== 'skip').map((f) => [f.label, f.type])).toEqual([
       ['NOM et PRÉNOM', 'text'],
       ['Jour', 'read'],
       ['Mois', 'read'],
@@ -111,6 +113,15 @@ describe('positional forms', () => {
     ]);
     // Nothing filled under the third band: no block.
     expect(r.blocks.map((b) => b.sectionId)).toEqual(['materiel', 'demandeur']);
+  });
+
+  it('reads a printed box as yes or no, crossed or not', () => {
+    const d = structuredClone(draft);
+    for (const s of d.sections) for (const f of s.fields) if (f.type === 'skip') f.type = 'boolean';
+    const r = readForm([PAGE], normalizeFormModel(draftToRaw(d)).model!);
+    const yesNo = (values: typeof r.document) => values.filter((v) => v.field?.type === 'boolean').map((v) => [v.label, v.text]);
+    expect(yesNo(r.document)).toEqual([['Première demande', 'Oui'], ['Renouvellement', 'Non']]);
+    expect(yesNo(r.blocks.find((b) => b.sectionId === 'demandeur')!.values)).toEqual([['M', 'Non'], ['F', 'Oui']]);
   });
 
   it('anchors each value on its words in the page text', () => {
@@ -214,6 +225,14 @@ describe('PDF form fields', () => {
       ['État · Part', '40 %'],
       ['Région · Montant', '1 800'],
       ['Région · Part', '60 %'],
+      ['Cases cochées', 'Urgent'],
+    ]);
+    // A box as its own yes or no, next to the checked options.
+    const d = structuredClone(draft);
+    for (const f of d.sections[1].fields) if (f.label === 'Case 7' && f.type === 'skip') f.type = 'boolean';
+    const r2 = readForm([fieldsPage], normalizeFormModel(draftToRaw(d)).model!);
+    expect(r2.blocks.find((b) => b.sectionId === 'projet')!.values.filter((v) => v.label === 'Case 7').map((v) => [v.field?.property, v.text])).toEqual([
+      ['Urgent', 'Oui'],
       ['Cases cochées', 'Urgent'],
     ]);
     // The passage of a value is its printed label.

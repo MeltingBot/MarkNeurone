@@ -24,3 +24,13 @@ describe('sameValue', () => {
     expect(sameValue(null, 'x')).toBe(false);
   });
 });
+
+describe('yes or no', () => {
+  const row = (text: string): DraftRow => ({ id: 'r', kind: 'property', key: 'Urgent', text, anchor: { page: 1, start: 0, end: 1 }, type: 'boolean', checked: true });
+  it('stores a yes or no as a boolean, anything else as text', () => {
+    expect(rowProperty(row('Oui'))).toEqual({ key: 'Urgent', value: true, type: 'boolean' });
+    expect(rowProperty(row('x'))).toEqual({ key: 'Urgent', value: true, type: 'boolean' });
+    expect(rowProperty(row('Non'))).toEqual({ key: 'Urgent', value: false, type: 'boolean' });
+    expect(rowProperty(row('peut-être'))).toEqual({ key: 'Urgent', value: 'peut-être', type: 'text' });
+  });
+});

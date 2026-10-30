@@ -13,7 +13,7 @@ export interface FormField {
   /** The value becomes this property of the block's element. */
   property?: string;
   /** Property type; 'text' when absent. */
-  type?: 'text' | 'date' | 'number';
+  type?: 'text' | 'date' | 'number' | 'boolean';
   /** The value is a date or a period: an event of the element, named by this template. */
   event?: string;
   /** The value is added to the note of the element (text sections of the document). */
@@ -96,7 +96,7 @@ function textList(v: unknown): string[] {
   return out;
 }
 
-const TYPES = ['text', 'date', 'number'] as const;
+const TYPES = ['text', 'date', 'number', 'boolean'] as const;
 
 function field(raw: unknown, section: string | undefined, dropped: ModelIssue[]): FormField | null {
   const f = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
@@ -218,6 +218,14 @@ function firstDate(value: string): string | undefined {
   const p = (n: number) => String(n).padStart(2, '0');
   const day = `${p(d.date.getDate())}/${p(d.date.getMonth() + 1)}/${d.date.getFullYear()}`;
   return d.hasTime ? `${day} ${p(d.date.getHours())}:${p(d.date.getMinutes())}` : day;
+}
+
+/** "Oui", "x", "coché", "vrai" > true; "Non", "faux" > false; anything else, not a yes or no. */
+export function booleanOf(text: string): boolean | null {
+  const t = text.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
+  if (/^(oui|yes|o|y|x|vrai|true|1|coche|cochee|on)$/.test(t)) return true;
+  if (/^(non|no|n|faux|false|0|off)$/.test(t)) return false;
+  return null;
 }
 
 /**
