@@ -55,6 +55,7 @@ import { blockDraft, documentRows, formHighlights, type FormHighlight } from '..
 import { DOCUMENT_KEY, FormPanel } from './FormPanel.tsx';
 import { FormModelEditor } from './FormModelEditor.tsx';
 import { FormModelsPanel } from './FormModelsPanel.tsx';
+import { widgetsOf } from '../core/formPositional.ts';
 import { downloadModel, readModelFile, removeModel, storeModel } from '../services/formModelFiles.ts';
 import type { ModelIssue } from '../core/formModel.ts';
 import { draftFromModel, draftFromPages, draftToRaw, withDetected, type FormDraft } from '../core/formDraft.ts';
@@ -798,11 +799,14 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       const texts: PageText[] = [];
       const formInputs: FormPageInput[] = [];
       for (let n = 1; n <= current.doc.numPages; n++) {
-        const content = await (await current.doc.getPage(n)).getTextContent();
+        const pdfPage = await current.doc.getPage(n);
+        const content = await pdfPage.getTextContent();
+        // Fields of a PDF form keep their values outside the text.
+        const widgets = widgetsOf(await pdfPage.getAnnotations().catch(() => []));
         if (cancelled) return;
         const items = content.items as PdfTextItem[];
         chars.push(countTextChars(items));
-        formInputs.push({ items: items as FormTextItem[], height: pageSizes[n - 1].height });
+        formInputs.push({ items: items as FormTextItem[], height: pageSizes[n - 1].height, ...(widgets.length ? { widgets } : {}) });
         // Built like the text layer (shared with passages found without the reader).
         const { text, starts, kept } = pdfPageText(items);
         const transform = pageSizes[n - 1].transform;

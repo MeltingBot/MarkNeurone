@@ -98,7 +98,7 @@ function SectionBody(p: { draft: FormDraft; section: DraftSection; tagSets: ZnTa
       h('label', { className: S.LABEL }, t('model_kind')),
       h('select', { className: S.INPUT, value: s.kind, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => set({ kind: e.target.value as DraftSectionKind }) },
         KINDS.map((k) => h('option', { key: k, value: k }, t(`model_kind_${k}`))))),
-    s.kind === 'block' && p.draft.layout !== 'positional'
+    s.kind === 'block' && !p.draft.layout
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('model_starts_with')),
           h('select', { className: S.INPUT, value: s.startsWith, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => set({ startsWith: e.target.value }) },

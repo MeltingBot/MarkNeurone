@@ -95,7 +95,21 @@ Certains formulaires administratifs sont imprimés avec des cases : la valeur es
 - un libellé imprimé deux fois dans une rubrique est numéroté (« Commune #2 ») ;
 - une rubrique vide dans le document reprend les libellés identiques d'une autre rubrique.
 
-Le bas de page (lieu, date et signature) n'a en général pas de bandeau : ses valeurs sont rattachées à la dernière rubrique. Mettez ces champs sur « Ignoré » s'ils ne servent pas. Les libellés du document absents du modèle y apparaissent comme ignorés.
+Le bas de page (lieu, date et signature) n'a en général pas de bandeau : ses valeurs sont rattachées à la dernière rubrique. Mettez ces champs sur « Ignoré » s'ils ne servent pas.
+
+### Formulaires PDF à champs
+
+D'autres formulaires sont des PDF à remplir, dont chaque champ a un nom (« 11_Nom », « Case à cocher 24 »). Leurs valeurs ne font pas partie du texte de la page : MarkNeurone lit directement les champs. Le nom d'un champ ne change pas d'un exemplaire à l'autre du même formulaire, c'est lui que le modèle retient :
+
+- chaque titre numéroté de premier niveau (« 1. », « 2. ») ouvre une rubrique ; les sous-titres (« 1.1. », « 1.2. ») restent dans leur rubrique ;
+- le libellé imprimé à gauche du champ, ou à défaut au-dessus, donne le nom de la propriété ;
+- dans un tableau, la propriété reprend le libellé de la ligne et celui de la colonne (« État · Montant TTC ») ;
+- un groupe de boutons (Madame, Monsieur) donne l'option choisie, sous le nom de la question qui le précède ;
+- les cases isolées cochées d'une rubrique sont réunies dans « Cases cochées » ;
+- une adresse électronique en deux champs, de part et d'autre d'un « @ » imprimé, est réunie en un champ composé « Courriel » ;
+- les champs vides dans l'exemplaire analysé sont listés comme ignorés, prêts à être activés.
+
+Le passage associé à une valeur est son libellé imprimé, puisque la valeur elle-même n'est pas dans le texte de la page. Les libellés du document absents du modèle y apparaissent comme ignorés.
 
 L'éditeur occupe le panneau de droite, et le document montre au fur et à mesure les valeurs que le modèle lit. Chaque rubrique en blocs indique le nombre de blocs trouvés.
 
@@ -191,7 +205,7 @@ Exemple :
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |
 | `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent. Avec `"note": true`, tout son texte est proposé pour la note de l'élément qui porte le document. Avec `property`, comme propriété du document sous ce nom |
 | `documentLink` | Nom du lien proposé de chaque élément créé vers l'élément qui porte le document |
-| `layout` | `"positional"` pour un formulaire à cases : lecture d'après la position, un bloc par rubrique, sans `startsWith` |
+| `layout` | `"positional"` pour un formulaire à cases : lecture d'après la position, un bloc par rubrique, sans `startsWith`. `"fields"` pour un PDF à champs : les libellés des champs du modèle sont les noms des champs du PDF |
 | `fields[].offer` | `false` : le champ est lu, pour le nom ou un champ composé, mais pas proposé |
 | `fields[].value` | Champ composé d'autres champs, nommé par `property` : `"{Jour}/{Mois}/{Année}"` |
 | `fields[].checks` | `true` : formulaire à cases, les options cochées de la rubrique, nommées par `property` |

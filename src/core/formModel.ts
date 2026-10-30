@@ -58,7 +58,8 @@ export interface FormModel {
   /** Label of a link from each block's element to the element carrying the document. */
   documentLink?: string;
   /** Values in boxes, labels printed under them: read by position, one block per section. */
-  layout?: 'positional';
+  /** 'fields': the fields of a PDF form, matched by name, one block per section. */
+  layout?: 'positional' | 'fields';
 }
 
 export const BULLET = '*';
@@ -164,7 +165,8 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
   const signature = textList(m.signature);
   if (!name) return { model: null, dropped: [{ reason: 'no_name' }] };
   if (!signature.length) return { model: null, dropped: [{ reason: 'no_signature' }] };
-  const positional = m.layout === 'positional';
+  const layout = m.layout === 'positional' || m.layout === 'fields' ? m.layout : undefined;
+  const positional = !!layout;
   const doc = (m.document && typeof m.document === 'object' ? m.document : {}) as Record<string, unknown>;
   const documentFields = fields(doc.fields ?? m.documentFields, undefined, dropped);
   const sections: FormSection[] = [];
@@ -203,7 +205,7 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
       documentFields,
       sections,
       ...(text(m.documentLink) ? { documentLink: text(m.documentLink) } : {}),
-      ...(positional ? { layout: 'positional' as const } : {}),
+      ...(layout ? { layout } : {}),
     },
     dropped,
   };

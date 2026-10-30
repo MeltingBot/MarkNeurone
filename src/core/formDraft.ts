@@ -9,7 +9,7 @@
 import { foldLabel, type FormModel } from './formModel.ts';
 import { formLines, keyValuePairs, type FormLine, type FormPageInput } from './formReader.ts';
 import { findDateRange, findDates } from './dates.ts';
-import { bandsOf, positionalLayout, positionalValues } from './formPositional.ts';
+import { bandsOf, choiceGroups, fieldName, fieldsLayout, isFilled, positionalLayout, positionalValues, widgetLabel, widgetOption, widgetSection } from './formPositional.ts';
 
 /** 'read': read for names and composed fields, not offered; 'checks': the options checked in the section. */
 export type DraftFieldType = 'text' | 'date' | 'number' | 'event' | 'skip' | 'read' | 'checks';
@@ -51,8 +51,8 @@ export interface FormDraft {
   /** Fields before the first title: always the document's. */
   header: DraftField[];
   sections: DraftSection[];
-  /** Values in boxes, labels under them. */
-  layout?: 'positional';
+  /** Values in boxes, labels under them; or the fields of a PDF form. */
+  layout?: 'positional' | 'fields';
 }
 
 const BULLET = /^[*•\-–]\s*/;
@@ -121,7 +121,7 @@ interface RawSection {
 
 /** A first model for the document, to adjust in the editor. */
 export function draftFromPages(pages: FormPageInput[], name: string): FormDraft {
-  return draftPositional(pages, name) ?? draftByLines(pages, name);
+  return draftFields(pages, name) ?? draftPositional(pages, name) ?? draftByLines(pages, name);
 }
 
 function draftByLines(pages: FormPageInput[], name: string): FormDraft {
@@ -223,7 +223,7 @@ export function draftToRaw(d: FormDraft): Record<string, unknown> {
   const labelOf = (f: DraftField) => (f.aliases?.length ? [f.label, ...f.aliases] : f.label);
   const field = (f: DraftField, eventName?: string): Record<string, unknown> => {
     if (f.type === 'read') return { label: labelOf(f), offer: false };
-    if (f.type === 'checks') return { property: f.property.trim(), checks: true };
+    if (f.type === 'checks') return { ...(f.label ? { label: labelOf(f) } : {}), property: f.property.trim(), checks: true };
     if (f.template !== undefined) return { property: f.property.trim(), value: f.template.trim(), ...(f.type === 'date' || f.type === 'number' ? { type: f.type } : {}) };
     return f.type === 'event'
       ? { label: labelOf(f), event: eventName ?? `{${f.label}}` }
@@ -411,5 +411,102 @@ function draftPositional(pages: FormPageInput[], name: string): FormDraft | null
     header,
     sections,
     layout: 'positional',
+  };
+}
+
+/**
+ * A form with PDF fields, or null when it has none filled. Fields are
+ * named by the form; the printed label beside each one names the property.
+ * Fields left empty in this copy are listed unused, to be turned on.
+ */
+function draftFields(pages: FormPageInput[], name: string): FormDraft | null {
+  const layout = fieldsLayout(pages);
+  if (!layout.widgets.some(isFilled)) return null;
+  const groups = choiceGroups(layout.widgets);
+  const titleOf = (i: number) => (i < 0 ? null : layout.headings[i].title);
+  const ids = new Map<number, string>();
+  const taken = new Set<string>();
+  layout.headings.forEach((h, i) => {
+    let id = slug(h.title);
+    for (let n = 2; taken.has(id); n++) id = `${slug(h.title)}-${n}`;
+    taken.add(id);
+    ids.set(i, id);
+  });
+
+  const bySection = new Map<number, DraftField[]>();
+  const filledText = new Map<number, number>();
+  const named = new Map<number, string>();
+  const seen = new Set<string>();
+  const add = (i: number, f: DraftField) => bySection.set(i, [...(bySection.get(i) ?? []), f]);
+  const checksOf = new Map<number, string[]>();
+  for (const w of layout.widgets) {
+    if (seen.has(w.name)) continue;
+    const i = widgetSection(w, layout.headings);
+    if (w.kind === 'check' && !groups.has(w.name)) {
+      checksOf.set(i, [...(checksOf.get(i) ?? []), w.name]);
+      seen.add(w.name);
+      continue;
+    }
+    // A choice: its value is the option checked, wherever the group's boxes are.
+    if (w.kind === 'check') {
+      const boxes = layout.widgets.filter((o) => o.name === w.name);
+      const on = boxes.find(isFilled);
+      // Named by the question printed before its first box, when there is one.
+      const first = boxes.reduce((a, b) => (b.page < a.page || (b.page === a.page && (b.y0 > a.y0 + 2 || (Math.abs(b.y0 - a.y0) <= 2 && b.x0 < a.x0))) ? b : a));
+      const before = widgetLabel(first, layout.phrases);
+      const option = widgetOption(first, layout.phrases);
+      const question = before && before.phrase !== option && before.phrase.x1 <= first.x0 ? before.text : '';
+      seen.add(w.name);
+      add(i, { label: w.name, property: question || fieldName(w.name), type: on ? 'text' : 'skip' });
+      continue;
+    }
+    seen.add(w.name);
+    const filled = isFilled(w);
+    const label = widgetLabel(w, layout.phrases, layout.widgets)?.text ?? fieldName(w.name);
+    const type: DraftFieldType = !filled ? 'skip' : findDates(w.value).length && /^\s*\d/.test(w.value) ? 'date' : 'text';
+    add(i, { label: w.name, property: label || fieldName(w.name), type });
+    if (filled) {
+      filledText.set(i, (filledText.get(i) ?? 0) + 1);
+      if (!named.has(i) && hasLetter(w.value) && !/@|\d{2}/.test(w.value)) named.set(i, w.name);
+    }
+  }
+  // An address split around a printed "@": one composed field.
+  for (const fields of bySection.values()) {
+    const texts = layout.widgets.filter((w) => w.kind === 'text' && isFilled(w) && fields.some((f) => f.label === w.name));
+    for (const a of texts) {
+      const b = texts.find((o) => o !== a && o.page === a.page && Math.abs(o.y0 - a.y0) < 3 && o.x0 > a.x1 && layout.phrases.some((p) => p.text === '@' && p.page === a.page && p.x0 >= a.x1 - 2 && p.x1 <= o.x0 + 2 && p.y >= a.y0 - 3 && p.y <= a.y1));
+      if (!b) continue;
+      for (const f of fields) if (f.label === a.name || f.label === b.name) f.type = 'read';
+      fields.push({ label: '', property: 'Courriel', type: 'text', template: `{${a.name}}@{${b.name}}` });
+    }
+  }
+  for (const [i, names] of checksOf) add(i, { label: names[0], aliases: names.slice(1), property: 'Cases cochées', type: 'checks' });
+
+  const sections: DraftSection[] = layout.headings.map((h, i) => {
+    const fields = bySection.get(i) ?? [];
+    const kind: DraftSectionKind = (filledText.get(i) ?? 0) >= 3 ? 'block' : 'document';
+    return {
+      id: ids.get(i)!,
+      title: h.title,
+      kind,
+      fields,
+      startsWith: '',
+      tag: kind === 'block' ? tagOf(h.title) : '',
+      nameTemplate: named.has(i) ? `{${named.get(i)}}` : '',
+      links: [],
+    };
+  });
+  // Titles of the first page, larger than the rest: what tells the form.
+  const titles = bandsOf(layout.phrases.filter((p) => p.page === 1)).map((p) => p.text);
+  const formName = name || capitalized(titles[0] ?? '') || titleOf(0) || 'Formulaire';
+  return {
+    id: slug(formName),
+    name: formName,
+    signature: (titles.length ? titles : layout.headings.map((h) => h.title)).slice(0, 2),
+    empty: [],
+    documentLink: '',
+    header: bySection.get(-1) ?? [],
+    sections,
+    layout: 'fields',
   };
 }

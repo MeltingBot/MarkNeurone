@@ -192,7 +192,7 @@ function optionOf(w: Word, phrases: Phrase[], boxes: Word[]): Phrase | null {
   let best: Phrase | null = null;
   let dist = Infinity;
   for (const p of phrases) {
-    if (p.page !== w.page || Math.abs(p.y - w.y) > Math.max(w.size, p.size) * 0.6) continue;
+    if (p.page !== w.page || Math.abs(p.y - w.y) > Math.max(w.size, p.size) * 0.6 || /:\s*$/.test(p.text)) continue;
     const d = dxTo(x0, x1, p);
     if (d < dist && d < 40) [best, dist] = [p, d];
   }
@@ -357,4 +357,211 @@ export function readPositional(pages: FormPageInput[], model: FormModel): FormRe
     if (b) reading.blocks.push(b);
   }
   return reading;
+}
+
+// ─── Fields of a PDF form ────────────────────────────────────
+//
+// A form with fields keeps its values outside the page text. Each field
+// has a name, stable from one copy to the next: the model names fields,
+// the printed label next to a field (left on its line, else above) gives
+// the property its name and the passage its anchor. Sections are the
+// numbered headings ("1.2. Coordonnées du demandeur").
+
+/** "Case #C3#A0 cocher" > "Case à cocher": names keep the PDF escapes of their bytes. */
+export function fieldName(name: string): string {
+  if (!/#[0-9A-Fa-f]{2}/.test(name)) return name;
+  const bytes: number[] = [];
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] === '#' && /^[0-9A-Fa-f]{2}$/.test(name.slice(i + 1, i + 3))) {
+      bytes.push(parseInt(name.slice(i + 1, i + 3), 16));
+      i += 2;
+    } else bytes.push(...new TextEncoder().encode(name[i]));
+  }
+  return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+export interface PlacedWidget extends Omit<import('./formReader.ts').FormWidget, 'rect'> {
+  page: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface FieldsLayout {
+  data: PageData[];
+  phrases: Phrase[];
+  widgets: PlacedWidget[];
+  headings: { page: number; y: number; title: string; number: string }[];
+}
+
+/**
+ * Numbered headings of the first level: "1." then its title on the same
+ * line ("1.1." and "1.2." stay inside; footnotes and list items have no dot).
+ */
+function headingsOf(phrases: Phrase[]): FieldsLayout['headings'] {
+  const out: FieldsLayout['headings'] = [];
+  for (const p of phrases) {
+    // Number and title in one phrase: "1. Demandeur".
+    const joined = /^(\d+\.)\s+(\p{L}.*)$/u.exec(p.text);
+    if (joined) {
+      out.push({ page: p.page, y: p.y, title: joined[2].replace(/\s*:\s*$/, ''), number: joined[1] });
+      continue;
+    }
+    if (!/^\d+\.$/.test(p.text)) continue;
+    const title = phrases.find((o) => o.page === p.page && o !== p && Math.abs(o.y - p.y) <= Math.max(o.size, p.size) * 0.4 && o.x0 >= p.x1 - 1 && o.x0 - p.x1 < 20);
+    if (title && /\p{L}{3}/u.test(title.text)) out.push({ page: p.page, y: p.y, title: title.text.replace(/\s*:\s*$/, ''), number: p.text });
+  }
+  return out;
+}
+
+export function fieldsLayout(pages: FormPageInput[]): FieldsLayout {
+  const parts = pages.map((p, i) => pageWords(p, i + 1));
+  const phrases = phrasesOf(parts.flatMap((p) => p.words).filter((w) => !isBox(w)));
+  const widgets = pages.flatMap((p, i) =>
+    (p.widgets ?? []).map((w) => ({ ...w, page: i + 1, x0: Math.min(w.rect[0], w.rect[2]), y0: Math.min(w.rect[1], w.rect[3]), x1: Math.max(w.rect[0], w.rect[2]), y1: Math.max(w.rect[1], w.rect[3]) })),
+  );
+  return { data: parts.map((p) => p.data), phrases, widgets, headings: headingsOf(phrases) };
+}
+
+/** Whether a widget holds something: text typed, or its box checked. */
+export const isFilled = (w: PlacedWidget) => (w.kind === 'text' ? !!w.value.trim() : !!w.on);
+
+/** Names given to more than one box with different values: a choice between options. */
+export function choiceGroups(widgets: PlacedWidget[]): Set<string> {
+  const values = new Map<string, Set<string>>();
+  for (const w of widgets) if (w.kind === 'check') values.set(w.name, (values.get(w.name) ?? new Set()).add(w.value));
+  return new Set([...values].filter(([, v]) => v.size > 1).map(([k]) => k));
+}
+
+const onRow = (w: PlacedWidget, p: Phrase) => p.page === w.page && p.y >= w.y0 - 3 && p.y <= w.y1 + 1;
+
+/**
+ * Printed label of a field: left of it on its line, else above it. In a
+ * table (several text fields side by side), the row's heading with the
+ * column's heading: "Surfaces totales · Existantes".
+ */
+export function widgetLabel(w: PlacedWidget, phrases: Phrase[], widgets: PlacedWidget[] = []): { phrase: Phrase; text: string } | null {
+  const clean = (s: string) => s.replace(/\s*:\s*$/, '').trim();
+  const lettered = phrases.filter((p) => /\p{L}/u.test(p.text));
+  let left: Phrase | null = null;
+  for (const p of lettered) if (onRow(w, p) && p.x1 <= w.x0 + 2 && (!left || p.x1 > left.x1)) left = p;
+  // A table cell: a field next to it on its row with no printed label in between.
+  const between = (a: PlacedWidget, b: PlacedWidget) => {
+    const [l, r] = a.x0 < b.x0 ? [a, b] : [b, a];
+    return phrases.some((p) => onRow(w, p) && p.x0 >= l.x1 - 2 && p.x1 <= r.x0 + 2);
+  };
+  const inTable = widgets.some((o) => o !== w && o.kind === 'text' && o.page === w.page && Math.abs(o.y0 - w.y0) < 2 && Math.abs(o.x0 - w.x0) < 150 && !between(o, w));
+  const column = lettered
+    .filter((p) => p.page === w.page && p.y > w.y1 && p.y - w.y1 < (inTable ? 200 : 22) && overlap(p.x0, p.x1, w.x0, w.x1) > 0)
+    .sort((a, b) => a.y - b.y)[0];
+  if (inTable && left && column) return { phrase: left, text: `${clean(left.text)} · ${clean(column.text)}` };
+  if (left && w.x0 - left.x1 < 80) return { phrase: left, text: clean(left.text) };
+  if (column) return { phrase: column, text: clean(column.text) };
+  return left ? { phrase: left, text: clean(left.text) } : null;
+}
+
+/** A phrase ending with a colon asks a question: it is never an option. */
+const asks = (p: Phrase) => /:\s*$/.test(p.text);
+
+/** The option a box stands for: the printed phrase nearest to it on its line. */
+export function widgetOption(w: PlacedWidget, phrases: Phrase[]): Phrase | null {
+  let best: Phrase | null = null;
+  let dist = Infinity;
+  for (const p of phrases) {
+    if (!onRow(w, p) || asks(p)) continue;
+    const d = dxTo(w.x0, w.x1, p);
+    if (d < dist && d < 60) [best, dist] = [p, d];
+  }
+  return best;
+}
+
+/** Section of a widget: the numbered heading above it. */
+export function widgetSection(w: PlacedWidget, headings: { page: number; y: number }[]): number {
+  let at = -1;
+  headings.forEach((h, i) => {
+    if (h.page < w.page || (h.page === w.page && h.y > w.y1)) at = i;
+  });
+  return at;
+}
+
+/** Reads the fields of a PDF form with its model: one block per section. */
+export function readFields(pages: FormPageInput[], model: FormModel): FormReading {
+  const layout = fieldsLayout(pages);
+  const groups = choiceGroups(layout.widgets);
+  const empty = new Set(model.empty.map(foldLabel));
+  const reading: FormReading = { document: [], blocks: [] };
+  const blocks = new Map<string, FormBlock>();
+  const owner = (name: string): { field: FormField; sectionId: string | null } | null => {
+    for (const s of model.sections) {
+      const f = s.block?.fields.find((x) => x.labels.includes(name));
+      if (f) return { field: f, sectionId: s.id };
+    }
+    const f = model.documentFields.find((x) => x.labels.includes(name));
+    return f ? { field: f, sectionId: null } : null;
+  };
+  const push = (sectionId: string | null, v: FormValue) => {
+    if (!sectionId) {
+      reading.document.push(v);
+      return;
+    }
+    let b = blocks.get(sectionId);
+    if (!b) blocks.set(sectionId, (b = { sectionId, index: 0, anchor: v.anchor, values: [] }));
+    b.values.push(v);
+  };
+  const anchorOn = (p: Phrase | null) => (p ? wordsAnchor(p.words, layout.data) : null);
+
+  const checked = new Map<FormField, { sectionId: string | null; options: Phrase[] }>();
+  for (const w of layout.widgets) {
+    if (!isFilled(w)) continue;
+    const own = owner(w.name);
+    if (!own) continue;
+    const { field, sectionId } = own;
+    if (w.kind === 'check') {
+      const option = widgetOption(w, layout.phrases);
+      if (!option) continue;
+      if (field.checks) {
+        const c = checked.get(field) ?? { sectionId, options: [] };
+        c.options.push(option);
+        checked.set(field, c);
+        continue;
+      }
+      if (!groups.has(w.name)) continue;
+      const at = anchorOn(option);
+      if (at) push(sectionId, { label: w.name, field, unknown: false, text: option.text.replace(/\s*:\s*$/, ''), anchor: at.anchor, whole: at.whole });
+      continue;
+    }
+    const text = w.value.replace(/\s+/g, ' ').trim();
+    if (empty.has(foldLabel(text))) continue;
+    const at = anchorOn(widgetLabel(w, layout.phrases, layout.widgets)?.phrase ?? null);
+    if (at) push(sectionId, { label: w.name, field, unknown: false, text, anchor: at.anchor, whole: false });
+  }
+  for (const [field, { sectionId, options }] of checked) {
+    const at = anchorOn(options[0]);
+    if (at) push(sectionId, { label: field.labels[0], field, unknown: false, text: options.map((o) => o.text.replace(/\s*:\s*$/, '')).join(', '), anchor: at.anchor, whole: false });
+  }
+  for (const s of model.sections) {
+    const b = blocks.get(s.id);
+    if (b) reading.blocks.push(b);
+  }
+  return reading;
+}
+
+/** Fields of a PDF form from pdf.js annotations of a page (widgets only). */
+export function widgetsOf(annotations: unknown[]): import('./formReader.ts').FormWidget[] {
+  const out: import('./formReader.ts').FormWidget[] = [];
+  for (const raw of annotations) {
+    const a = raw as Record<string, unknown>;
+    if (a.subtype !== 'Widget' || typeof a.fieldName !== 'string' || !Array.isArray(a.rect)) continue;
+    const rect = (a.rect as number[]).slice(0, 4) as [number, number, number, number];
+    const value = a.fieldValue;
+    if (a.checkBox || a.radioButton) {
+      const own = String((a.checkBox ? a.exportValue : a.buttonValue) ?? '');
+      const on = typeof value === 'string' && value !== 'Off' && value !== '' && (!own || value === own);
+      out.push({ name: a.fieldName, kind: 'check', value: own, on, rect });
+    } else if (a.fieldType === 'Tx' || a.fieldType === 'Ch') {
+      out.push({ name: a.fieldName, kind: 'text', value: Array.isArray(value) ? value.join(', ') : typeof value === 'string' ? value : '', rect });
+    }
+  }
+  return out;
 }

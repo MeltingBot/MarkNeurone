@@ -125,3 +125,100 @@ describe('positional forms', () => {
     expect(at('Date d’achat')).toBe('21102026');
   });
 });
+
+describe('PDF form fields', () => {
+  // Fictional form with fields: printed labels left of the fields, numbered
+  // headings, a choice, a single box, an address split around "@", a table.
+  type P = [str: string, x: number, y: number, size?: number];
+  const printed: P[] = [
+    ['DEMANDE D’AIDE FICTIVE', 100, 800, 14],
+    ['1.', 36, 760, 10], ['Demandeur', 50, 760, 10],
+    ['1.1.', 36, 740, 9], ['Identité', 56, 740, 9],
+    ['Nom :', 40, 720], ['Prénom :', 300, 720],
+    ['Courriel :', 40, 700], ['@', 200, 700],
+    ['Voie :', 40, 680], ['Pays :', 300, 680],
+    ['1', 36, 60, 7], ['Note de bas de page sans intérêt.', 46, 60, 7],
+    ['2.', 36, 640, 10], ['Projet', 50, 640, 10],
+    ['Nature :', 40, 620], ['Travaux', 120, 620], ['Étude', 200, 620],
+    ['Urgent', 52, 600],
+    ['Montant', 200, 580], ['Part', 300, 580],
+    ['État', 40, 560], ['Région', 40, 545],
+  ];
+  const widgets: import('./formReader.ts').FormWidget[] = [
+    { name: 'id_nom', kind: 'text', value: 'ARNOUX', rect: [80, 717, 280, 729] },
+    { name: 'id_prenom', kind: 'text', value: 'Camille', rect: [345, 717, 540, 729] },
+    { name: 'id_mail1', kind: 'text', value: 'c.arnoux', rect: [90, 697, 198, 709] },
+    { name: 'id_mail2', kind: 'text', value: 'exemple.test', rect: [208, 697, 400, 709] },
+    { name: 'id_voie', kind: 'text', value: 'rue des Tilleuls', rect: [70, 677, 290, 689] },
+    { name: 'id_pays', kind: 'text', value: '', rect: [330, 677, 540, 689] },
+    { name: 'nature', kind: 'check', value: '1', on: false, rect: [108, 618, 116, 626] },
+    { name: 'nature', kind: 'check', value: '2', on: true, rect: [188, 618, 196, 626] },
+    { name: 'Case 7', kind: 'check', value: 'Yes', on: true, rect: [40, 598, 48, 606] },
+    { name: 'cell_1', kind: 'text', value: '1 200', rect: [200, 557, 260, 566] },
+    { name: 'cell_2', kind: 'text', value: '40 %', rect: [300, 557, 360, 566] },
+    { name: 'cell_3', kind: 'text', value: '1 800', rect: [200, 542, 260, 551] },
+    { name: 'cell_4', kind: 'text', value: '60 %', rect: [300, 542, 360, 551] },
+  ];
+  const fieldsPage: FormPageInput = {
+    height: 842,
+    items: printed.map(([str, x, y, size]): FormTextItem => {
+      const s = size ?? 9;
+      return { str, transform: [s, 0, 0, s, x, y], width: str.length * s * 0.45, fontName: 'P', hasEOL: true };
+    }),
+    widgets,
+  };
+  const draft = draftFromPages([fieldsPage], '');
+
+  it('drafts sections from first-level headings, fields named by the form', () => {
+    expect(draft.layout).toBe('fields');
+    expect(draft.sections.map((s) => [s.title, s.kind])).toEqual([
+      ['Demandeur', 'block'],
+      ['Projet', 'block'],
+    ]);
+    const used = (i: number) => draft.sections[i].fields.filter((f) => f.type !== 'skip').map((f) => [f.label, f.property, f.type]);
+    expect(used(0)).toEqual([
+      ['id_nom', 'Nom', 'text'],
+      ['id_prenom', 'Prénom', 'text'],
+      ['id_mail1', 'Courriel', 'read'],
+      // Read only: the label above it does not matter.
+      ['id_mail2', 'Prénom', 'read'],
+      ['id_voie', 'Voie', 'text'],
+      ['', 'Courriel', 'text'],
+    ]);
+    // An empty field is listed unused.
+    expect(draft.sections[0].fields.find((f) => f.label === 'id_pays')).toMatchObject({ property: 'Pays', type: 'skip' });
+    expect(used(1)).toEqual([
+      ['nature', 'Nature', 'text'],
+      ['cell_1', 'État · Montant', 'text'],
+      ['cell_2', 'État · Part', 'text'],
+      ['cell_3', 'Région · Montant', 'text'],
+      ['cell_4', 'Région · Part', 'text'],
+      ['Case 7', 'Cases cochées', 'checks'],
+    ]);
+  });
+
+  it('reads values from the fields, options from the boxes checked', () => {
+    const { model, dropped } = normalizeFormModel(draftToRaw(draft));
+    expect(dropped).toEqual([]);
+    const r = readForm([fieldsPage], model!);
+    const shown = (id: string) => r.blocks.find((b) => b.sectionId === id)!.values.filter((v) => v.field?.offer !== false).map((v) => [v.field?.property, v.text]);
+    expect(shown('demandeur')).toEqual([
+      ['Nom', 'ARNOUX'],
+      ['Prénom', 'Camille'],
+      ['Voie', 'rue des Tilleuls'],
+      ['Courriel', 'c.arnoux@exemple.test'],
+    ]);
+    expect(shown('projet')).toEqual([
+      ['Nature', 'Étude'],
+      ['État · Montant', '1 200'],
+      ['État · Part', '40 %'],
+      ['Région · Montant', '1 800'],
+      ['Région · Part', '60 %'],
+      ['Cases cochées', 'Urgent'],
+    ]);
+    // The passage of a value is its printed label.
+    const text = pdfPageText(fieldsPage.items).text;
+    const nom = r.blocks[0].values[0];
+    expect(text.slice(nom.anchor.start, nom.anchor.end)).toBe('Nom :');
+  });
+});

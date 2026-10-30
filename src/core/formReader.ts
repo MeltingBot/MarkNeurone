@@ -10,7 +10,7 @@
 
 import { pdfPageText, type PdfTextItem } from './pageText.ts';
 import { BULLET, fillTemplate, foldLabel, type FormField, type FormModel, type FormSection } from './formModel.ts';
-import { readPositional } from './formPositional.ts';
+import { readFields, readPositional } from './formPositional.ts';
 
 export interface FormTextItem extends PdfTextItem {
   width?: number;
@@ -21,6 +21,21 @@ export interface FormPageInput {
   items: FormTextItem[];
   /** Page height in PDF units, to tell headers and footers. */
   height: number;
+  /** Fields of a PDF form on the page (their values are not in the text). */
+  widgets?: FormWidget[];
+}
+
+/** A field of a PDF form, as pdf.js gives its annotation. */
+export interface FormWidget {
+  /** Field name, stable from one copy of the form to the next. */
+  name: string;
+  kind: 'text' | 'check';
+  /** Text of a text field; export value of a box ("Yes", "2"). */
+  value: string;
+  /** Box checked. */
+  on?: boolean;
+  /** [x0, y0, x1, y1] in PDF units, origin at the bottom left. */
+  rect: [number, number, number, number];
 }
 
 /** Offsets in the page text (pdfPageText). */
@@ -335,7 +350,8 @@ function anchoredPairs(pairs: { key: string; value: string }[], spans: Span[], p
 
 /** Reads the form; pages in document order, from the first. */
 export function readForm(pages: FormPageInput[], model: FormModel): FormReading {
-  return withComposed(model.layout === 'positional' ? readPositional(pages, model) : readByLines(pages, model), model);
+  const read = model.layout === 'positional' ? readPositional : model.layout === 'fields' ? readFields : readByLines;
+  return withComposed(read(pages, model), model);
 }
 
 /** Composed fields ("{Jour}/{Mois}/{Année}"), anchored on the first value they use. */
