@@ -58,7 +58,7 @@ Les corrections restent en mémoire si vous fermez le formulaire ou changez de d
 
 Lorsque le bloc est rattaché à un élément qui a déjà une propriété de même nom et de même valeur, cette propriété n'est pas ajoutée une seconde fois : le passage est seulement ajouté à ses sources.
 
-Un clic sur un passage déjà surligné ferme le formulaire et affiche la fiche de l'élément. Le bouton « Lire comme formulaire » le rouvre.
+Un clic sur un passage déjà surligné ferme le formulaire et affiche la fiche de l'élément. Le bouton formulaire de la barre d'outils le rouvre.
 
 ## Créer un modèle depuis un document
 
