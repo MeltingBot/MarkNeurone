@@ -1,0 +1,432 @@
+{
+  "id": "cerfa-13750",
+  "name": "Demande de certificat d’immatriculation (cerfa 13750)",
+  "signature": [
+    "DEMANDE DE CERTIFICAT D’IMMATRICULATION D’UN VÉHICULE",
+    "VÉHICULE"
+  ],
+  "empty": [],
+  "documentFields": [
+    {
+      "labels": [
+        "Cases cochées"
+      ],
+      "property": "Objet de la demande",
+      "checks": true
+    }
+  ],
+  "sections": [
+    {
+      "id": "demande-de-certificat-d-immatriculation-d-un-vehicule",
+      "titles": [
+        "DEMANDE DE CERTIFICAT D’IMMATRICULATION D’UN VÉHICULE"
+      ]
+    },
+    {
+      "id": "vehicule",
+      "titles": [
+        "VÉHICULE"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Véhicule",
+          "label": "{(A) Numéro d’immatriculation actuel}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "(A) Numéro d’immatriculation actuel"
+            ],
+            "property": "Immatriculation"
+          },
+          {
+            "labels": [
+              "Date d’achat, le cas échéant"
+            ],
+            "property": "Date d’achat",
+            "type": "date"
+          },
+          {
+            "labels": [
+              "(I) Date de certificat actuel"
+            ],
+            "property": "Date du certificat actuel",
+            "type": "date"
+          },
+          {
+            "labels": [
+              "(B) Date de 1re immatriculation"
+            ],
+            "property": "Date de première immatriculation",
+            "type": "date"
+          },
+          {
+            "labels": [
+              "Numéro de formule du certificat d’immatriculation *"
+            ],
+            "property": "Numéro de formule"
+          },
+          {
+            "labels": [
+              "Marque (D.1)"
+            ],
+            "property": "Marque"
+          },
+          {
+            "labels": [
+              "Dénomination commerciale (D.3)"
+            ],
+            "property": "Dénomination commerciale"
+          },
+          {
+            "labels": [
+              "Type variante version (D.2)"
+            ],
+            "property": "Type variante version"
+          },
+          {
+            "labels": [
+              "Numéro d’identification du véhicule (E)"
+            ],
+            "property": "VIN"
+          },
+          {
+            "labels": [
+              "Genre national (J.1)"
+            ],
+            "property": "Genre national"
+          },
+          {
+            "labels": [
+              "Cases cochées"
+            ],
+            "property": "Couleur",
+            "checks": true
+          },
+          {
+            "labels": [
+              "en location longue durée"
+            ],
+            "property": "Location longue durée",
+            "type": "boolean"
+          },
+          {
+            "labels": [
+              "en location courte durée"
+            ],
+            "property": "Location courte durée",
+            "type": "boolean"
+          },
+          {
+            "labels": [
+              "en crédit-bail"
+            ],
+            "property": "Crédit-bail",
+            "type": "boolean"
+          }
+        ],
+        "free": false,
+        "links": []
+      }
+    },
+    {
+      "id": "titulaire",
+      "titles": [
+        "TITULAIRE"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Personne",
+          "label": "{NOM DE NAISSANCE et PRÉNOM ou RAISON SOCIALE pour une personne morale}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "NOM DE NAISSANCE et PRÉNOM ou RAISON SOCIALE pour une personne morale"
+            ],
+            "property": "Nom et prénom ou raison sociale"
+          },
+          {
+            "labels": [
+              "Jour"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Mois"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Année"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Commune"
+            ],
+            "property": "Commune de naissance"
+          },
+          {
+            "labels": [
+              "Département"
+            ],
+            "property": "Département de naissance"
+          },
+          {
+            "labels": [
+              "Pays"
+            ],
+            "property": "Pays de naissance"
+          },
+          {
+            "labels": [
+              "N° de la voie"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Type de voie (avenue, etc.)"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Libellé de voie"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Tél. portable (recommandé)"
+            ],
+            "property": "Téléphone"
+          },
+          {
+            "labels": [
+              "Code postal"
+            ],
+            "property": "Code postal"
+          },
+          {
+            "labels": [
+              "Commune #2"
+            ],
+            "property": "Commune"
+          },
+          {
+            "labels": [
+              "Mél (recommandé)"
+            ],
+            "property": "Courriel"
+          },
+          {
+            "labels": [
+              "Cases cochées"
+            ],
+            "property": "Statut",
+            "checks": true
+          },
+          {
+            "labels": [
+              "Personne morale"
+            ],
+            "property": "Personne morale",
+            "type": "boolean"
+          },
+          {
+            "labels": [
+              "Date de naissance"
+            ],
+            "property": "Date de naissance",
+            "type": "date",
+            "value": "{Jour}/{Mois}/{Année}"
+          },
+          {
+            "labels": [
+              "Adresse"
+            ],
+            "property": "Adresse",
+            "value": "{N° de la voie} {Type de voie (avenue, etc.)} {Libellé de voie}"
+          }
+        ],
+        "free": false,
+        "links": [
+          {
+            "to": "vehicule",
+            "label": "titulaire de"
+          }
+        ]
+      }
+    },
+    {
+      "id": "loueur",
+      "titles": [
+        "LOUEUR"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Personne",
+          "label": "{NOM DE NAISSANCE et PRÉNOM ou RAISON SOCIALE pour une personne morale}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "NOM DE NAISSANCE et PRÉNOM ou RAISON SOCIALE pour une personne morale"
+            ],
+            "property": "Nom et prénom ou raison sociale"
+          },
+          {
+            "labels": [
+              "Commune"
+            ],
+            "property": "Commune"
+          },
+          {
+            "labels": [
+              "N° de la voie"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Type de voie (avenue, etc.)"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Libellé de voie"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Tél. portable (recommandé)"
+            ],
+            "property": "Téléphone"
+          },
+          {
+            "labels": [
+              "Code postal"
+            ],
+            "property": "Code postal"
+          },
+          {
+            "labels": [
+              "Mél (recommandé)"
+            ],
+            "property": "Courriel"
+          },
+          {
+            "labels": [
+              "Personne morale"
+            ],
+            "property": "Personne morale",
+            "type": "boolean"
+          },
+          {
+            "labels": [
+              "Adresse"
+            ],
+            "property": "Adresse",
+            "value": "{N° de la voie} {Type de voie (avenue, etc.)} {Libellé de voie}"
+          }
+        ],
+        "free": false,
+        "links": [
+          {
+            "to": "vehicule",
+            "label": "loueur de"
+          }
+        ]
+      }
+    },
+    {
+      "id": "locataire",
+      "titles": [
+        "LOCATAIRE"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Personne",
+          "label": "{NOM DE NAISSANCE et PRÉNOM ou RAISON SOCIALE pour une personne morale}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "NOM DE NAISSANCE et PRÉNOM ou RAISON SOCIALE pour une personne morale"
+            ],
+            "property": "Nom et prénom ou raison sociale"
+          },
+          {
+            "labels": [
+              "Commune"
+            ],
+            "property": "Commune"
+          },
+          {
+            "labels": [
+              "N° de la voie"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Type de voie (avenue, etc.)"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Libellé de voie"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "Tél. portable (recommandé)"
+            ],
+            "property": "Téléphone"
+          },
+          {
+            "labels": [
+              "Code postal"
+            ],
+            "property": "Code postal"
+          },
+          {
+            "labels": [
+              "Mél (recommandé)"
+            ],
+            "property": "Courriel"
+          },
+          {
+            "labels": [
+              "Adresse"
+            ],
+            "property": "Adresse",
+            "value": "{N° de la voie} {Type de voie (avenue, etc.)} {Libellé de voie}"
+          }
+        ],
+        "free": false,
+        "links": [
+          {
+            "to": "vehicule",
+            "label": "locataire de"
+          }
+        ]
+      }
+    }
+  ],
+  "documentLink": "mentionné dans",
+  "layout": "positional"
+}

@@ -1,0 +1,631 @@
+{
+  "id": "cerfa-15459",
+  "name": "Travaux sur monuments historiques (cerfa 15459)",
+  "signature": [
+    "DEMANDE D’AUTORISATION OU DÉCLARATION PRÉALABLE DE TRAVAUX",
+    "SUR MONUMENTS HISTORIQUES"
+  ],
+  "empty": [],
+  "documentFields": [
+    {
+      "labels": [
+        "Nature du bien"
+      ],
+      "property": "Nature du bien"
+    },
+    {
+      "labels": [
+        "Demande de subvention"
+      ],
+      "property": "Demande de subvention"
+    },
+    {
+      "labels": [
+        "Nature des interventions",
+        "Case #C3#A0 cocher 24",
+        "Case #C3#A0 cocher 24_2",
+        "Nature des interventions_2"
+      ],
+      "property": "Nature des interventions",
+      "checks": true
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_Denom"
+      ],
+      "property": "Immeuble"
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_AdVoie"
+      ],
+      "property": "Voie"
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_AdLocalite"
+      ],
+      "property": "Localité"
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_AdCP"
+      ],
+      "property": "Code postal"
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_AdRefCadastre"
+      ],
+      "property": "Références cadastrales"
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_AdSurf"
+      ],
+      "property": "Superficie (m²)"
+    },
+    {
+      "labels": [
+        "4_LocalisationImm_Denom_2"
+      ],
+      "property": "Intitulé de l’opération"
+    },
+    {
+      "labels": [
+        "5_Presentation"
+      ],
+      "property": "Justification, nature et description des interventions"
+    },
+    {
+      "labels": [
+        "CategorieTravaux",
+        "Case #C3#A0 cocher 5_5",
+        "Case #C3#A0 cocher 5",
+        "CategorieTravaux_2",
+        "CategorieTravaux_5",
+        "Case #C3#A0 cocher 5_2",
+        "CategorieTravaux_3",
+        "Case #C3#A0 cocher 5_3",
+        "CategorieTravaux_4",
+        "Case #C3#A0 cocher 5_4",
+        "Case #C3#A0 cocher 5_6",
+        "Case #C3#A0 cocher 5_7"
+      ],
+      "property": "Catégories de travaux",
+      "checks": true
+    },
+    {
+      "labels": [
+        "8_EngagDemand_SignOu"
+      ],
+      "property": "Lieu de signature"
+    },
+    {
+      "labels": [
+        "8_EngagDemand_SignDate"
+      ],
+      "property": "Date de signature",
+      "type": "date"
+    },
+    {
+      "labels": [
+        "SubIdentificationDemandeurProprio"
+      ],
+      "property": "Demandeur de la subvention"
+    },
+    {
+      "labels": [
+        "11_SiPersMoral_Prenom_3"
+      ],
+      "property": "Date prévisionnelle de début de réalisation du projet",
+      "type": "date"
+    },
+    {
+      "labels": [
+        "11_SiPersMoral_Prenom_4"
+      ],
+      "property": "Date prévisionnelle de fin de réalisation du projet",
+      "type": "date"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_126"
+      ],
+      "property": "Montant HT"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_127"
+      ],
+      "property": "Montant TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_128"
+      ],
+      "property": "Autofinancement (sous-total) · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_130"
+      ],
+      "property": "Autofinancement (sous-total) · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_129"
+      ],
+      "property": "Fonds propres · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_131"
+      ],
+      "property": "Fonds propres · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_143"
+      ],
+      "property": "Emprunts · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_132"
+      ],
+      "property": "Emprunts · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_144"
+      ],
+      "property": "Mécénat · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_133"
+      ],
+      "property": "Mécénat · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_146"
+      ],
+      "property": "Aides publiques (sous-total) · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_135"
+      ],
+      "property": "Aides publiques (sous-total) · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_148"
+      ],
+      "property": "État · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_137"
+      ],
+      "property": "État · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_149"
+      ],
+      "property": "Conseil régional · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_138"
+      ],
+      "property": "Conseil régional · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_150"
+      ],
+      "property": "Conseil départemental · % DU MONTANT TOTAL"
+    },
+    {
+      "labels": [
+        "Champ num#C3#A9rique 1_139"
+      ],
+      "property": "Conseil départemental · MONTANT TTC"
+    },
+    {
+      "labels": [
+        "AttestationDemandeur"
+      ],
+      "property": "Attestation signée par"
+    },
+    {
+      "labels": [
+        "AttestationDemandeur_2"
+      ],
+      "property": "Subvention demandée"
+    },
+    {
+      "labels": [
+        "Case #C3#A0 cocher 1_6"
+      ],
+      "property": "Non assujetti à la TVA",
+      "type": "boolean"
+    },
+    {
+      "labels": [
+        "Case #C3#A0 cocher 1_7"
+      ],
+      "property": "Assujetti à la TVA",
+      "type": "boolean"
+    },
+    {
+      "labels": [
+        "Case #C3#A0 cocher 1_5"
+      ],
+      "property": "Bénéficie du FCTVA",
+      "type": "boolean"
+    },
+    {
+      "labels": [
+        "Case #C3#A0 cocher 1_8"
+      ],
+      "property": "Assure la maîtrise d’ouvrage",
+      "type": "boolean"
+    }
+  ],
+  "sections": [
+    {
+      "id": "demandeur-ou-declarant",
+      "titles": [
+        "Demandeur ou déclarant"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Demandeur",
+          "label": "{11_SiPersMoral_Denom}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "11_SiPersMoral_Denom"
+            ],
+            "property": "Dénomination"
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_RaisonSociale"
+            ],
+            "property": "Raison sociale"
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_SiretRna"
+            ],
+            "property": "N° SIRET ou RNA"
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_CatJuri"
+            ],
+            "property": "Catégorie juridique (code APE)"
+          },
+          {
+            "labels": [
+              "DemandeurPersonneMoraleGenre"
+            ],
+            "property": "Civilité du représentant"
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_Nom"
+            ],
+            "property": "Nom du représentant"
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_Prenom"
+            ],
+            "property": "Prénom du représentant"
+          },
+          {
+            "labels": [
+              "Demandeur"
+            ],
+            "property": "Accepte les échanges par courriel",
+            "type": "boolean"
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_Accept@"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "11_SiPersMoral_@Accept"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "12_CoordDemand_AdNum"
+            ],
+            "property": "Numéro de voie"
+          },
+          {
+            "labels": [
+              "12_CoordDemand_AdVoie"
+            ],
+            "property": "Voie"
+          },
+          {
+            "labels": [
+              "12_CoordDemand_AdLocalite"
+            ],
+            "property": "Localité"
+          },
+          {
+            "labels": [
+              "12_CoordDemand_AdPays"
+            ],
+            "property": "Pays"
+          },
+          {
+            "labels": [
+              "12_CoordDemand_AdCP"
+            ],
+            "property": "Code postal"
+          },
+          {
+            "labels": [
+              "12_CoordDemand_Tel"
+            ],
+            "property": "Téléphone"
+          },
+          {
+            "labels": [
+              "Courriel"
+            ],
+            "property": "Courriel",
+            "value": "{11_SiPersMoral_Accept@}@{11_SiPersMoral_@Accept}"
+          }
+        ],
+        "free": false,
+        "links": [
+          {
+            "to": "designation-du-monument-historique",
+            "label": "demandeur pour"
+          }
+        ]
+      }
+    },
+    {
+      "id": "proprietaire-s-il-n-est-pas-le-demandeur-ou-le-declarant",
+      "titles": [
+        "Propriétaire (s'il n’est pas le demandeur ou le déclarant)"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Propriétaire",
+          "label": null
+        },
+        "fields": [
+          {
+            "labels": [
+              "Coordonnees demandeur"
+            ],
+            "property": "Cases cochées",
+            "checks": true
+          }
+        ],
+        "free": false,
+        "links": []
+      }
+    },
+    {
+      "id": "designation-du-monument-historique",
+      "titles": [
+        "Désignation du monument historique"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Monument historique",
+          "label": "{3_DesignMH_Denom}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "3_DesignMH_Denom"
+            ],
+            "property": "Appellation / dénomination"
+          },
+          {
+            "labels": [
+              "TypeProtection"
+            ],
+            "property": "Type de protection"
+          },
+          {
+            "labels": [
+              "3_DesignMH_ElemProteges"
+            ],
+            "property": "Élément(s) protégé(s)"
+          },
+          {
+            "labels": [
+              "3_DesignMH_RefMerimPaliss"
+            ],
+            "property": "Référence Mérimée ou Palissy"
+          },
+          {
+            "labels": [
+              "TypePropri#C3#A9taire"
+            ],
+            "property": "Nature de la propriété"
+          }
+        ],
+        "free": false,
+        "links": []
+      }
+    },
+    {
+      "id": "localisation-de-l-immeuble-protege-ou-de-l-immeuble-abritant-l-objet-mobilier-ou-l-orgue-protege",
+      "titles": [
+        "Localisation de l’immeuble protégé ou de l’immeuble abritant l’objet mobilier ou l’orgue protégé"
+      ]
+    },
+    {
+      "id": "presentation-synthetique-du-projet",
+      "titles": [
+        "Présentation synthétique du projet"
+      ]
+    },
+    {
+      "id": "travaux-sur-l-immeuble",
+      "titles": [
+        "Travaux sur l’immeuble"
+      ]
+    },
+    {
+      "id": "maitre-d-uvre",
+      "titles": [
+        "Maître d’œuvre"
+      ],
+      "block": {
+        "startsWith": [],
+        "element": {
+          "tag": "Personne",
+          "label": "{71_Moe_Prenom} {71_Moe_Nom}"
+        },
+        "fields": [
+          {
+            "labels": [
+              "71_Moe_Prenom"
+            ],
+            "property": "Prénom"
+          },
+          {
+            "labels": [
+              "71_Moe_Nom"
+            ],
+            "property": "Nom"
+          },
+          {
+            "labels": [
+              "71_Moe_AdNum"
+            ],
+            "property": "Numéro de voie"
+          },
+          {
+            "labels": [
+              "71_Moe_AdVoie"
+            ],
+            "property": "Voie"
+          },
+          {
+            "labels": [
+              "71_Moe_AdLocalite"
+            ],
+            "property": "Localité"
+          },
+          {
+            "labels": [
+              "71_Moe_AdPays"
+            ],
+            "property": "Pays"
+          },
+          {
+            "labels": [
+              "71_Moe_AdCP"
+            ],
+            "property": "Code postal"
+          },
+          {
+            "labels": [
+              "71_Moe_Tel"
+            ],
+            "property": "Téléphone"
+          },
+          {
+            "labels": [
+              "71_Moe_Courriel@"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "71_Moe_@Courriel"
+            ],
+            "offer": false
+          },
+          {
+            "labels": [
+              "71_Moe_ConseilOrdre"
+            ],
+            "property": "Conseil régional de l’ordre"
+          },
+          {
+            "labels": [
+              "71_Moe_IncriptOrdre"
+            ],
+            "property": "N° d’inscription sur le tableau de l’ordre"
+          },
+          {
+            "labels": [
+              "71_Moe_TitreIntitule"
+            ],
+            "property": "Diplôme"
+          },
+          {
+            "labels": [
+              "71_Moe_Titredate"
+            ],
+            "property": "Date du diplôme",
+            "type": "date"
+          },
+          {
+            "labels": [
+              "71_Moe_TitreDelivrePar"
+            ],
+            "property": "Diplôme délivré par"
+          },
+          {
+            "labels": [
+              "Courriel"
+            ],
+            "property": "Courriel",
+            "value": "{71_Moe_Courriel@}@{71_Moe_@Courriel}"
+          }
+        ],
+        "free": false,
+        "links": [
+          {
+            "to": "designation-du-monument-historique",
+            "label": "maître d’œuvre de"
+          }
+        ]
+      }
+    },
+    {
+      "id": "engagement-du-demandeur-ou-du-declarant",
+      "titles": [
+        "Engagement du demandeur ou du déclarant"
+      ]
+    },
+    {
+      "id": "informations-relatives-a-la-demande-de-subvention",
+      "titles": [
+        "Informations relatives à la demande de subvention"
+      ]
+    }
+  ],
+  "documentLink": "mentionné dans",
+  "layout": "fields"
+}
