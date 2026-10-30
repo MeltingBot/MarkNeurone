@@ -299,10 +299,20 @@ function PdfPage({ doc, blocks, onHeight, onTextLayer, pageNumber, size, scale, 
       const ratio = readerWindow().devicePixelRatio || 1;
       canvas.width = Math.floor(viewport.width * ratio);
       canvas.height = Math.floor(viewport.height * ratio);
+      // Boxes of a PDF form: drawn from their value, as other readers do. A form
+      // filled by software may keep the value and leave the box drawn empty.
+      const annotations = (await page.getAnnotations().catch(() => [])) as { id: string; checkBox?: boolean; radioButton?: boolean; fieldValue?: unknown; exportValue?: unknown; buttonValue?: unknown }[];
+      if (cancelled) return;
+      for (const a of annotations) {
+        if (!a.checkBox && !a.radioButton) continue;
+        const on = a.checkBox ? a.fieldValue === a.exportValue : a.fieldValue === a.buttonValue;
+        doc.annotationStorage.setValue(a.id, { value: on });
+      }
       renderTask = page.render({
         canvas,
         viewport,
         transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined,
+        annotationMode: pdfjs.AnnotationMode.ENABLE_STORAGE,
       });
       textDiv.replaceChildren();
       delete textDiv.dataset.ocr;

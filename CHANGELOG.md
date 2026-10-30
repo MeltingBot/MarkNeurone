@@ -9,6 +9,7 @@
 - Lecteur : la corbeille du panneau efface tous les surlignages d'un document et, sur demande, les éléments et liens créés uniquement depuis ce document.
 - Lecteur : le panneau de droite s'élargit ou se rétrécit en tirant son bord gauche ; le document s'ajuste à la place restante.
 - Deux modèles d'exemple avec des exemplaires fictifs dans `examples/forms/` (Cerfa 13750 et 15459).
+- Correctif : dans un PDF à champs rempli par un logiciel, les cases et boutons cochés apparaissaient vides dans le lecteur alors que l'aperçu de ZeroNeurone les montrait cochés. Ils sont désormais dessinés d'après leur valeur.
 
 ## 1.7.2 (2026-10-29)
 
