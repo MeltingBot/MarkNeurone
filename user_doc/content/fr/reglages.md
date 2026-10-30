@@ -1,6 +1,6 @@
 ---
 title: "Réglages"
-weight: 9
+weight: 10
 ---
 
 # Réglages
@@ -23,3 +23,7 @@ La roue dentée de la carte MarkNeurone, dans la section « Extensions » de la 
 
 - **Mode verbe** : surligner les mots d'une relation propose comme extrémités les éléments surlignés les plus proches dans la phrase. Désactivé par défaut. Voir [Créer des liens](liens.md).
 - **Liens possibles signalés dans la marge** : désactivé, même phrase ou même paragraphe. Désactivé par défaut.
+
+## Onglet « Formulaires »
+
+Les modèles de formulaire importés, avec leurs rubriques. « Importer un modèle » ajoute un fichier JSON ; un modèle de même identifiant remplace le précédent. Chaque modèle peut être exporté ou supprimé. « Valeurs par défaut » ne supprime pas les modèles. Voir [Formulaires](formulaires.md).

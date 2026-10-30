@@ -1,6 +1,6 @@
 ---
 title: "Raccourcis clavier"
-weight: 10
+weight: 11
 ---
 
 # Raccourcis clavier
