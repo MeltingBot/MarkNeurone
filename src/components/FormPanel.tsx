@@ -346,15 +346,24 @@ export function FormPanel(p: Props) {
         closedSections.has(s.id) ? null : h('div', { className: `${S.SECTION_BODY} space-y-1.5` }, mine.map(({ d, i }) => blockRow(d, i))));
     });
 
-  const documentSection = openDocRows.length
+  // A row like a block: one sheet open at a time, so one primary button.
+  const documentSelected = p.selectedKey === DOCUMENT_KEY;
+  const documentSection = openDocRows.length && p.carrierIds.length
     ? h('div', { className: S.SECTION },
         sectionHeader(DOCUMENT_KEY, t('form_document'), openDocRows.length),
         closedSections.has(DOCUMENT_KEY)
           ? null
           : h('div', { className: S.SECTION_BODY },
-              p.carrierIds.length
-                ? h(DocumentSheet, { key: openDocRows.map((r) => r.id).join(), env, rows: openDocRows, carrierIds: p.carrierIds, onDone: () => p.onSelect(null) })
-                : null))
+              h('div', { className: `rounded border ${documentSelected ? 'border-accent' : 'border-border-default'}` },
+                h('button', {
+                  type: 'button',
+                  onClick: () => select(DOCUMENT_KEY, openDocRows[0].anchor),
+                  className: 'w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-bg-secondary rounded',
+                }, h('span', { className: 'flex-1 min-w-0 truncate text-xs text-text-primary' }, openDocRows.map((r) => r.key).join(', '))),
+                documentSelected
+                  ? h('div', { className: 'px-2 pb-2' },
+                      h(DocumentSheet, { key: openDocRows.map((r) => r.id).join(), env, rows: openDocRows, carrierIds: p.carrierIds, onDone: () => p.onSelect(drafts.find((_, i) => states[i].status === 'open')?.key ?? null) }))
+                  : null)))
     : null;
 
   return h('aside', {

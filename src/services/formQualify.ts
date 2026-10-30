@@ -9,9 +9,11 @@ import type { ValueAnchor } from '../core/formReader.ts';
 import { valueDate, valuePeriod, type DraftRow } from '../core/formSession.ts';
 import type { Passage } from './selectionCapture.ts';
 import type { ZnProperty } from './znTypes.ts';
+import { getElement } from './graphWriter.ts';
 import {
   qualifyAsEvent,
   qualifyAsExistingElement,
+  qualifyAsExistingProperty,
   qualifyAsLink,
   qualifyAsNewElement,
   qualifyAsProperty,
@@ -45,6 +47,18 @@ export function rowProperty(row: DraftRow): ZnProperty {
   return { key: row.key, value: text, type: 'text' };
 }
 
+const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** Same day for dates (a date written as text included), same text otherwise. */
+export function sameValue(existing: ZnProperty['value'], value: ZnProperty['value']): boolean {
+  const day = (v: ZnProperty['value']) => {
+    const d = v instanceof Date ? v : typeof v === 'string' ? valueDate(v) : null;
+    return d ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` : null;
+  };
+  if (value instanceof Date || existing instanceof Date) return day(existing) !== null && day(existing) === day(value);
+  return existing !== null && value !== null && fold(String(existing)) === fold(String(value));
+}
+
 async function writeRows(ctx: DocumentContext, elementId: string, rows: DraftRow[], passageOf: PassageOf): Promise<void> {
   for (const row of rows) {
     const passage = passageOf(row.anchor, row.text.trim());
@@ -53,7 +67,11 @@ async function writeRows(ctx: DocumentContext, elementId: string, rows: DraftRow
       if (!period) continue;
       await qualifyAsEvent(ctx, passage, [elementId], { label: row.key, ...period });
     } else {
-      await qualifyAsProperty(ctx, passage, elementId, rowProperty(row));
+      const property = rowProperty(row);
+      // Attached to an element that already has it: the passage only points to it.
+      const known = getElement(elementId)?.properties.find((pr) => fold(pr.key) === fold(property.key) && sameValue(pr.value, property.value));
+      if (known) await qualifyAsExistingProperty(ctx, passage, elementId, known.key);
+      else await qualifyAsProperty(ctx, passage, elementId, property);
     }
   }
 }

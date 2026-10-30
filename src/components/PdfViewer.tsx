@@ -1381,6 +1381,9 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     if (!selection || selection.isCollapsed) {
       const hit = annotationAt(e.target, e.clientX, e.clientY, sizes, scale, clickable);
       if (hit) {
+        // The element's sheet takes the panel back from the form.
+        setFormModelId(null);
+        setFormSelected(null);
         selectHighlight(hit, e.ctrlKey || e.metaKey);
         return;
       }

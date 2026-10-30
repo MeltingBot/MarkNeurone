@@ -35,6 +35,10 @@ Un clic sur un bloc ouvre sa fiche :
 
 Un bloc créé apparaît coché dans la liste et le bloc suivant s'ouvre.
 
+Lorsque le bloc est rattaché à un élément qui a déjà une propriété de même nom et de même valeur, cette propriété n'est pas ajoutée une seconde fois : le passage est seulement ajouté à ses sources.
+
+Un clic sur un passage déjà surligné ferme le formulaire et affiche la fiche de l'élément. Le bouton « Lire comme formulaire » le rouvre.
+
 ## Le modèle de formulaire
 
 Un modèle est un fichier JSON, importé dans l'onglet « Formulaires » des [réglages](reglages.md). MarkNeurone n'en fournit aucun : chaque service décrit les formulaires qu'il reçoit.
