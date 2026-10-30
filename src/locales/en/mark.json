@@ -314,6 +314,7 @@
   "form_document": "Document",
   "form_status_reviewed": "Reviewed",
   "form_add_reviewed": "Add reviewed blocks ({{count}})",
+  "form_note": "Added to the element's note",
   "form_status_done": "Created",
   "form_status_rejected": "Dismissed",
   "form_reject": "Dismiss",

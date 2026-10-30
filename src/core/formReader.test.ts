@@ -355,15 +355,18 @@ describe('readForm', () => {
       document: { fields: [{ label: 'Référence', property: 'Référence' }] },
       sections: [
         { id: 'recit', title: 'Récit', text: true, property: 'Récit' },
-        { id: 'suite', title: 'Suite', text: true },
+        { id: 'suite', title: 'Suite', text: true, note: true },
       ],
     }).model!;
     expect(model.documentLink).toBe('mentionné dans');
+    // Saved in the settings as normalized, read again on loading.
+    expect(normalizeFormModel(JSON.parse(JSON.stringify(model))).model).toEqual(model);
     const p = page([L('Référence'), V('FS-1'), T('Récit'), V('Première ligne du récit,'), V('suite du récit.'), T('Suite'), V('Rien.')]);
     const r = readForm([p], model);
-    expect(r.document.map((v) => [v.label, v.field?.property, v.text, v.whole])).toEqual([
+    expect(r.document.map((v) => [v.label, v.field?.property ?? (v.field?.note && 'note'), v.text, v.whole])).toEqual([
       ['Référence', 'Référence', 'FS-1', true],
       ['Récit', 'Récit', 'Première ligne du récit, suite du récit.', true],
+      ['Suite', 'note', 'Rien.', true],
     ]);
   });
 

@@ -87,7 +87,8 @@ function RowEditor(p: { row: DraftRow; onChange: (row: DraftRow) => void; onGoto
     h('div', { className: 'flex-1 min-w-0 space-y-0.5' },
       h('div', { className: 'flex items-center gap-1' },
         row.kind === 'event' ? h(api.icons.Calendar, { size: 11, className: 'text-text-tertiary shrink-0' }) : null,
-        h('input', {
+        row.kind === 'note' && api.icons.StickyNote ? h(api.icons.StickyNote, { size: 11, className: 'text-text-tertiary shrink-0' }) : null,
+        row.kind === 'note' ? h('span', { className: 'flex-1 min-w-0 px-1 text-[11px] font-medium text-text-secondary truncate', title: t('form_note') }, row.key) : h('input', {
           className: 'flex-1 min-w-0 px-1 py-0 text-[11px] font-medium text-text-secondary bg-transparent border border-transparent rounded hover:border-border-default focus:outline-none focus:border-accent',
           value: row.key,
           'aria-label': t('field_key'),
@@ -96,12 +97,13 @@ function RowEditor(p: { row: DraftRow; onChange: (row: DraftRow) => void; onGoto
         }),
         h('button', { type: 'button', onClick: p.onGoto, title: t('form_goto'), 'aria-label': t('form_goto'), className: S.ICON_BUTTON },
           h(api.icons.LocateFixed, { size: 12 }))),
-      h('input', {
+      h(row.kind === 'note' ? 'textarea' : 'input', {
         className: S.INPUT_COMPACT,
+        ...(row.kind === 'note' ? { rows: 4 } : {}),
         value: row.text,
         'aria-label': row.key,
         onFocus: p.onGoto,
-        onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => p.onChange({ ...row, text: e.target.value }),
+        onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => p.onChange({ ...row, text: e.target.value }),
       }),
       hint ? h('div', { className: `${S.HINT} ${row.unreadable || hint === t('form_date_unreadable') ? 'text-warning' : ''}` }, hint) : null));
 }

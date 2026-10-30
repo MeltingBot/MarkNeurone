@@ -13,8 +13,8 @@ export const blockKey = (b: FormBlock) => `${b.sectionId}:${b.index}`;
 
 export interface DraftRow {
   id: string;
-  kind: 'property' | 'event';
-  /** Property key, or event name. */
+  kind: 'property' | 'event' | 'note';
+  /** Property key, or event name; for a note, the title of its section. */
   key: string;
   /** Value as read, editable before validation. */
   text: string;
@@ -84,6 +84,7 @@ function row(v: FormValue, i: number, valueOf: (label: string) => string | undef
   const f = v.field;
   if (v.unknown) return { id: `u${i}`, kind: 'property', key: v.label.replace(/\s*:\s*$/, ''), text: v.text, anchor: v.anchor, type: 'text', checked: false, unknown: true };
   if (!f) return null;
+  if (f.note) return { id: `n${i}`, kind: 'note', key: v.label, text: v.text, anchor: v.anchor, type: 'text', checked: true };
   if (f.event) {
     const ok = valuePeriod(v.text) !== null;
     return { id: `e${i}`, kind: 'event', key: fillTemplate(f.event, valueOf) || v.label, text: v.text, anchor: v.anchor, type: 'date', checked: ok, ...(ok ? {} : { unreadable: true as const }) };
@@ -138,7 +139,7 @@ export function blockDraft(block: FormBlock, model: FormModel): BlockDraft {
 export function documentRows(reading: FormReading): DraftRow[] {
   return reading.document
     .map((v, i) => row(v, i, () => undefined))
-    .filter((r): r is DraftRow => r !== null && r.kind === 'property');
+    .filter((r): r is DraftRow => r !== null && r.kind !== 'event');
 }
 
 export interface FormHighlight {

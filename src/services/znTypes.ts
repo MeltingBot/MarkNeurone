@@ -43,6 +43,7 @@ export interface ZnElementEvent {
 export interface ZnElement {
   id: string;
   label: string;
+  notes?: string;
   tags: string[];
   properties: ZnProperty[];
   source: string;

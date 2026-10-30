@@ -9,7 +9,7 @@ import type { ValueAnchor } from '../core/formReader.ts';
 import { valueDate, valuePeriod, type DraftRow } from '../core/formSession.ts';
 import type { Passage } from './selectionCapture.ts';
 import type { ZnProperty } from './znTypes.ts';
-import { getElement } from './graphWriter.ts';
+import { getElement, updateElement } from './graphWriter.ts';
 import {
   qualifyAsEvent,
   qualifyAsExistingElement,
@@ -64,7 +64,9 @@ export function sameValue(existing: ZnProperty['value'], value: ZnProperty['valu
 async function writeRows(ctx: DocumentContext, elementId: string, rows: DraftRow[], passageOf: PassageOf): Promise<void> {
   for (const row of rows) {
     const passage = passageOf(row.anchor, row.text.trim());
-    if (row.kind === 'event') {
+    if (row.kind === 'note') {
+      await addToNote(ctx, elementId, row.text.trim(), passage);
+    } else if (row.kind === 'event') {
       const period = valuePeriod(row.text);
       if (!period) continue;
       await qualifyAsEvent(ctx, passage, [elementId], { label: row.key, ...period });
@@ -76,6 +78,14 @@ async function writeRows(ctx: DocumentContext, elementId: string, rows: DraftRow
       else await qualifyAsProperty(ctx, passage, elementId, property);
     }
   }
+}
+
+/** Text added to the element's note, after what it holds, once; the passage points to the element. */
+async function addToNote(ctx: DocumentContext, elementId: string, text: string, passage: Passage): Promise<void> {
+  await qualifyAsExistingElement(ctx, passage, elementId);
+  const notes = getElement(elementId)?.notes ?? '';
+  if (fold(notes).includes(fold(text))) return;
+  await updateElement(elementId, { notes: notes.trim() ? `${notes.trimEnd()}\n\n${text}` : text });
 }
 
 /** Creates (or attaches) the block's element and what the user kept; returns the element id. */

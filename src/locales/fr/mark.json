@@ -314,6 +314,7 @@
   "form_document": "Document",
   "form_status_reviewed": "Relu",
   "form_add_reviewed": "Ajouter les blocs relus ({{count}})",
+  "form_note": "Ajouté à la note de l'élément",
   "form_status_done": "Créé",
   "form_status_rejected": "Écarté",
   "form_reject": "Écarter",

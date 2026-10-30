@@ -228,7 +228,7 @@ export async function detachLinkAnchor(linkId: string, annotationId: string): Pr
 /** Direct edits from the reader's element sheet. */
 export async function updateElement(
   elementId: string,
-  changes: Partial<Pick<ZnElement, 'label' | 'tags' | 'properties' | 'events' | 'geo' | 'confidence' | 'evaluation' | 'source'>>,
+  changes: Partial<Pick<ZnElement, 'label' | 'notes' | 'tags' | 'properties' | 'events' | 'geo' | 'confidence' | 'evaluation' | 'source'>>,
 ): Promise<void> {
   if (!getElement(elementId)) throw new Error('element not found');
   await store().updateElement(elementId, changes);

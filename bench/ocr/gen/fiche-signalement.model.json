@@ -140,7 +140,7 @@
       "id": "recit",
       "title": "Récit",
       "text": true,
-      "property": "Récit"
+      "note": true
     },
     {
       "id": "objets",

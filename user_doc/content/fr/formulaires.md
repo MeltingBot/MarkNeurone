@@ -17,7 +17,7 @@ Lorsque la première page d'un document correspond à un modèle importé dans l
 
 Le panneau de droite affiche alors :
 
-- **Document** : les informations générales du formulaire (référence, date...), ajoutées comme propriétés de l'élément qui porte le document. Si plusieurs éléments portent le document, choisissez lequel ;
+- **Document** : les informations générales du formulaire (référence, date...), ajoutées comme propriétés de l'élément qui porte le document, et le texte des rubriques que le modèle verse dans sa note. Un texte déjà présent dans la note n'est pas ajouté une seconde fois. Si plusieurs éléments portent le document, choisissez lequel ;
 - **une section par rubrique** du modèle, avec la liste de ses blocs : un bloc par fait, par personne, par objet.
 
 Les valeurs reconnues sont soulignées dans le document. Un clic sur une valeur soulignée ouvre le bloc correspondant dans le panneau.
@@ -102,7 +102,7 @@ Exemple :
       "title": "Objets",
       "block": { "startsWith": "*", "element": { "tag": null, "label": null }, "free": true }
     },
-    { "id": "recit", "title": "Récit", "text": true, "property": "Récit" }
+    { "id": "recit", "title": "Récit", "text": true, "note": true }
   ]
 }
 ```
@@ -121,7 +121,7 @@ Exemple :
 | `fields[].event` | La valeur est une date ou une période : elle devient un événement de l'élément, nommé selon ce modèle de nom |
 | `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés. Un bloc commence à chaque ligne à puce, à la première ligne sous un libellé (« Objets perdus ») et à chaque ligne précédée d'un espace vide. Une ligne qui suit directement la précédente continue le même bloc |
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |
-| `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent. Avec `property`, tout son texte est proposé comme propriété du document sous ce nom |
+| `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent. Avec `"note": true`, tout son texte est proposé pour la note de l'élément qui porte le document. Avec `property`, comme propriété du document sous ce nom |
 | `documentLink` | Nom du lien proposé de chaque élément créé vers l'élément qui porte le document |
 
 Quelques conseils :

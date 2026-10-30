@@ -16,6 +16,8 @@ export interface FormField {
   type?: 'text' | 'date' | 'number';
   /** The value is a date or a period: an event of the element, named by this template. */
   event?: string;
+  /** The value is added to the note of the element (text sections of the document). */
+  note?: true;
 }
 
 export interface FormBlockDef {
@@ -33,7 +35,7 @@ export interface FormSection {
   titles: string[];
   /** Absent: a section of free text, left to the usual highlighting. */
   block?: FormBlockDef;
-  /** Free text section whose whole text is a property of the document. */
+  /** Free text section whose whole text goes to the document: a property, or its note. */
   textField?: FormField;
 }
 
@@ -158,7 +160,9 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
     }
     const def = s.block !== undefined && s.text !== true ? block(s.block, titles[0], dropped) : null;
     const textProperty = !def ? text(s.property) || text((s.textField as Record<string, unknown> | undefined)?.property) : '';
-    sections.push({ id, titles, ...(def ? { block: def } : {}), ...(textProperty ? { textField: { labels: titles, property: textProperty } } : {}) });
+    const asNote = s.note === true || (s.textField as Record<string, unknown> | undefined)?.note === true;
+    const textField: FormField | null = def ? null : asNote ? { labels: titles, note: true } : textProperty ? { labels: titles, property: textProperty } : null;
+    sections.push({ id, titles, ...(def ? { block: def } : {}), ...(textField ? { textField } : {}) });
   }
   for (const s of sections) {
     if (!s.block) continue;
