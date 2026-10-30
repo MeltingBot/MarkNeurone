@@ -114,11 +114,8 @@ export default defineConfig({
         drop_debugger: true,
         passes: 2,
       },
-      mangle: {
-        properties: {
-          regex: /^_/,
-        },
-      },
+      // No property renaming: the bundled pdf.js reads some of its "_" properties
+      // by name, and renaming them left the fields of PDF forms empty.
       format: {
         comments: false,
       },

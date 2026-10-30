@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1 (2026-10-31)
+
+- Correctif : dans la version compilée du plugin, les champs d'un PDF à champs (textes, cases et boutons) restaient vides dans le lecteur, alors qu'ils s'affichaient en développement. La compilation renommait des propriétés internes de pdf.js, qui les lit par leur nom.
+
 ## 1.8.0 (2026-10-30)
 
 - Formulaires : MarkNeurone lit les formulaires produits par un logiciel à l'aide d'un modèle, et propose pour chaque fait, personne ou objet l'élément et ses propriétés, avec la référence au passage d'où vient chaque valeur. Trois sortes de formulaires sont lues : les formulaires à libellés (la valeur sous son libellé ou après deux-points), les formulaires à cases (la valeur dans une case, son libellé imprimé dessous) et les PDF à champs.
