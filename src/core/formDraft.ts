@@ -9,8 +9,10 @@
 import { foldLabel, type FormModel } from './formModel.ts';
 import { formLines, keyValuePairs, type FormLine, type FormPageInput } from './formReader.ts';
 import { findDateRange, findDates } from './dates.ts';
+import { bandsOf, positionalLayout, positionalValues } from './formPositional.ts';
 
-export type DraftFieldType = 'text' | 'date' | 'number' | 'event' | 'skip';
+/** 'read': read for names and composed fields, not offered; 'checks': the options checked in the section. */
+export type DraftFieldType = 'text' | 'date' | 'number' | 'event' | 'skip' | 'read' | 'checks';
 export type DraftSectionKind = 'document' | 'block' | 'list' | 'text' | 'note';
 
 export interface DraftField {
@@ -19,6 +21,8 @@ export interface DraftField {
   aliases?: string[];
   property: string;
   type: DraftFieldType;
+  /** Composed field: its value made of other fields, "{Jour}/{Mois}/{Année}". */
+  template?: string;
 }
 
 export interface DraftSection {
@@ -47,6 +51,8 @@ export interface FormDraft {
   /** Fields before the first title: always the document's. */
   header: DraftField[];
   sections: DraftSection[];
+  /** Values in boxes, labels under them. */
+  layout?: 'positional';
 }
 
 const BULLET = /^[*•\-–]\s*/;
@@ -115,6 +121,10 @@ interface RawSection {
 
 /** A first model for the document, to adjust in the editor. */
 export function draftFromPages(pages: FormPageInput[], name: string): FormDraft {
+  return draftPositional(pages, name) ?? draftByLines(pages, name);
+}
+
+function draftByLines(pages: FormPageInput[], name: string): FormDraft {
   const lines = formLines(pages);
   const kinds = classifyLines(lines);
   const raws: RawSection[] = [{ title: null, labels: new Map(), firstLabel: null, values: [] }];
@@ -209,12 +219,16 @@ export function draftFromPages(pages: FormPageInput[], name: string): FormDraft 
 
 /** The draft as an importable model (the JSON format of the documentation). */
 export function draftToRaw(d: FormDraft): Record<string, unknown> {
-  const used = (f: DraftField) => f.type !== 'skip' && f.property.trim();
+  const used = (f: DraftField) => f.type === 'read' || (f.type !== 'skip' && !!f.property.trim() && (!f.template || !!f.template.trim()));
   const labelOf = (f: DraftField) => (f.aliases?.length ? [f.label, ...f.aliases] : f.label);
-  const field = (f: DraftField, eventName?: string) =>
-    f.type === 'event'
+  const field = (f: DraftField, eventName?: string): Record<string, unknown> => {
+    if (f.type === 'read') return { label: labelOf(f), offer: false };
+    if (f.type === 'checks') return { property: f.property.trim(), checks: true };
+    if (f.template !== undefined) return { property: f.property.trim(), value: f.template.trim(), ...(f.type === 'date' || f.type === 'number' ? { type: f.type } : {}) };
+    return f.type === 'event'
       ? { label: labelOf(f), event: eventName ?? `{${f.label}}` }
       : { label: labelOf(f), property: f.property.trim(), ...(f.type !== 'text' ? { type: f.type } : {}) };
+  };
   const docField = (f: DraftField) => field(f.type === 'event' ? { ...f, type: 'date' } : f);
   const documentFields = [...d.header, ...d.sections.filter((s) => s.kind === 'document').flatMap((s) => s.fields)].filter(used).map(docField);
   return {
@@ -223,6 +237,7 @@ export function draftToRaw(d: FormDraft): Record<string, unknown> {
     signature: d.signature.filter((s) => s.trim()),
     empty: d.empty.filter((s) => s.trim()),
     ...(d.documentLink.trim() ? { documentLink: d.documentLink.trim() } : {}),
+    ...(d.layout ? { layout: d.layout } : {}),
     document: { fields: documentFields },
     sections: d.sections.map((s) => {
       const base = { id: s.id, title: s.otherTitles?.length ? [s.title, ...s.otherTitles] : s.title };
@@ -251,7 +266,8 @@ export function draftFromModel(m: FormModel): FormDraft {
     label: f.labels[0],
     ...(f.labels.length > 1 ? { aliases: f.labels.slice(1) } : {}),
     property: f.property ?? f.labels[0],
-    type: f.event ? 'event' : (f.type ?? 'text'),
+    type: f.offer === false ? 'read' : f.checks ? 'checks' : f.event ? 'event' : (f.type ?? 'text'),
+    ...(f.value ? { template: f.value } : {}),
   });
   return {
     id: m.id,
@@ -260,6 +276,7 @@ export function draftFromModel(m: FormModel): FormDraft {
     empty: m.empty,
     documentLink: m.documentLink ?? '',
     header: m.documentFields.map(fieldOf),
+    ...(m.layout ? { layout: m.layout } : {}),
     sections: m.sections.map((s) => {
       const b = s.block;
       const kind: DraftSectionKind = b ? (b.free ? 'list' : 'block') : s.textField?.note ? 'note' : 'text';
@@ -303,5 +320,96 @@ export function withDetected(d: FormDraft, detected: FormDraft): FormDraft {
       const extra = same.fields.filter((f) => !known(pool, f.label) && !known(d.header, f.label)).map((f) => ({ ...f, type: 'skip' as const }));
       return extra.length ? { ...s, fields: [...s.fields, ...extra] } : s;
     }),
+  };
+}
+
+/** "(A) Numéro d'immatriculation actuel" > "Numéro d'immatriculation actuel", "Marque (D.1)" > "Marque". */
+function propertyOf(label: string): string {
+  const short = label.replace(/\([^)]*\)/g, '').replace(/\s*:\s*$/, '').replace(/\s+/g, ' ').trim();
+  return short || label;
+}
+
+const capitalized = (s: string) => (s === s.toUpperCase() ? s.charAt(0) + s.slice(1).toLowerCase() : s);
+
+/**
+ * A positional form (values in boxes, labels printed under them), or null:
+ * filled text in fonts of its own, most of it right above a printed label.
+ */
+function draftPositional(pages: FormPageInput[], name: string): FormDraft | null {
+  const layout = positionalLayout(pages);
+  if (!layout.filled.length) return null;
+  const bandPhrases = bandsOf(layout.printed);
+  const ids = new Set<string>();
+  const bands = bandPhrases.map((p) => {
+    const title = p.text.split(/\s+\(/)[0].trim();
+    let id = slug(title);
+    for (let n = 2; ids.has(id); n++) id = `${slug(title)}-${n}`;
+    ids.add(id);
+    return { page: p.page, y: p.y, id, title };
+  });
+  const { values, checked } = positionalValues(layout, bands);
+  const above = values.filter((v) => v.words.some((w) => w.y > v.label.y + 1)).length;
+  if (!values.length || above < values.length / 2) return null;
+
+  const fieldsBySection = new Map<string | null, DraftField[]>();
+  const sorted = [...values].sort((a, b) => a.label.page - b.label.page || b.label.y - a.label.y || a.label.x0 - b.label.x0);
+  for (const v of sorted) {
+    const list = fieldsBySection.get(v.section) ?? [];
+    if (list.some((f) => foldLabel(f.label) === foldLabel(v.name))) continue;
+    const sample = v.words.map((w) => w.str.trim()).join('');
+    const type: DraftFieldType = /^\d{8}$/.test(sample) || findDates(v.words.map((w) => w.str).join(' ')).length ? 'date' : 'text';
+    const nth = v.name.match(/#(\d+)$/)?.[1];
+    list.push({ label: v.name, property: nth ? `${propertyOf(v.label.text)} ${nth}` : propertyOf(v.label.text), type });
+    fieldsBySection.set(v.section, list);
+  }
+  const checksIn = new Set(checked.map((c) => c.section));
+  const checksField = (): DraftField => ({ label: 'Cases cochées', property: 'Cases cochées', type: 'checks' });
+
+  // A band left empty in this copy takes the fields of a band with the same labels.
+  const known = [...fieldsBySection.values()].flat();
+  const printedIn = (id: string) => layout.printed.filter((p) => {
+    let at: string | null = null;
+    for (const b of bands) if (b.page < p.page || (b.page === p.page && b.y > p.y)) at = b.id;
+    return at === id;
+  });
+
+  const sections: DraftSection[] = bands.map((b, i) => {
+    let fields = fieldsBySection.get(b.id) ?? [];
+    // Labels this band prints and another band filled in this copy: same field here.
+    const texts = new Set(printedIn(b.id).map((p) => foldLabel(p.text)));
+    const twins = known.filter((f, j) => texts.has(foldLabel(f.label)) && known.findIndex((o) => foldLabel(o.label) === foldLabel(f.label)) === j);
+    fields = [...twins.filter((f) => !fields.some((o) => foldLabel(o.label) === foldLabel(f.label))).map((f) => ({ ...f })), ...fields];
+    if (checksIn.has(b.id)) fields = [...fields, checksField()];
+    // Day, month and year in three boxes: one date, the parts read only.
+    const part = (l: string) => fields.find((f) => foldLabel(f.label) === l);
+    if (part('jour') && part('mois') && part('annee')) {
+      fields = fields.map((f) => (['jour', 'mois', 'annee'].includes(foldLabel(f.label)) ? { ...f, type: 'read' as const } : f));
+      fields.push({ label: 'Date', property: 'Date', type: 'date', template: `{${part('jour')!.label}}/{${part('mois')!.label}}/{${part('annee')!.label}}` });
+    }
+    const named = fields.find((f) => f.type === 'text');
+    // The first band with nothing filled under it is the form's title: the document.
+    const kind: DraftSectionKind = i === 0 && !fieldsBySection.get(b.id)?.length ? 'document' : fields.length ? 'block' : 'text';
+    return {
+      id: b.id,
+      title: b.title,
+      kind: i === 0 ? 'document' : kind,
+      fields,
+      startsWith: '',
+      tag: kind === 'block' ? capitalized(tagOf(b.title)) : '',
+      nameTemplate: named ? `{${named.label}}` : '',
+      links: [],
+    };
+  });
+  const header = [...(fieldsBySection.get(null) ?? []), ...(checksIn.has(null) ? [checksField()] : [])];
+  const formName = name || capitalized(bands[0]?.title ?? '') || 'Formulaire';
+  return {
+    id: slug(formName),
+    name: formName,
+    signature: bands.slice(0, 2).map((b) => b.title),
+    empty: [],
+    documentLink: '',
+    header,
+    sections,
+    layout: 'positional',
   };
 }

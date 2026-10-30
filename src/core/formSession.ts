@@ -83,7 +83,7 @@ export function valuePeriod(text: string): { date: Date; dateEnd?: Date } | null
 function row(v: FormValue, i: number, valueOf: (label: string) => string | undefined): DraftRow | null {
   const f = v.field;
   if (v.unknown) return { id: `u${i}`, kind: 'property', key: v.label.replace(/\s*:\s*$/, ''), text: v.text, anchor: v.anchor, type: 'text', checked: false, unknown: true };
-  if (!f) return null;
+  if (!f || f.offer === false) return null;
   if (f.note) return { id: `n${i}`, kind: 'note', key: v.label, text: v.text, anchor: v.anchor, type: 'text', checked: true };
   if (f.event) {
     const ok = valuePeriod(v.text) !== null;

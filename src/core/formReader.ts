@@ -9,7 +9,8 @@
 // page text every other part of the plugin uses (core/pageText.ts).
 
 import { pdfPageText, type PdfTextItem } from './pageText.ts';
-import { BULLET, foldLabel, type FormField, type FormModel, type FormSection } from './formModel.ts';
+import { BULLET, fillTemplate, foldLabel, type FormField, type FormModel, type FormSection } from './formModel.ts';
+import { readPositional } from './formPositional.ts';
 
 export interface FormTextItem extends PdfTextItem {
   width?: number;
@@ -262,7 +263,8 @@ interface LabelEntry {
 
 function labelIndex(fields: FormField[], startsWith: string[] = []): Map<string, LabelEntry> {
   const index = new Map<string, LabelEntry>();
-  for (const f of fields) for (const l of f.labels) index.set(foldLabel(l), { field: f, opensBlock: false });
+  // Composed fields and checked options are not printed labels.
+  for (const f of fields) if (!f.value && !f.checks) for (const l of f.labels) index.set(foldLabel(l), { field: f, opensBlock: false });
   for (const s of startsWith) {
     if (s === BULLET) continue;
     const key = foldLabel(s);
@@ -333,6 +335,33 @@ function anchoredPairs(pairs: { key: string; value: string }[], spans: Span[], p
 
 /** Reads the form; pages in document order, from the first. */
 export function readForm(pages: FormPageInput[], model: FormModel): FormReading {
+  return withComposed(model.layout === 'positional' ? readPositional(pages, model) : readByLines(pages, model), model);
+}
+
+/** Composed fields ("{Jour}/{Mois}/{Année}"), anchored on the first value they use. */
+function withComposed(reading: FormReading, model: FormModel): FormReading {
+  const compose = (fields: FormField[], values: FormValue[]): FormValue[] => {
+    const valueOf = (label: string) => values.find((v) => foldLabel(v.label) === foldLabel(label) || v.field?.labels.some((l) => foldLabel(l) === foldLabel(label)))?.text;
+    const out: FormValue[] = [];
+    for (const f of fields) {
+      if (!f.value) continue;
+      const text = fillTemplate(f.value, valueOf);
+      const used = [...f.value.matchAll(/\{([^}|]+)/g)].map((m) => m[1].trim());
+      const first = values.find((v) => used.some((u) => foldLabel(v.label) === foldLabel(u) || v.field?.labels.some((l) => foldLabel(l) === foldLabel(u))));
+      if (text.replace(/[\s/.:,-]/g, '') && first) out.push({ label: f.labels[0], field: f, unknown: false, text, anchor: first.anchor, whole: false });
+    }
+    return out;
+  };
+  return {
+    document: [...reading.document, ...compose(model.documentFields, reading.document)],
+    blocks: reading.blocks.map((b) => {
+      const def = model.sections.find((s) => s.id === b.sectionId)?.block;
+      return def ? { ...b, values: [...b.values, ...compose(def.fields, b.values)] } : b;
+    }),
+  };
+}
+
+function readByLines(pages: FormPageInput[], model: FormModel): FormReading {
   const { data, lines } = buildPages(pages);
   const empty = new Set(model.empty.map(foldLabel));
   const isEmpty = (text: string) => !text.trim() || empty.has(foldLabel(text)) || MASKED.test(text);

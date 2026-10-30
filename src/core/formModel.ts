@@ -18,6 +18,12 @@ export interface FormField {
   event?: string;
   /** The value is added to the note of the element (text sections of the document). */
   note?: true;
+  /** Read, not offered: a value used by names and composed fields only. */
+  offer?: false;
+  /** Composed from other fields: "{Jour}/{Mois}/{Année}". */
+  value?: string;
+  /** Positional forms: the options checked by a cross in the section. */
+  checks?: true;
 }
 
 export interface FormBlockDef {
@@ -51,6 +57,8 @@ export interface FormModel {
   sections: FormSection[];
   /** Label of a link from each block's element to the element carrying the document. */
   documentLink?: string;
+  /** Values in boxes, labels printed under them: read by position, one block per section. */
+  layout?: 'positional';
 }
 
 export const BULLET = '*';
@@ -91,29 +99,42 @@ const TYPES = ['text', 'date', 'number'] as const;
 
 function field(raw: unknown, section: string | undefined, dropped: ModelIssue[]): FormField | null {
   const f = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const labels = textList(f.label ?? f.labels);
+  const property = text(f.property);
+  const value = text(f.value);
+  const checks = f.checks === true;
+  // A composed field or the checked options are named by their property.
+  const labels = textList(f.label ?? f.labels ?? ((value || checks) && property ? property : undefined));
   if (!labels.length) {
     dropped.push({ reason: 'no_label', section });
     return null;
   }
-  const property = text(f.property);
   const event = text(f.event);
-  if (!property && !event) {
+  const offer = f.offer === false;
+  if (!property && !event && !offer) {
     dropped.push({ reason: 'no_target', section, subject: labels[0] });
     return null;
   }
   const type = TYPES.find((t) => t === f.type);
-  return { labels, ...(property ? { property } : {}), ...(event ? { event } : {}), ...(type && type !== 'text' ? { type } : {}) };
+  return {
+    labels,
+    ...(property ? { property } : {}),
+    ...(event ? { event } : {}),
+    ...(type && type !== 'text' ? { type } : {}),
+    ...(offer ? { offer: false as const } : {}),
+    ...(value ? { value } : {}),
+    ...(checks && property ? { checks: true as const } : {}),
+  };
 }
 
 function fields(raw: unknown, section: string | undefined, dropped: ModelIssue[]): FormField[] {
   return (Array.isArray(raw) ? raw : []).map((f) => field(f, section, dropped)).filter((f): f is FormField => f !== null);
 }
 
-function block(raw: unknown, section: string, dropped: ModelIssue[]): FormBlockDef | null {
+function block(raw: unknown, section: string, dropped: ModelIssue[], positional: boolean): FormBlockDef | null {
   const b = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const startsWith = textList(b.startsWith);
-  if (!startsWith.length) {
+  // A positional section is one block: nothing to open it.
+  if (!startsWith.length && !positional) {
     dropped.push({ reason: 'no_start', section });
     return null;
   }
@@ -143,6 +164,7 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
   const signature = textList(m.signature);
   if (!name) return { model: null, dropped: [{ reason: 'no_name' }] };
   if (!signature.length) return { model: null, dropped: [{ reason: 'no_signature' }] };
+  const positional = m.layout === 'positional';
   const doc = (m.document && typeof m.document === 'object' ? m.document : {}) as Record<string, unknown>;
   const documentFields = fields(doc.fields ?? m.documentFields, undefined, dropped);
   const sections: FormSection[] = [];
@@ -158,7 +180,7 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
       dropped.push({ reason: 'duplicate_id', section: titles[0], subject: id });
       continue;
     }
-    const def = s.block !== undefined && s.text !== true ? block(s.block, titles[0], dropped) : null;
+    const def = s.block !== undefined && s.text !== true ? block(s.block, titles[0], dropped, positional) : null;
     const textProperty = !def ? text(s.property) || text((s.textField as Record<string, unknown> | undefined)?.property) : '';
     const asNote = s.note === true || (s.textField as Record<string, unknown> | undefined)?.note === true;
     const textField: FormField | null = def ? null : asNote ? { labels: titles, note: true } : textProperty ? { labels: titles, property: textProperty } : null;
@@ -181,6 +203,7 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
       documentFields,
       sections,
       ...(text(m.documentLink) ? { documentLink: text(m.documentLink) } : {}),
+      ...(positional ? { layout: 'positional' as const } : {}),
     },
     dropped,
   };

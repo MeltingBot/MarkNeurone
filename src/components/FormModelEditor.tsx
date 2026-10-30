@@ -40,18 +40,35 @@ const splitList = (s: string) => s.split(';').map((x) => x.trim()).filter(Boolea
 
 function FieldRows(p: { fields: DraftField[]; allowEvent: boolean; onChange: (fields: DraftField[]) => void }) {
   const { h, t } = host();
-  const types: DraftFieldType[] = p.allowEvent ? ['text', 'date', 'number', 'event', 'skip'] : ['text', 'date', 'number', 'skip'];
+  const typesOf = (f: DraftField): DraftFieldType[] =>
+    f.type === 'checks' ? ['checks', 'skip']
+      : f.template !== undefined ? ['text', 'date', 'number', 'skip']
+        : p.allowEvent ? ['text', 'date', 'number', 'event', 'read', 'skip'] : ['text', 'date', 'number', 'read', 'skip'];
   return h('div', { className: 'space-y-1.5' },
     p.fields.map((f, i) => {
       const set = (patch: Partial<DraftField>) => p.onChange(p.fields.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-      const skipped = f.type === 'skip';
+      const muted = f.type === 'skip' || f.type === 'read';
+      const composed = f.template !== undefined;
       return h('div', { key: `${f.label}-${i}`, className: 'space-y-0.5' },
-        h('div', { className: `text-[11px] font-medium truncate ${skipped ? 'text-text-tertiary' : 'text-text-secondary'}`, title: f.label }, f.label),
+        composed
+          ? h('div', { className: 'flex items-center gap-1' },
+              h('span', { className: 'text-[11px] font-medium text-text-secondary shrink-0' }, t('model_composed')),
+              h('div', { className: 'flex-1 min-w-0' }, h('input', {
+                className: S.INPUT_COMPACT,
+                value: f.template,
+                placeholder: '{Jour}/{Mois}/{Année}',
+                'aria-label': t('model_template'),
+                title: t('model_template'),
+                onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => set({ template: e.target.value }),
+              })),
+              h('button', { type: 'button', onClick: () => p.onChange(p.fields.filter((_, j) => j !== i)), title: t('models_delete'), 'aria-label': t('models_delete'), className: S.ICON_BUTTON_DANGER },
+                h(getHostAPI().icons.X, { size: 12 })))
+          : h('div', { className: `text-[11px] font-medium truncate ${muted ? 'text-text-tertiary' : 'text-text-secondary'}`, title: f.label }, f.label),
         h('div', { className: 'flex items-center gap-1' },
           h('div', { className: 'flex-1 min-w-0' }, h('input', {
             className: S.INPUT_COMPACT,
             value: f.property,
-            disabled: skipped || f.type === 'event',
+            disabled: muted || f.type === 'event',
             'aria-label': t('model_property'),
             title: t('model_property'),
             onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => set({ property: e.target.value }),
@@ -61,8 +78,13 @@ function FieldRows(p: { fields: DraftField[]; allowEvent: boolean; onChange: (fi
             value: f.type,
             'aria-label': t('model_type'),
             onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => set({ type: e.target.value as DraftFieldType }),
-          }, types.map((ty) => h('option', { key: ty, value: ty }, t(`model_type_${ty}`)))))));
-    }));
+          }, typesOf(f).map((ty) => h('option', { key: ty, value: ty }, t(`model_type_${ty}`)))))));
+    }),
+    h('button', {
+      type: 'button',
+      onClick: () => p.onChange([...p.fields, { label: '', property: '', type: 'text', template: '' }]),
+      className: 'text-xs text-accent hover:underline',
+    }, t('model_add_composed')));
 }
 
 function SectionBody(p: { draft: FormDraft; section: DraftSection; tagSets: ZnTagSet[]; onChange: (s: DraftSection) => void }) {
@@ -76,7 +98,7 @@ function SectionBody(p: { draft: FormDraft; section: DraftSection; tagSets: ZnTa
       h('label', { className: S.LABEL }, t('model_kind')),
       h('select', { className: S.INPUT, value: s.kind, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => set({ kind: e.target.value as DraftSectionKind }) },
         KINDS.map((k) => h('option', { key: k, value: k }, t(`model_kind_${k}`))))),
-    s.kind === 'block'
+    s.kind === 'block' && p.draft.layout !== 'positional'
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('model_starts_with')),
           h('select', { className: S.INPUT, value: s.startsWith, onChange: (e: ReactTypes.ChangeEvent<HTMLSelectElement>) => set({ startsWith: e.target.value }) },
@@ -91,9 +113,9 @@ function SectionBody(p: { draft: FormDraft; section: DraftSection; tagSets: ZnTa
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('model_name')),
           h('input', { className: S.INPUT, value: s.nameTemplate, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => set({ nameTemplate: e.target.value }) }),
-          h('div', { className: `${S.HINT} break-words` }, used.map((f) => `{${f.label}}`).join(' ')))
+          h('div', { className: `${S.HINT} break-words` }, used.filter((f) => f.template === undefined && f.type !== 'checks').map((f) => `{${f.label}}`).join(' ')))
       : null,
-    (s.kind === 'block' || s.kind === 'document') && s.fields.length
+    s.kind === 'block' || s.kind === 'document'
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('model_fields')),
           h(FieldRows, { fields: s.fields, allowEvent: s.kind === 'block', onChange: (fields: DraftField[]) => set({ fields }) }))

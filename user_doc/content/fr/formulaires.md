@@ -81,7 +81,21 @@ Les mêmes modèles se gèrent aussi dans l'onglet « Formulaires » des [régla
 - une période devient un événement, et sa date de début est ajoutée au nom des éléments ;
 - une valeur qui revient sous plusieurs libellés (« Non renseigné ») est ignorée.
 
-Le nom du modèle reprend le titre du formulaire. Le crayon ouvre de la même façon un modèle existant. Les libellés du document absents du modèle y apparaissent comme ignorés.
+Le nom du modèle reprend le titre du formulaire. Le crayon ouvre de la même façon un modèle existant.
+
+### Formulaires à cases
+
+Certains formulaires administratifs sont imprimés avec des cases : la valeur est écrite dans la case et son libellé est imprimé dessous, plusieurs champs se partagent une ligne, et les rubriques sont des bandeaux en capitales. Lorsque le texte saisi a été ajouté par un logiciel par-dessus le formulaire vierge, dans une police à part, MarkNeurone le reconnaît et lit le formulaire d'après la position des valeurs :
+
+- chaque bandeau ouvre une rubrique, qui donne un seul élément ;
+- une valeur est rattachée au libellé imprimé sous sa case, ou à défaut au libellé placé à sa gauche ;
+- les chiffres écrits case par case sont réunis, et huit chiffres d'un champ de type date donnent une date (jj/mm/aaaa) ;
+- jour, mois et année dans trois cases sont lus sans être proposés, et réunis dans un champ composé « Date » ;
+- une croix dans une case coche le libellé le plus proche de cette case. Les options cochées d'une rubrique sont proposées dans un champ « Cases cochées » ;
+- un libellé imprimé deux fois dans une rubrique est numéroté (« Commune #2 ») ;
+- une rubrique vide dans le document reprend les libellés identiques d'une autre rubrique.
+
+Le bas de page (lieu, date et signature) n'a en général pas de bandeau : ses valeurs sont rattachées à la dernière rubrique. Mettez ces champs sur « Ignoré » s'ils ne servent pas. Les libellés du document absents du modèle y apparaissent comme ignorés.
 
 L'éditeur occupe le panneau de droite, et le document montre au fur et à mesure les valeurs que le modèle lit. Chaque rubrique en blocs indique le nombre de blocs trouvés.
 
@@ -90,10 +104,12 @@ En haut de l'éditeur se règlent le nom du modèle, les textes de la première 
 Pour chaque rubrique, choisissez son type :
 
 - **Document** : ses champs deviennent des propriétés de l'élément qui porte le document ;
-- **Blocs** : un élément par bloc. Choisissez le libellé qui ouvre un bloc, le tag, le nom de l'élément (par exemple `{Qualification} {Période|date}`, les champs disponibles sont rappelés dessous) et, pour chaque champ, le nom de la propriété et son type : texte, date, nombre, événement ou ignoré ;
+- **Blocs** : un élément par bloc. Choisissez le libellé qui ouvre un bloc (sauf pour un formulaire à cases), le tag, le nom de l'élément (par exemple `{Qualification} {Période|date}`, les champs disponibles sont rappelés dessous) et, pour chaque champ, le nom de la propriété et son type : texte, date, nombre, événement, lu sans être proposé (pour servir au nom ou à un champ composé) ou ignoré ;
 - **Liste** : un élément par objet de la liste, avec ses paires « Clé : valeur » en propriétés ;
 - **Texte** : rien n'est proposé, les suggestions habituelles s'appliquent ;
 - **Note du document** : le texte de la rubrique est proposé pour la note de l'élément qui porte le document.
+
+« Ajouter un champ composé » crée un champ fait d'autres champs, par exemple une adresse `{N° de la voie} {Type de voie} {Libellé de voie}` ou une date `{Jour}/{Mois}/{Année}`.
 
 Pour une rubrique en blocs ou en liste, cochez les autres rubriques vers lesquelles un lien sera proposé, et donnez son nom (par exemple « victime de »).
 
@@ -175,6 +191,10 @@ Exemple :
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |
 | `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent. Avec `"note": true`, tout son texte est proposé pour la note de l'élément qui porte le document. Avec `property`, comme propriété du document sous ce nom |
 | `documentLink` | Nom du lien proposé de chaque élément créé vers l'élément qui porte le document |
+| `layout` | `"positional"` pour un formulaire à cases : lecture d'après la position, un bloc par rubrique, sans `startsWith` |
+| `fields[].offer` | `false` : le champ est lu, pour le nom ou un champ composé, mais pas proposé |
+| `fields[].value` | Champ composé d'autres champs, nommé par `property` : `"{Jour}/{Mois}/{Année}"` |
+| `fields[].checks` | `true` : formulaire à cases, les options cochées de la rubrique, nommées par `property` |
 
 À l'import, les parties invalides du modèle sont écartées et nommées dans un message.
 
