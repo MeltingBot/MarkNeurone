@@ -2010,7 +2010,7 @@ export function ElementSheet(props: Props) {
   const container = (content: ReactTypes.ReactNode) =>
     h('aside', {
       className: 'flex flex-col shrink-0 border-l border-border-default bg-bg-primary overflow-y-auto',
-      style: { width: 360 },
+      style: { width: 'var(--mn-panel-width, 360px)' },
       'aria-label': t('sheet_title'),
     }, content);
 

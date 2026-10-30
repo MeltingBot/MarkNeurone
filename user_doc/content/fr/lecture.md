@@ -30,6 +30,7 @@ Le lecteur s'ouvre dans une grande fenêtre. Il comporte le document à gauche e
 - Pour déplacer le document à la souris, faites glisser la marge grise autour des pages, ou maintenez le bouton du milieu enfoncé. Le bouton « Main » de la barre d'outils permet de déplacer le document en le faisant glisser n'importe où ; un clic sur un passage surligné ouvre toujours sa fiche. Cliquez de nouveau sur ce bouton pour revenir à la sélection de texte.
 - Le bouton en forme d'œil, ou la touche M, masque le texte du document : les pages s'affichent en aplat gris, sans texte lisible ni sélectionnable, par exemple pendant un partage d'écran. Les surlignages et la fiche restent visibles. Le masquage n'est pas enregistré et disparaît à la fermeture du lecteur.
 - Le bouton à droite de l'en-tête de la fiche, comme dans le panneau de ZeroNeurone, la réduit en un bandeau étroit, pour laisser toute la largeur au document. Le bouton du bandeau la rouvre ; elle se rouvre aussi d'elle-même lorsqu'un formulaire doit s'afficher.
+- Le bord gauche du panneau de droite se tire pour l'élargir ou le rétrécir ; le document s'ajuste à la place restante. La largeur est retenue sur ce poste. Un double-clic sur ce bord rétablit la largeur par défaut.
 - Ctrl+F ouvre la recherche dans tout le document, texte reconnu compris. Entrée et Maj+Entrée passent au résultat suivant ou précédent.
 
 ## Réduire et reprendre la lecture

@@ -155,7 +155,7 @@ export function FormModelEditor(p: Props) {
       h('span', { className: `${S.HINT} shrink-0` }, hint),
       badge ? h('span', { className: S.SECTION_BADGE }, badge) : null);
 
-  return h('aside', { className: 'flex flex-col shrink-0 border-l border-border-default bg-bg-primary', style: { width: 360 }, 'aria-label': t('model_editor') },
+  return h('aside', { className: 'flex flex-col shrink-0 border-l border-border-default bg-bg-primary', style: { width: 'var(--mn-panel-width, 360px)' }, 'aria-label': t('model_editor') },
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h(api.icons.ClipboardList, { size: 14, className: 'text-text-tertiary shrink-0' }),
       h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, t('model_editor')),

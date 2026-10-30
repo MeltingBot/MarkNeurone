@@ -352,6 +352,7 @@
   "models_delete": "Delete",
   "models_delete_confirm": "Delete \"{{name}}\"?",
   "models_not_matching": "Does not match this document",
+  "panel_resize": "Resize the panel (double-click: default width)",
   "form_status_done": "Created",
   "form_status_rejected": "Dismissed",
   "form_reject": "Dismiss",

@@ -589,7 +589,7 @@ export function FormPanel(p: Props) {
 
   return h('aside', {
     className: 'flex flex-col shrink-0 border-l border-border-default bg-bg-primary',
-    style: { width: 360 },
+    style: { width: 'var(--mn-panel-width, 360px)' },
     'aria-label': model.name,
   },
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },

@@ -61,6 +61,9 @@ import { draftFromModel, draftFromPages, draftToRaw, withDetected, type FormDraf
 import { normalizeFormModel, type FormModel } from '../core/formModel.ts';
 import { handOverView, isElement, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
 
+const PANEL_WIDTH_KEY = 'markneurone:panel-width';
+const PANEL_DEFAULT = 360;
+const PANEL_MIN = 300;
 const PAGE_GAP = 12;
 const PADDING = 16;
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -619,6 +622,41 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [panMode, setPanMode] = React.useState(false);
   /** Sheet folded into a narrow rail, as ZN's side panel; a form opens it again. */
   const [sheetCollapsed, setSheetCollapsed] = React.useState(false);
+  /** Width of the right panel, dragged by its left edge; remembered on this computer. */
+  const [panelWidth, setPanelWidth] = React.useState<number>(() => {
+    try {
+      const w = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+      return w >= PANEL_MIN ? w : PANEL_DEFAULT;
+    } catch {
+      return PANEL_DEFAULT;
+    }
+  });
+  const startPanelResize = (e: ReactTypes.PointerEvent<HTMLDivElement>) => {
+    const handle = e.currentTarget;
+    const row = handle.parentElement;
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+    let width = startWidth;
+    handle.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      // The document keeps room enough to be read.
+      const max = Math.max(PANEL_MIN, (row?.clientWidth ?? 1200) - 320);
+      width = Math.round(Math.min(max, Math.max(PANEL_MIN, startWidth + startX - ev.clientX)));
+      setPanelWidth(width);
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      try {
+        localStorage.setItem(PANEL_WIDTH_KEY, String(width));
+      } catch {
+        // Not remembered: the width still applies until the reader closes.
+      }
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    e.preventDefault();
+  };
   /** Text hidden (confidentiality, screen sharing): pages shown as plain blocks. Never stored. */
   const [masked, setMasked] = React.useState(false);
   const toggleMasked = () => {
@@ -2570,8 +2608,26 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   return h(
     'div',
-    { className: 'flex flex-1 min-h-0' },
+    { className: 'flex flex-1 min-h-0', style: { '--mn-panel-width': `${panelWidth}px` } as ReactTypes.CSSProperties },
     documentColumn,
+    sheetCollapsed
+      ? null
+      : h('div', {
+          role: 'separator',
+          'aria-orientation': 'vertical',
+          'aria-label': t('panel_resize'),
+          title: t('panel_resize'),
+          onPointerDown: startPanelResize,
+          onDoubleClick: () => {
+            setPanelWidth(PANEL_DEFAULT);
+            try {
+              localStorage.removeItem(PANEL_WIDTH_KEY);
+            } catch {
+              // Nothing remembered.
+            }
+          },
+          className: 'w-1 shrink-0 -mr-1 z-10 cursor-col-resize hover:bg-accent/40 active:bg-accent/60',
+        }),
     sheetCollapsed
       ? h('aside', { className: 'w-12 shrink-0 border-l border-border-default bg-bg-primary flex flex-col items-center py-2' },
           h('button', {

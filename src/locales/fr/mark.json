@@ -352,6 +352,7 @@
   "models_delete": "Supprimer",
   "models_delete_confirm": "Supprimer « {{name}} » ?",
   "models_not_matching": "Ne correspond pas à ce document",
+  "panel_resize": "Redimensionner le panneau (double-clic : largeur par défaut)",
   "form_status_done": "Créé",
   "form_status_rejected": "Écarté",
   "form_reject": "Écarter",
