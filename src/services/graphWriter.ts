@@ -92,8 +92,9 @@ function placementPosition(): { x: number; y: number } {
   return freePosition(center, store().elements.map((e: ZnElement) => e.position), bounds);
 }
 
-export async function createElement(label: string, tags: string[], anchor: string): Promise<ZnElement> {
-  const el = await store().createElement(label, placementPosition(), { tags, source: anchor });
+export async function createElement(label: string, tags: string[], anchor: string, near?: { x: number; y: number }): Promise<ZnElement> {
+  const position = near ? freePosition(near, store().elements.map((e: ZnElement) => e.position)) : placementPosition();
+  const el = await store().createElement(label, position, { tags, source: anchor });
   await registerTags(tags);
   return el;
 }
@@ -210,6 +211,11 @@ export async function updateLink(id: string, changes: Partial<Pick<ZnLink, 'labe
 
 export async function deleteLink(id: string): Promise<void> {
   await store().deleteLink(id);
+}
+
+/** ZN removes their links with them. */
+export async function deleteElements(ids: string[]): Promise<void> {
+  if (ids.length) await store().deleteElements(ids);
 }
 
 export async function detachLinkAnchor(linkId: string, annotationId: string): Promise<void> {

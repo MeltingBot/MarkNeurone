@@ -48,6 +48,8 @@ export interface Annotation {
   eventIds?: Record<string, string>;
   /** Target no longer exists in the graph; the reading work is kept. */
   orphan?: boolean;
+  /** Element passage: the element was created from it, not attached to it. */
+  created?: true;
   ocr?: {
     rawText: string;
     confidence: number;

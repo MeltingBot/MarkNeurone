@@ -346,6 +346,27 @@ describe('readForm', () => {
     ]);
   });
 
+  it('reads a text section kept whole as a document value', () => {
+    const model = normalizeFormModel({
+      id: 'fiche',
+      name: 'Fiche',
+      signature: ['Récit'],
+      documentLink: 'mentionné dans',
+      document: { fields: [{ label: 'Référence', property: 'Référence' }] },
+      sections: [
+        { id: 'recit', title: 'Récit', text: true, property: 'Récit' },
+        { id: 'suite', title: 'Suite', text: true },
+      ],
+    }).model!;
+    expect(model.documentLink).toBe('mentionné dans');
+    const p = page([L('Référence'), V('FS-1'), T('Récit'), V('Première ligne du récit,'), V('suite du récit.'), T('Suite'), V('Rien.')]);
+    const r = readForm([p], model);
+    expect(r.document.map((v) => [v.label, v.field?.property, v.text, v.whole])).toEqual([
+      ['Référence', 'Référence', 'FS-1', true],
+      ['Récit', 'Récit', 'Première ligne du récit, suite du récit.', true],
+    ]);
+  });
+
   it('anchors a value split apart in the file on its first piece', () => {
     // The second line of the address is written at the end of the file.
     const rows = [T('Faits signalés'), L('Qualification'), V('Vol de matériel'), L('Adresse'), V('12 rue des Tilleuls'), V('Bâtiment B'), L('Commune'), V('Villefictive')];

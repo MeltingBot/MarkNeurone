@@ -30,6 +30,8 @@ export interface BlockValidation {
   /** Checked rows, with the values as the user left them. */
   rows: DraftRow[];
   links: { toId: string; label: string }[];
+  /** Where to place a new element on the canvas. */
+  near?: { x: number; y: number };
 }
 
 /** Property of a row: typed when its value reads as its type, text otherwise. */
@@ -81,7 +83,7 @@ export async function validateBlock(ctx: DocumentContext, v: BlockValidation, pa
   const passage = passageOf(v.name.anchor, v.name.text);
   const elementId =
     v.target.kind === 'new'
-      ? await qualifyAsNewElement(ctx, passage, v.target.label.trim(), v.target.tags)
+      ? await qualifyAsNewElement(ctx, passage, v.target.label.trim(), v.target.tags, { near: v.near })
       : await qualifyAsExistingElement(ctx, passage, v.target.elementId);
   await writeRows(ctx, elementId, v.rows, passageOf);
   for (const link of v.links) await linkBlocks(ctx, v.name.anchor.page, elementId, link.toId, link.label);

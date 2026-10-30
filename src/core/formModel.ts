@@ -33,6 +33,8 @@ export interface FormSection {
   titles: string[];
   /** Absent: a section of free text, left to the usual highlighting. */
   block?: FormBlockDef;
+  /** Free text section whose whole text is a property of the document. */
+  textField?: FormField;
 }
 
 export interface FormModel {
@@ -45,6 +47,8 @@ export interface FormModel {
   /** Fields outside blocks: properties of the element carrying the document. */
   documentFields: FormField[];
   sections: FormSection[];
+  /** Label of a link from each block's element to the element carrying the document. */
+  documentLink?: string;
 }
 
 export const BULLET = '*';
@@ -153,7 +157,8 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
       continue;
     }
     const def = s.block !== undefined && s.text !== true ? block(s.block, titles[0], dropped) : null;
-    sections.push({ id, titles, ...(def ? { block: def } : {}) });
+    const textProperty = !def ? text(s.property) || text((s.textField as Record<string, unknown> | undefined)?.property) : '';
+    sections.push({ id, titles, ...(def ? { block: def } : {}), ...(textProperty ? { textField: { labels: titles, property: textProperty } } : {}) });
   }
   for (const s of sections) {
     if (!s.block) continue;
@@ -171,6 +176,7 @@ export function normalizeFormModel(raw: unknown): { model: FormModel | null; dro
       empty: textList(m.empty),
       documentFields,
       sections,
+      ...(text(m.documentLink) ? { documentLink: text(m.documentLink) } : {}),
     },
     dropped,
   };

@@ -37,6 +37,8 @@ interface Props {
   passageOf: PassageOf;
   onClose: () => void;
   onCollapse: () => void;
+  /** Clears every highlight of the document; absent when there is none. */
+  onClearAll?: () => void;
 }
 
 function host() {
@@ -125,14 +127,14 @@ interface BlockEdit {
   rows: DraftRow[];
   /** Links chosen, by the key of the target block, with their label. */
   links: Map<string, string>;
+  /** Link to the element carrying the document, when the model asks for it. */
+  docLink: boolean;
 }
 
 interface DocumentEdit {
   rows: DraftRow[];
   carrier: string;
 }
-
-const defaultEdit = (d: BlockDraft): BlockEdit => ({ label: d.label, tag: d.tag, attachTo: null, rows: d.rows, links: new Map() });
 
 /** A block the link may point to: created already, or reviewed and still to add. */
 interface LinkTarget {
@@ -146,6 +148,8 @@ function BlockSheet(p: {
   edit: BlockEdit;
   onEdit: (edit: BlockEdit) => void;
   linkTargets: LinkTarget[];
+  /** Link to the document: its label and the name of the element carrying it. */
+  docLink: { label: string; name: string } | null;
   busy: boolean;
   onSubmit: () => void;
   onReject: () => void;
@@ -205,9 +209,14 @@ function BlockSheet(p: {
               onGoto: () => env.onGoto(r.anchor),
             })))
       : null,
-    p.linkTargets.length
+    p.linkTargets.length || p.docLink
       ? h('div', { className: 'space-y-1' },
           h('label', { className: S.LABEL }, t('form_links')),
+          p.docLink
+            ? h('label', { className: 'flex items-center gap-2 text-xs text-text-primary' },
+                h('input', { type: 'checkbox', checked: edit.docLink, onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => set({ docLink: e.target.checked }) }),
+                h('span', { className: 'truncate' }, `${p.docLink.label} > ${p.docLink.name}`))
+            : null,
           p.linkTargets.map((l) =>
             h('label', { key: l.key, className: 'flex items-center gap-2 text-xs text-text-primary' },
               h('input', {
@@ -304,6 +313,29 @@ export function FormPanel(p: Props) {
   const states = drafts.map((d) => blockState(d, annotations));
   const docRows = React.useMemo(() => documentRows(reading), [reading]);
   const openDocRows = docRows.filter((r) => !isAnswered(r.anchor, annotations));
+  const carrierId = p.carrierIds[0] ?? null;
+
+  /** Blocks a link of this section may point to: all but the dismissed ones. */
+  const targetsOf = (to: string) => drafts.filter((o, j) => o.sectionId === to && states[j].status !== 'rejected');
+  // A link with a single possible target is checked: there is no choice to make.
+  const defaultEdit = (d: BlockDraft): BlockEdit => {
+    const links = new Map<string, string>();
+    for (const l of d.links) {
+      const targets = targetsOf(l.to);
+      if (targets.length === 1) links.set(targets[0].key, l.label);
+    }
+    return { label: d.label, tag: d.tag, attachTo: null, rows: d.rows, links, docLink: !!model.documentLink && !!carrierId };
+  };
+
+  /** New elements go in rows under the document, one row per section. */
+  const nearOf = (d: BlockDraft) => {
+    const carrier = carrierId ? elements.find((el) => el.id === carrierId) : undefined;
+    if (!carrier) return undefined;
+    const rank = model.sections.filter((s) => drafts.some((o) => o.sectionId === s.id)).findIndex((s) => s.id === d.sectionId);
+    const mine = drafts.filter((o) => o.sectionId === d.sectionId);
+    const i = mine.findIndex((o) => o.key === d.key);
+    return { x: carrier.position.x + (i - (mine.length - 1) / 2) * 200, y: carrier.position.y + (rank + 1) * 160 };
+  };
 
   // A block is reviewed once the user opens it or changes it (not when it
   // opens by itself after a creation); its edits stay until it is added.
@@ -372,6 +404,7 @@ export function FormPanel(p: Props) {
       if (toId) now.push({ toId, label });
       else later.push({ toKey, label });
     }
+    if (edit.docLink && model.documentLink && carrierId && edit.attachTo !== carrierId) now.push({ toId: carrierId, label: model.documentLink });
     const id = await validateBlock(
       env.ctx,
       {
@@ -379,6 +412,7 @@ export function FormPanel(p: Props) {
         target: edit.attachTo ? { kind: 'existing', elementId: edit.attachTo } : { kind: 'new', label: edit.label, tags: edit.tag ? [edit.tag] : [] },
         rows: usable(edit.rows),
         links: now,
+        near: nearOf(d),
       },
       env.passageOf,
     );
@@ -485,12 +519,8 @@ export function FormPanel(p: Props) {
               env,
               edit,
               onEdit: (next: BlockEdit) => setEdit(d.key, next),
-              linkTargets: d.links.flatMap((l) =>
-                drafts.flatMap((o, j) => {
-                  const s = states[j];
-                  const ok = o.sectionId === l.to && (s.status === 'done' || (s.status === 'open' && edits.has(o.key)));
-                  return ok ? [{ key: o.key, label: l.label, name: blockName(o, j) }] : [];
-                })),
+              linkTargets: d.links.flatMap((l) => targetsOf(l.to).map((o) => ({ key: o.key, label: l.label, name: blockName(o, drafts.indexOf(o)) }))),
+              docLink: model.documentLink && carrierId ? { label: model.documentLink, name: elements.find((el) => el.id === carrierId)?.label ?? '' } : null,
               busy,
               onSubmit: () => submitBlock(d),
               onReject: () => rejectOne(d),
@@ -554,6 +584,9 @@ export function FormPanel(p: Props) {
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h(api.icons.ClipboardList, { size: 14, className: 'text-text-tertiary shrink-0' }),
       h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, model.name),
+      p.onClearAll
+        ? h('button', { type: 'button', onClick: p.onClearAll, title: t('clear_all'), 'aria-label': t('clear_all'), className: `${S.ICON_BUTTON} shrink-0` }, h(api.icons.Trash2, { size: 14 }))
+        : null,
       h('button', { type: 'button', onClick: p.onClose, title: t('form_close'), 'aria-label': t('form_close'), className: `${S.ICON_BUTTON} shrink-0` }, h(X, { size: 14 })),
       h('button', { type: 'button', onClick: p.onCollapse, title: t('sheet_collapse'), 'aria-label': t('sheet_collapse'), className: `${S.ICON_BUTTON} shrink-0` },
         h(api.icons.PanelRightClose, { size: 14 }))),

@@ -29,11 +29,11 @@ Un clic sur un bloc ouvre sa fiche :
 - **Libellé** et **Tags** de l'élément, proposés par le modèle et modifiables ;
 - **Éléments existants proches** : lorsque le nom ressemble à celui d'un élément du dossier, les candidats sont affichés avec ce qui les distingue (date de naissance, adresse, éléments liés). La création d'un nouvel élément reste le choix par défaut. Pour rattacher le bloc à un élément existant, sélectionnez-le explicitement ;
 - **les champs** du bloc, chacun avec sa case à cocher et sa valeur modifiable. Une période (« Entre le ... et le ... ») devient un événement de l'élément, avec une date de début et de fin. Un libellé absent du modèle est proposé décoché. Une date illisible est signalée et proposée décochée ;
-- **Liens** : lorsque le modèle le prévoit, des liens vers les éléments créés ou relus depuis une autre rubrique (par exemple d'une personne vers un fait), décochés par défaut.
+- **Liens** : lorsque le modèle le prévoit, des liens vers les blocs d'une autre rubrique (par exemple d'une personne vers un fait). Un lien est coché d'office lorsque la rubrique visée ne compte qu'un bloc, décoché sinon. Si le modèle le demande, un lien vers l'élément qui porte le document est aussi proposé, coché.
 
 « Créer » (ou « Rattacher ») crée l'élément et les champs cochés. « Écarter » retire le bloc des propositions pour ce document.
 
-Un bloc créé apparaît coché dans la liste et le bloc suivant s'ouvre.
+Un bloc créé apparaît coché dans la liste et le bloc suivant s'ouvre. Les nouveaux éléments sont placés sous l'élément qui porte le document, une ligne par rubrique.
 
 ## Relire puis tout ajouter
 
@@ -41,7 +41,7 @@ Vous pouvez aussi relire tous les blocs avant d'ajouter quoi que ce soit. Un blo
 
 « Ajouter les blocs relus », en bas du panneau, crée en une fois les blocs relus, rubrique par rubrique, avec les choix faits dans chaque fiche, puis les informations du document si vous les avez relues. Les blocs que vous n'avez pas ouverts ne sont pas ajoutés.
 
-Un lien coché vers un bloc relu mais pas encore créé (par exemple d'une personne vers un fait) est créé en même temps que ce bloc.
+Un lien coché vers un bloc pas encore créé (par exemple d'une personne vers un fait) est créé en même temps que ce bloc.
 
 Les corrections restent en mémoire si vous fermez le formulaire ou changez de document, jusqu'au rechargement de la page.
 
@@ -62,6 +62,7 @@ Exemple :
   "id": "fiche-signalement",
   "name": "Fiche de signalement",
   "signature": ["Fiche de signalement", "Faits signalés"],
+  "documentLink": "mentionné dans",
   "empty": ["Non renseigné", "Sans objet"],
   "document": {
     "fields": [
@@ -101,7 +102,7 @@ Exemple :
       "title": "Objets",
       "block": { "startsWith": "*", "element": { "tag": null, "label": null }, "free": true }
     },
-    { "id": "recit", "title": "Récit", "text": true }
+    { "id": "recit", "title": "Récit", "text": true, "property": "Récit" }
   ]
 }
 ```
@@ -120,7 +121,8 @@ Exemple :
 | `fields[].event` | La valeur est une date ou une période : elle devient un événement de l'élément, nommé selon ce modèle de nom |
 | `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés. Un bloc commence à chaque ligne à puce, à la première ligne sous un libellé (« Objets perdus ») et à chaque ligne précédée d'un espace vide. Une ligne qui suit directement la précédente continue le même bloc |
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |
-| `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent |
+| `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent. Avec `property`, tout son texte est proposé comme propriété du document sous ce nom |
+| `documentLink` | Nom du lien proposé de chaque élément créé vers l'élément qui porte le document |
 
 Quelques conseils :
 

@@ -39,7 +39,7 @@ import { isGraphElement, type ZnElement, type ZnLink, type ZnTagSet } from '../s
 import { SelectionBar, type Gesture } from './SelectionBar.tsx';
 import { ElementSheet, type Draft, type LinkDraft } from './ElementSheet.tsx';
 import { revealOnCanvas } from '../services/graphWriter.ts';
-import { applyRelabel, deleteAnnotation, planRelabel, reattachToElement, rejectSuggestion, relabelCount, validatePassage, type RelabelPlan } from '../services/qualify.ts';
+import { applyRelabel, clearDocument, deleteAnnotation, planClear, planRelabel, reattachToElement, rejectSuggestion, relabelCount, validatePassage, type ClearPlan, type RelabelPlan } from '../services/qualify.ts';
 import { getReferencesVersion, loadReference, saveReference, subscribeReferences } from '../services/documentRef.ts';
 import { cleanReference, detectReference } from '../core/reference.ts';
 import { buildSuggestions, type Suggestion } from '../core/suggestions.ts';
@@ -666,6 +666,8 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const referenceCancelled = React.useRef(false);
   /** Sources to rewrite after the reference changed, until the user answers. */
   const [relabel, setRelabel] = React.useState<RelabelPlan | null>(null);
+  /** Clearing the document's highlights, waiting for the user's confirmation. */
+  const [clearing, setClearing] = React.useState<{ plan: ClearPlan; objects: boolean } | null>(null);
   React.useEffect(() => {
     let cancelled = false;
     setReference('');
@@ -2183,6 +2185,38 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         h('button', { type: 'button', className: 'ml-2 text-xs text-accent hover:underline', onClick: () => setRelabel(null) }, t('reference_relabel_skip')))
     : null;
 
+  // Every highlight of the document, and on request what was created from them only.
+  const askClear = () => setClearing({ plan: planClear(annotations), objects: true });
+  const clearObjects = clearing ? clearing.plan.elementIds.length + clearing.plan.linkIds.length : 0;
+  const clearBar = clearing
+    ? h('div', { className: 'flex items-center gap-2 px-4 py-2 border-b border-border-default text-xs text-text-secondary' },
+        h(api.icons.Trash2, { size: 14, className: 'text-text-tertiary shrink-0' }),
+        h('span', null, t('clear_all_confirm', { count: clearing.plan.annotations.length })),
+        clearObjects
+          ? h('label', { className: 'flex items-center gap-1.5 ml-2' },
+              h('input', {
+                type: 'checkbox',
+                checked: clearing.objects,
+                onChange: (e: ReactTypes.ChangeEvent<HTMLInputElement>) => setClearing({ ...clearing, objects: e.target.checked }),
+              }),
+              t('clear_all_objects', { count: clearObjects }))
+          : null,
+        h('button', {
+          type: 'button',
+          className: 'ml-2 text-xs text-accent hover:underline',
+          onClick: () => {
+            const { plan, objects } = clearing;
+            setClearing(null);
+            setFormSelected(null);
+            clearDocument(dossierId, plan, objects).catch((err: unknown) => {
+              console.error('MarkNeurone: cannot clear the document', err);
+              api.toast.error(t('write_error'));
+            });
+          },
+        }, t('clear_all_action')),
+        h('button', { type: 'button', className: 'ml-2 text-xs text-accent hover:underline', onClick: () => setClearing(null) }, t('cancel')))
+    : null;
+
   /**
    * Hands the document, or the selected part of it, to OneNeurone: its panel
    * shows what it extracted, the reader is minimized (its passages appear as
@@ -2413,6 +2447,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     { className: 'flex flex-col flex-1 min-w-0 min-h-0' },
     toolbar,
     relabelBar,
+    clearBar,
     notice
       ? h('div', { className: 'flex items-center gap-2 px-4 py-2 border-b border-border-default text-xs text-text-secondary tabular-nums' },
           noticeWarning
@@ -2489,6 +2524,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
         setFormSelected(null);
       },
       onCollapse: () => setSheetCollapsed(true),
+      onClearAll: annotations.length ? askClear : undefined,
     }) : h(ElementSheet, {
       ctx: docCtx,
       elementId: sheetElementId,
@@ -2507,6 +2543,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       onReveal: reveal,
       onPickOnMap: pickOnMap,
       onCollapse: () => setSheetCollapsed(true),
+      onClearAll: askClear,
     }),
     pending
       ? h(SelectionBar, {

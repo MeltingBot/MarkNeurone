@@ -1,13 +1,29 @@
 {
   "id": "fiche-signalement",
   "name": "Fiche de signalement",
-  "signature": ["Fiche de signalement", "Faits signalés"],
-  "empty": ["Non renseigné", "Sans objet"],
+  "signature": [
+    "Fiche de signalement",
+    "Faits signalés"
+  ],
+  "empty": [
+    "Non renseigné",
+    "Sans objet"
+  ],
   "document": {
     "fields": [
-      { "label": "Référence", "property": "Référence" },
-      { "label": "Service", "property": "Service" },
-      { "label": "Date de la fiche", "property": "Date", "type": "date" }
+      {
+        "label": "Référence",
+        "property": "Référence"
+      },
+      {
+        "label": "Service",
+        "property": "Service"
+      },
+      {
+        "label": "Date de la fiche",
+        "property": "Date",
+        "type": "date"
+      }
     ]
   },
   "sections": [
@@ -16,14 +32,35 @@
       "title": "Faits signalés",
       "block": {
         "startsWith": "Qualification",
-        "element": { "tag": "Fait", "label": "{Qualification} ({Code})" },
+        "element": {
+          "tag": "Fait",
+          "label": "{Qualification} ({Code})"
+        },
         "fields": [
-          { "label": "Qualification", "property": "Qualification" },
-          { "label": "Code", "property": "Code" },
-          { "label": "Période", "event": "{Qualification}" },
-          { "label": "Adresse", "property": "Adresse" },
-          { "label": "Commune", "property": "Commune" },
-          { "label": "Pays", "property": "Pays" }
+          {
+            "label": "Qualification",
+            "property": "Qualification"
+          },
+          {
+            "label": "Code",
+            "property": "Code"
+          },
+          {
+            "label": "Période",
+            "event": "{Qualification}"
+          },
+          {
+            "label": "Adresse",
+            "property": "Adresse"
+          },
+          {
+            "label": "Commune",
+            "property": "Commune"
+          },
+          {
+            "label": "Pays",
+            "property": "Pays"
+          }
         ]
       }
     },
@@ -32,16 +69,43 @@
       "title": "Personnes concernées",
       "block": {
         "startsWith": "Nom",
-        "element": { "tag": "Personne", "label": "{Nom}" },
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom}"
+        },
         "fields": [
-          { "label": "Sexe", "property": "Sexe" },
-          { "label": "Date de naissance", "property": "Date de naissance", "type": "date" },
-          { "label": "Adresse", "property": "Adresse" },
-          { "label": "Téléphone", "property": "Téléphone" },
-          { "label": "Courriel", "property": "Email" },
-          { "label": "Lieu de naissance", "property": "Lieu de naissance" }
+          {
+            "label": "Sexe",
+            "property": "Sexe"
+          },
+          {
+            "label": "Date de naissance",
+            "property": "Date de naissance",
+            "type": "date"
+          },
+          {
+            "label": "Adresse",
+            "property": "Adresse"
+          },
+          {
+            "label": "Téléphone",
+            "property": "Téléphone"
+          },
+          {
+            "label": "Courriel",
+            "property": "Email"
+          },
+          {
+            "label": "Lieu de naissance",
+            "property": "Lieu de naissance"
+          }
         ],
-        "links": [{ "to": "faits", "label": "concernée par" }]
+        "links": [
+          {
+            "to": "faits",
+            "label": "concernée par"
+          }
+        ]
       }
     },
     {
@@ -49,19 +113,53 @@
       "title": "Personnes mises en cause",
       "block": {
         "startsWith": "Nom",
-        "element": { "tag": "Personne", "label": "{Nom}" },
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom}"
+        },
         "fields": [
-          { "label": "Date de naissance", "property": "Date de naissance", "type": "date" },
-          { "label": "Téléphone", "property": "Téléphone" }
+          {
+            "label": "Date de naissance",
+            "property": "Date de naissance",
+            "type": "date"
+          },
+          {
+            "label": "Téléphone",
+            "property": "Téléphone"
+          }
         ],
-        "links": [{ "to": "faits", "label": "mise en cause dans" }]
+        "links": [
+          {
+            "to": "faits",
+            "label": "mise en cause dans"
+          }
+        ]
       }
     },
-    { "id": "recit", "title": "Récit", "text": true },
+    {
+      "id": "recit",
+      "title": "Récit",
+      "text": true,
+      "property": "Récit"
+    },
     {
       "id": "objets",
       "title": "Objets",
-      "block": { "startsWith": "*", "element": { "tag": null, "label": null }, "free": true }
+      "block": {
+        "startsWith": "*",
+        "element": {
+          "tag": null,
+          "label": null
+        },
+        "free": true,
+        "links": [
+          {
+            "to": "faits",
+            "label": "concerné par"
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "documentLink": "mentionné dans"
 }

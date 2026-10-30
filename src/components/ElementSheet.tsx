@@ -103,6 +103,8 @@ interface Props {
   onPickOnMap: (elementId: string) => void;
   /** Folds the sheet into a rail (button at the right of its header). */
   onCollapse?: () => void;
+  /** Asks to clear every highlight of the document. */
+  onClearAll?: () => void;
 }
 
 /** Shared by the sheet's parts. */
@@ -118,6 +120,7 @@ interface Env {
   documentReferences: Map<string, string[]>;
   /** Folds the sheet into a rail; its button sits at the right of the top header, as in ZN. */
   onCollapse?: () => void;
+  onClearAll?: () => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
   /** Runs a write, reports failures once. Resolves false on failure. */
   run: (write: () => Promise<unknown>) => Promise<boolean>;
@@ -1783,12 +1786,18 @@ function DocumentElements(p: { env: Env; onPick: (entry: IndexEntry) => void }) 
     return entries.filter((x) => found.has(x.element.id));
   }, [entries, query]);
   const pdf = isPdf(env.ctx.asset);
+  const clearAll = env.onClearAll;
 
   return h(React.Fragment, null,
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h('span', { className: `${S.SECTION_TITLE}` }, env.t('index_title')),
       h('span', { className: S.SECTION_BADGE }, entries.length),
-      h('span', { className: 'ml-auto' }, h(CollapseButton, { env }))),
+      h('span', { className: 'ml-auto flex items-center gap-1' },
+        clearAll && env.annotations.length
+          ? h('button', { type: 'button', onClick: clearAll, title: env.t('clear_all'), 'aria-label': env.t('clear_all'), className: `${S.ICON_BUTTON} shrink-0` },
+              h(getHostAPI().icons.Trash2, { size: 14 }))
+          : null,
+        h(CollapseButton, { env }))),
     entries.length
       ? h('div', { className: 'sticky top-0 z-10 px-4 py-2 bg-bg-primary border-b border-border-default' },
           h('input', {
@@ -1995,7 +2004,7 @@ export function ElementSheet(props: Props) {
     }
   };
   const documentElementIds = React.useMemo(() => new Set(annotations.flatMap(concernedElements)), [annotations]);
-  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, documentReferences, onCollapse: props.onCollapse, t, run };
+  const env: Env = { ctx, elements, links, tagSets, annotations, documentElementIds, documentReferences, onCollapse: props.onCollapse, onClearAll: props.onClearAll, t, run };
   const element = elementId ? elements.find((el) => el.id === elementId) : undefined;
 
   const container = (content: ReactTypes.ReactNode) =>

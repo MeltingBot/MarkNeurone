@@ -38,3 +38,9 @@ C'est le moyen le plus direct de voir dans quels documents un élément apparaî
 
 - Lorsque deux éléments sont fusionnés dans ZeroNeurone, leurs passages suivent l'élément résultant.
 - Lorsqu'un élément ou un lien est supprimé, ses surlignages sont conservés. Ils apparaissent comme surlignages orphelins dans le lecteur. Le clic droit sur un tel passage, puis « Rattacher à un élément... », permet de le rattacher à un autre élément. Un événement ou un lien disparu est alors recréé sur l'élément choisi. Une propriété disparue peut l'être aussi. Pour les retirer tous en une fois, l'onglet « Marqueur » propose, dans la section « Surlignages orphelins », le bouton « Retirer », après confirmation. Un surlignage n'est reconnu comme orphelin qu'après l'ouverture de son document dans le lecteur.
+
+## Effacer tous les surlignages d'un document
+
+L'icône corbeille, en haut du panneau « Éléments du document » (ou du panneau d'un formulaire), propose d'effacer tous les surlignages du document, suggestions écartées comprises. Une confirmation s'affiche sous la barre d'outils du lecteur, avec le nombre de surlignages concernés.
+
+La case « Supprimer aussi les éléments et liens créés uniquement depuis ce document », cochée par défaut, supprime en même temps les éléments créés à partir d'un surlignage de ce document et qui n'ont pas d'autre source, ainsi que les liens tracés seulement depuis ce document. Un élément qui cite un autre document, ou qui existait déjà et auquel un passage a seulement été rattaché, est conservé. Les propriétés ajoutées à un élément conservé restent en place.

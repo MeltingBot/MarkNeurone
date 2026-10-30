@@ -6,7 +6,7 @@
 
 import { getHostAPI } from '../hostAPI.ts';
 import type { Annotation, AnnotationKind, AnnotationOrigin } from '../core/model.ts';
-import { anchorLabel, relabelAnchor } from '../core/anchors.ts';
+import { anchorLabel, relabelAnchor, removeAnchor } from '../core/anchors.ts';
 import type { Passage } from './selectionCapture.ts';
 import { isPdf, type DocumentAsset } from './documentAssets.ts';
 import { TEXT_EXTRACTOR_ID } from '../core/textDocument.ts';
@@ -60,6 +60,8 @@ function withValidatedText(a: Annotation, validated: string): Annotation {
 /** For a framed picture: attach it to the element. */
 export interface ElementOptions {
   attachImage?: boolean;
+  /** Where the new element should go on the canvas, near a free spot. */
+  near?: { x: number; y: number };
 }
 
 /** The framed picture as a file named after the document and page, e.g. "PV n° 347 p.3.jpg". */
@@ -81,8 +83,8 @@ export async function qualifyAsNewElement(ctx: DocumentContext, passage: Passage
   const drafted = draft(ctx, passage, 'element');
   // A picture has no text: its passage is the name given to it.
   const a = passage.area ? { ...drafted, text: label } : withValidatedText(drafted, label);
-  const el = await graph.createElement(label, tags, anchorOf(ctx, a));
-  await saveAnnotation(ctx.dossierId, { ...a, targetId: el.id });
+  const el = await graph.createElement(label, tags, anchorOf(ctx, a), options.near);
+  await saveAnnotation(ctx.dossierId, { ...a, targetId: el.id, created: true });
   await attachArea(ctx, passage, el.id, options);
   return el.id;
 }
@@ -199,6 +201,41 @@ async function removePassage(dossierId: string, a: Annotation): Promise<void> {
   if (a.kind === 'link' && a.targetId) await graph.detachLinkAnchor(a.targetId, a.id);
   for (const elementId of anchoredElements(a)) await graph.detachAnchor(elementId, a.id);
   await removeAnnotation(dossierId, a.documentHash, a.id);
+}
+
+// ─── Clearing a document ─────────────────────────────────────
+
+export interface ClearPlan {
+  annotations: Annotation[];
+  /** Created from this document's highlights, with no other source. */
+  elementIds: string[];
+  /** Links drawn from this document only, between elements that stay. */
+  linkIds: string[];
+}
+
+/** What clearing the document's highlights would remove from the graph, if the user asks for it. */
+export function planClear(annotations: Annotation[]): ClearPlan {
+  const ids = annotations.map((a) => a.id);
+  const rest = (source: string | undefined | null) => ids.reduce((s, id) => removeAnchor(s, id), source ?? '').trim();
+  const elementIds = [...new Set(annotations.filter((a) => a.kind === 'element' && a.created && a.targetId).map((a) => a.targetId!))].filter((id) => {
+    const el = graph.getElement(id);
+    return !!el && rest(el.source) === '' && el.events.every((e) => rest(e.source) === '');
+  });
+  const gone = new Set(elementIds);
+  const linkIds = [...new Set(annotations.filter((a) => a.kind === 'link' && a.targetId).map((a) => a.targetId!))].filter((id) => {
+    const link = graph.getLink(id);
+    return !!link && rest(link.source) === '' && !gone.has(link.fromId) && !gone.has(link.toId);
+  });
+  return { annotations, elementIds, linkIds };
+}
+
+/** Removes every highlight of the document; with `objects`, the graph objects of the plan as well. */
+export async function clearDocument(dossierId: string, plan: ClearPlan, objects: boolean): Promise<void> {
+  if (objects) {
+    for (const id of plan.linkIds) await graph.deleteLink(id);
+    await graph.deleteElements(plan.elementIds);
+  }
+  for (const a of plan.annotations) await removePassage(dossierId, a);
 }
 
 /** Removes highlights whose graph object is gone (orphans), on the user's request. */

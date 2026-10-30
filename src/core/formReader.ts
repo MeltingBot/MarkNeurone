@@ -408,6 +408,8 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
       closeBlock();
       section = known;
       afterLabel = false;
+      // A text section kept whole: its text is a value of the document.
+      if (known.textField) pending = { label: known.titles[0], field: known.textField, unknown: false, spans: [], doc: true };
       continue;
     }
     if (onlyIn(line, titleFonts)) {
