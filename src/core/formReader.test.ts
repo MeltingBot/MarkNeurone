@@ -286,6 +286,47 @@ describe('readForm', () => {
     expect(r.blocks[0].free?.pairs.map((x) => x.anchor && text.slice(x.anchor.start, x.anchor.end))).toEqual(['EXEMPLAR', 'CARGO 2', 'Blanc', 'AB-123-CD']);
   });
 
+  it('reads items grouped under a label without bullets, and document fields among them', () => {
+    const model = normalizeFormModel({
+      id: 'fiche',
+      name: 'Fiche',
+      signature: ['Objets'],
+      document: {
+        fields: [
+          { label: 'Montant estimé', property: 'Montant' },
+          { label: 'Date du dépôt', property: 'Date du dépôt', type: 'date' },
+        ],
+      },
+      sections: [
+        { id: 'objets', title: 'Objets', block: { startsWith: '*', element: { tag: null, label: null }, free: true } },
+        { id: 'divers', title: 'Divers', text: true },
+      ],
+    }).model!;
+    const p = page([
+      T('Objets'),
+      L('Objets perdus'),
+      V('Objet divers (Perdu) : Nature : SAC A DOS - Description : toile - bleu'),
+      L('Véhicules'),
+      V('Vélo de route'),
+      L('Montant estimé'),
+      V('1 200 euros'),
+      T('Divers'),
+      L('Autres informations'),
+      V('- Date du dépôt : 21/09/2026'),
+      V('- Personne informée : néant'),
+    ]);
+    const r = readForm([p], model);
+    expect(r.blocks.map((b) => b.free?.text)).toEqual(['Objet divers (Perdu) : Nature : SAC A DOS - Description : toile - bleu', 'Vélo de route']);
+    expect(r.blocks[0].free?.pairs.map(({ key, value }) => [key, value])).toEqual([
+      ['Nature', 'SAC A DOS'],
+      ['Description', 'toile - bleu'],
+    ]);
+    expect(r.document.map((v) => [v.label, v.text])).toEqual([
+      ['Montant estimé', '1 200 euros'],
+      ['Date du dépôt', '21/09/2026'],
+    ]);
+  });
+
   it('anchors a value split apart in the file on its first piece', () => {
     // The second line of the address is written at the end of the file.
     const rows = [T('Faits signalés'), L('Qualification'), V('Vol de matériel'), L('Adresse'), V('12 rue des Tilleuls'), V('Bâtiment B'), L('Commune'), V('Villefictive')];

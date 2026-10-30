@@ -43,7 +43,7 @@ Un clic sur un passage déjà surligné ferme le formulaire et affiche la fiche 
 
 Un modèle est un fichier JSON, importé dans l'onglet « Formulaires » des [réglages](reglages.md). MarkNeurone n'en fournit aucun : chaque service décrit les formulaires qu'il reçoit.
 
-Les libellés sont comparés sans tenir compte des majuscules, des accents, des espaces en trop ni des deux-points finaux. La valeur peut se trouver sous son libellé ou sur la même ligne après deux-points (« Nom : Camille ARNOUX »).
+Les libellés sont comparés sans tenir compte des majuscules, des accents, des espaces en trop ni des deux-points finaux. La valeur peut se trouver sous son libellé ou sur la même ligne après deux-points (« Nom : Camille ARNOUX »), y compris dans une liste à tirets (« - Date du dépôt : 21/09/2026 »).
 
 Exemple :
 
@@ -101,14 +101,14 @@ Exemple :
 | `id`, `name` | Identifiant et nom du modèle. Importer un modèle de même identifiant remplace le précédent |
 | `signature` | Textes qui doivent tous figurer sur la première page pour que le modèle soit proposé |
 | `empty` | Valeurs ignorées. Une valeur faite seulement de X (texte masqué) l'est aussi |
-| `document.fields` | Informations générales, ajoutées comme propriétés de l'élément qui porte le document |
+| `document.fields` | Informations générales, ajoutées comme propriétés de l'élément qui porte le document. Elles sont lues partout hors des blocs à libellés, y compris dans une rubrique de texte ou entre les objets d'un bloc libre |
 | `sections[].title` | Titre de la rubrique, tel qu'il figure dans le document. Une liste est acceptée pour plusieurs formulations |
 | `block.startsWith` | Libellé qui ouvre un nouveau bloc. `*` ouvre un bloc à chaque ligne commençant par un astérisque ou un tiret |
 | `block.element` | Tag et nom proposés pour l'élément du bloc. `{Libellé}` reprend la valeur d'un champ. `{Libellé\|date}` ne garde que la première date de la valeur |
 | `fields[].label` | Libellé du champ, ou liste de formulations |
 | `fields[].property` | Nom de la propriété créée. `type` vaut `text` (par défaut), `date` ou `number` |
 | `fields[].event` | La valeur est une date ou une période : elle devient un événement de l'élément, nommé selon ce modèle de nom |
-| `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés |
+| `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés. Un bloc commence à chaque ligne à puce, ou à la première ligne sous un libellé (« Objets perdus ») |
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |
 | `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent |
 

@@ -257,7 +257,8 @@ function labelIndex(fields: FormField[], startsWith: string[] = []): Map<string,
 function matchLabel(line: Line, index: Map<string, LabelEntry>): LabelHit | null {
   const exact = index.get(foldLabel(line.text));
   if (exact) return { label: line.text, field: exact.field, inline: null, opensBlock: exact.opensBlock };
-  const m = INLINE.exec(line.text);
+  // "- Label : value" in a list reads as "Label : value".
+  const m = INLINE.exec(line.text.replace(BULLET_LINE, ''));
   if (!m) return null;
   const entry = index.get(foldLabel(m[1]));
   if (!entry) return null;
@@ -276,7 +277,12 @@ export function keyValuePairs(text: string): { key: string; value: string }[] {
   for (const part of text.split(/\s+-\s+/)) {
     // A colon with a space on one side at least: "12:30" stays a value.
     const bits = part.split(/\s+:\s*|:\s+/);
-    if (bits.length < 2) continue;
+    if (bits.length < 2) {
+      // A part without a key goes on with the previous value: "6 mm - cuivre".
+      const last = out[out.length - 1];
+      if (last && part.trim()) last.value = `${last.value} - ${part.trim()}`;
+      continue;
+    }
     const key = bits[bits.length - 2].trim();
     const value = bits[bits.length - 1].trim();
     if (key && value && key.length <= 40 && /\p{L}/u.test(key)) out.push({ key, value });
@@ -347,7 +353,9 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
   let section: FormSection | null = null;
   let block: FormBlock | null = null;
   let freeSpans: Span[] | null = null;
-  let pending: { label: string; field: FormField | null; unknown: boolean; spans: Span[] } | null = null;
+  let pending: { label: string; field: FormField | null; unknown: boolean; spans: Span[]; doc?: true; listed?: true } | null = null;
+  /** In a free section, a label was just read: the next line starts an item. */
+  let afterLabel = false;
   const counts = new Map<string, number>();
 
   const closeValue = () => {
@@ -360,8 +368,16 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
     if (!at) return;
     const out: FormValue = { label: value.label, field: value.field, unknown: value.unknown, text, anchor: at.anchor, whole: at.whole };
     if (block) block.values.push(out);
-    else if (!section?.block && value.field) reading.document.push(out);
+    else if (value.doc && value.field) reading.document.push(out);
   };
+  const docValue = (hit: LabelHit, line: Line) => ({
+    label: hit.label,
+    field: hit.field,
+    unknown: false,
+    spans: hit.inline ? [hit.inline] : [],
+    doc: true as const,
+    ...(BULLET_LINE.test(line.text) ? { listed: true as const } : {}),
+  });
   const closeBlock = () => {
     closeValue();
     if (block && freeSpans) {
@@ -387,11 +403,13 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
     if (known) {
       closeBlock();
       section = known;
+      afterLabel = false;
       continue;
     }
     if (onlyIn(line, titleFonts)) {
       closeBlock();
       section = null;
+      afterLabel = false;
       continue;
     }
     const def = section?.block;
@@ -400,19 +418,46 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
       const hit = matchLabel(line, docIndex);
       if (hit) {
         closeValue();
-        pending = { label: hit.label, field: hit.field, unknown: false, spans: hit.inline ? [hit.inline] : [] };
+        pending = docValue(hit, line);
       } else if (pending && !pending.spans.length) pending.spans.push(whole(line));
-      else if (onlyIn(line, labelFonts)) closeValue();
+      else if (onlyIn(line, labelFonts) || (pending?.listed && BULLET_LINE.test(line.text))) closeValue();
       else if (pending) pending.spans.push(whole(line));
       continue;
     }
     if (def.free || def.startsWith.includes(BULLET)) {
+      // A field of the document may sit among the items.
+      const hit = matchLabel(line, docIndex);
+      if (hit) {
+        closeBlock();
+        afterLabel = false;
+        pending = docValue(hit, line);
+        continue;
+      }
+      if (pending) {
+        if (!pending.spans.length) {
+          pending.spans.push(whole(line));
+          continue;
+        }
+        if (!onlyIn(line, labelFonts) && !BULLET_LINE.test(line.text)) {
+          pending.spans.push(whole(line));
+          continue;
+        }
+        closeValue();
+      }
       const bullet = BULLET_LINE.exec(line.text);
       if (bullet) {
         openBlock(line);
         freeSpans = [{ line, from: line.from + bullet[0].length, to: line.to }];
-      } else if (onlyIn(line, labelFonts)) continue;
-      else if (freeSpans) freeSpans.push(whole(line));
+        afterLabel = false;
+      } else if (onlyIn(line, labelFonts)) {
+        // Items grouped under a label: the label ends the item before.
+        closeBlock();
+        afterLabel = true;
+      } else if (afterLabel) {
+        openBlock(line);
+        freeSpans = [whole(line)];
+        afterLabel = false;
+      } else if (freeSpans) freeSpans.push(whole(line));
       continue;
     }
     const hit = matchLabel(line, blockIndex.get(section!.id)!);
