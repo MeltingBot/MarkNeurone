@@ -37,7 +37,7 @@ Un bloc créé apparaît coché dans la liste et le bloc suivant s'ouvre. Les no
 
 ## Relire puis tout ajouter
 
-Vous pouvez aussi relire tous les blocs avant d'ajouter quoi que ce soit. Un bloc sur lequel vous avez cliqué, ou dont vous avez modifié une valeur, est marqué « Relu » et garde vos corrections. Un bloc ouvert automatiquement après une création ne compte pas comme relu tant que vous n'y avez rien modifié.
+Vous pouvez aussi relire tous les blocs avant d'ajouter quoi que ce soit. Un bloc sur lequel vous avez cliqué, ou dont vous avez modifié une valeur, est marqué d'un œil et garde vos corrections. Un bloc ouvert automatiquement après une création ne compte pas comme relu tant que vous n'y avez rien modifié.
 
 « Ajouter les blocs relus », en bas du panneau, crée en une fois les blocs relus, rubrique par rubrique, avec les choix faits dans chaque fiche, puis les informations du document si vous les avez relues. Les blocs que vous n'avez pas ouverts ne sont pas ajoutés.
 

@@ -496,11 +496,15 @@ export function FormPanel(p: Props) {
     return created?.label || edits.get(d.key)?.label || d.label || `${model.sections.find((s) => s.id === d.sectionId)?.titles[0] ?? ''} ${d.index + 1}`;
   };
 
+  // Discreet: a reviewed block only waits for "add reviewed blocks".
+  const reviewedMark = () =>
+    h('span', { title: t('form_status_reviewed'), 'aria-label': t('form_status_reviewed'), className: 'shrink-0 text-text-tertiary' }, h(api.icons.Eye, { size: 11 }));
+
   const blockRow = (d: BlockDraft, i: number) => {
     const state = states[i];
     const selected = p.selectedKey === d.key;
     const isReviewed = state.status === 'open' && edits.has(d.key);
-    const status = state.status === 'open' ? (isReviewed ? 'form_status_reviewed' : null) : state.status === 'done' ? 'form_status_done' : 'form_status_rejected';
+    const status = state.status === 'open' ? null : state.status === 'done' ? 'form_status_done' : 'form_status_rejected';
     const edit = edits.get(d.key) ?? defaultEdit(d);
     return h('div', { key: d.key, className: `rounded border ${selected ? 'border-accent' : 'border-border-default'}` },
       h('button', {
@@ -511,6 +515,7 @@ export function FormPanel(p: Props) {
         state.status === 'done' ? h(Check, { size: 12, className: 'text-success shrink-0' }) : null,
         state.status === 'rejected' ? h(X, { size: 12, className: 'text-text-tertiary shrink-0' }) : null,
         h('span', { className: `flex-1 min-w-0 truncate text-xs ${state.status === 'open' ? 'text-text-primary' : 'text-text-tertiary'}` }, blockName(d, i)),
+        isReviewed ? reviewedMark() : null,
         status ? h('span', { className: S.HINT }, t(status)) : null),
       selected && state.status === 'open'
         ? h('div', { className: 'px-2 pb-2' },
@@ -555,7 +560,7 @@ export function FormPanel(p: Props) {
                   className: 'w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-bg-secondary rounded',
                 },
                   h('span', { className: 'flex-1 min-w-0 truncate text-xs text-text-primary' }, openDocRows.map((r) => r.key).join(', ')),
-                  docEdit ? h('span', { className: S.HINT }, t('form_status_reviewed')) : null),
+                  docEdit ? reviewedMark() : null),
                 documentSelected
                   ? h('div', { className: 'px-2 pb-2' },
                       h(DocumentSheet, {
