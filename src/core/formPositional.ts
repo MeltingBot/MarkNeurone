@@ -304,8 +304,14 @@ export function positionalValues(layout: PositionalPage, bands: { page: number; 
 /** Reads a positional form with its model: one block per section band. */
 export function readPositional(pages: FormPageInput[], model: FormModel): FormReading {
   const layout = positionalLayout(pages);
+  // A title is looked for among the bands (large capitals): the same word in the
+  // text ("Véhicule" next to a box) is not a band. Else anywhere.
+  const large = bandsOf(layout.printed);
+  const titled = (p: Phrase) => model.sections.find((s) => s.titles.some((t) => foldLabel(t) === foldLabel(p.text)));
+  const found = new Set(large.map(titled).filter(Boolean));
   const bands = layout.printed
-    .map((p) => ({ p, s: model.sections.find((s) => s.titles.some((t) => foldLabel(t) === foldLabel(p.text))) }))
+    .filter((p) => large.includes(p) || (titled(p) && !found.has(titled(p))))
+    .map((p) => ({ p, s: titled(p) }))
     .filter((x): x is { p: Phrase; s: NonNullable<typeof x.s> } => !!x.s)
     .map(({ p, s }) => ({ page: p.page, y: p.y, id: s.id }));
   const { values, checked } = positionalValues(layout, bands);

@@ -92,6 +92,8 @@ function row(v: FormValue, i: number, valueOf: (label: string) => string | undef
   // A yes or no that reads as neither stays text.
   const type = f.type === 'boolean' && booleanOf(v.text) === null ? 'text' : (f.type ?? 'text');
   const unreadable = type === 'date' && valueDate(v.text) === null;
+  // An empty box says no less firmly than a cross says yes: a no waits for the user.
+  const saysNo = type === 'boolean' && booleanOf(v.text) === false;
   return {
     id: `p${i}`,
     kind: 'property',
@@ -99,7 +101,7 @@ function row(v: FormValue, i: number, valueOf: (label: string) => string | undef
     text: v.text,
     anchor: v.anchor,
     type: unreadable ? 'text' : type,
-    checked: !unreadable,
+    checked: !unreadable && !saysNo,
     ...(unreadable ? { unreadable: true as const } : {}),
   };
 }

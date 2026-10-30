@@ -3,6 +3,7 @@ import { normalizeFormModel } from './formModel.ts';
 import { readForm, type FormPageInput, type FormTextItem } from './formReader.ts';
 import { draftFromPages, draftToRaw } from './formDraft.ts';
 import { positionalLayout } from './formPositional.ts';
+import { blockDraft } from './formSession.ts';
 import { pdfPageText } from './pageText.ts';
 
 // Fictional form printed with boxes: bands in capitals (B, size 10), labels
@@ -113,6 +114,10 @@ describe('positional forms', () => {
     ]);
     // Nothing filled under the third band: no block.
     expect(r.blocks.map((b) => b.sectionId)).toEqual(['materiel', 'demandeur']);
+    // Nor when its only values are the noes of empty boxes.
+    const d = structuredClone(draft);
+    d.sections[3].fields.push({ label: 'Commune', property: 'Inutile', type: 'boolean' });
+    expect(readForm([PAGE], normalizeFormModel(draftToRaw(d)).model!).blocks.map((b) => b.sectionId)).toEqual(['materiel', 'demandeur']);
   });
 
   it('reads a printed box as yes or no, crossed or not', () => {
@@ -122,6 +127,10 @@ describe('positional forms', () => {
     const yesNo = (values: typeof r.document) => values.filter((v) => v.field?.type === 'boolean').map((v) => [v.label, v.text]);
     expect(yesNo(r.document)).toEqual([['Première demande', 'Oui'], ['Renouvellement', 'Non']]);
     expect(yesNo(r.blocks.find((b) => b.sectionId === 'demandeur')!.values)).toEqual([['M', 'Non'], ['F', 'Oui']]);
+    // A no from an empty box waits for the user; a yes is offered checked.
+    const model = normalizeFormModel(draftToRaw(d)).model!;
+    const rows = blockDraft(r.blocks.find((b) => b.sectionId === 'demandeur')!, model).rows.filter((x) => x.type === 'boolean');
+    expect(rows.map((x) => [x.key, x.text, x.checked])).toEqual([['M', 'Non', false], ['F', 'Oui', true]]);
   });
 
   it('anchors each value on its words in the page text', () => {

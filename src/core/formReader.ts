@@ -351,7 +351,10 @@ function anchoredPairs(pairs: { key: string; value: string }[], spans: Span[], p
 /** Reads the form; pages in document order, from the first. */
 export function readForm(pages: FormPageInput[], model: FormModel): FormReading {
   const read = model.layout === 'positional' ? readPositional : model.layout === 'fields' ? readFields : readByLines;
-  return withComposed(read(pages, model), model);
+  const reading = withComposed(read(pages, model), model);
+  // A section left empty gives only noes from its empty boxes: no block.
+  const said = (v: FormValue) => !(v.field?.type === 'boolean' && /^non$/i.test(v.text.trim()));
+  return { ...reading, blocks: reading.blocks.filter((b) => b.values.some(said) || b.free) };
 }
 
 /** Composed fields ("{Jour}/{Mois}/{Année}"), anchored on the first value they use. */

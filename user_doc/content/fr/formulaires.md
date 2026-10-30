@@ -125,6 +125,8 @@ Pour chaque rubrique, choisissez son type :
 
 Un champ de type « Oui / non » crée une propriété booléenne : « oui », « x », « coché » ou « vrai » donnent oui, « non » ou « faux » donnent non, toute autre valeur reste du texte. Dans un formulaire à cases ou un PDF à champs, chaque case est aussi proposée comme champ « Oui / non », désactivé au départ : activé, il vaut oui si la case est cochée et non sinon, alors que « Cases cochées » ne retient que les cases cochées.
 
+Une case vide ne veut pas toujours dire non : la question a pu être sautée, ou ne pas concerner le demandeur. Un « Non » venu d'une case vide est donc proposé décoché dans la fiche du bloc, et n'entre dans le graphe que si vous le cochez. Une rubrique dont les seules valeurs sont de tels « Non » ne donne pas de bloc. N'activez « Oui / non » que pour les cases où le vide signifie vraiment non.
+
 « Ajouter un champ composé » crée un champ fait d'autres champs, par exemple une adresse `{N° de la voie} {Type de voie} {Libellé de voie}` ou une date `{Jour}/{Mois}/{Année}`.
 
 Pour une rubrique en blocs ou en liste, cochez les autres rubriques vers lesquelles un lien sera proposé, et donnez son nom (par exemple « victime de »).
