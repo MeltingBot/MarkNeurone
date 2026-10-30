@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.0 (2026-10-30)
+
+- Formulaires : MarkNeurone lit les formulaires produits par un logiciel à l'aide d'un modèle, et propose pour chaque fait, personne ou objet l'élément et ses propriétés, avec la référence au passage d'où vient chaque valeur. Trois sortes de formulaires sont lues : les formulaires à libellés (la valeur sous son libellé ou après deux-points), les formulaires à cases (la valeur dans une case, son libellé imprimé dessous) et les PDF à champs.
+- Formulaires : chaque bloc se valide séparément, ou bien l'on relit les blocs un par un puis « Ajouter les blocs relus » les crée en une fois. Les liens entre rubriques et le lien vers l'élément qui porte le document sont proposés, et les nouveaux éléments sont rangés sous le document sur le canvas.
+- Formulaires : « Créer depuis ce document » analyse le PDF ouvert et propose un premier modèle, à ajuster dans l'éditeur de modèle avec l'aperçu direct des valeurs lues. Les modèles se gèrent depuis le lecteur (ouvrir, modifier, exporter, supprimer, importer) comme dans les réglages.
+- Formulaires : champs composés (`{Jour}/{Mois}/{Année}`), champs lus sans être proposés, cases cochées, propriétés booléennes (un « Non » venu d'une case vide est proposé décoché), texte d'une rubrique versé dans la note de l'élément du document.
+- Lecteur : la corbeille du panneau efface tous les surlignages d'un document et, sur demande, les éléments et liens créés uniquement depuis ce document.
+- Lecteur : le panneau de droite s'élargit ou se rétrécit en tirant son bord gauche ; le document s'ajuste à la place restante.
+- Deux modèles d'exemple avec des exemplaires fictifs dans `examples/forms/` (Cerfa 13750 et 15459).
+
 ## 1.7.2 (2026-10-29)
 
 - Correctif : un numéro de téléphone surligné ne retrouvait pas l'élément existant quand celui-ci était écrit avec des espaces, des points ou en +33 (`06 39 98 41 17`, `06.39.98.41.17`, `+33 6 39 98 41 17`). Les numéros sont désormais comparés par leurs chiffres, sans toucher aux libellés du dossier.
