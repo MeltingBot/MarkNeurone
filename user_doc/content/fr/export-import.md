@@ -13,7 +13,7 @@ Les surlignages et le texte reconnu sont inclus dans l'export ZIP de ZeroNeurone
 
 Les données mal formées de l'archive sont écartées à l'import. Un fichier de texte reconnu illisible n'empêche pas l'import des surlignages : le texte sera reconnu de nouveau à l'ouverture du document.
 
-L'export ne contient que les documents présents dans le dossier.
+L'export ne contient que les documents présents dans le dossier. Les modèles de formulaire n'en font pas partie : ils sont enregistrés sur le poste et s'exportent séparément (voir [Formulaires](formulaires.md#gérer-les-modèles)).
 
 ## Suppression d'un document
 

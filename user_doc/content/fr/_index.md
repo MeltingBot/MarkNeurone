@@ -7,7 +7,7 @@ type: docs
 
 MarkNeurone est un plugin de ZeroNeurone. Il affiche un document dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé garde une référence vers le passage d'origine, ce qui permet de revenir au texte à tout moment.
 
-MarkNeurone s'utilise avec tout document rédigé : rapport, article de presse, statuts de société, décision de justice, courriel, procès-verbal d'audition. Les PDF numérisés, fréquents pour les procès-verbaux, sont pris en charge par la reconnaissance du texte.
+MarkNeurone s'utilise avec tout document rédigé : rapport, article de presse, statuts de société, décision de justice, courriel, procès-verbal d'audition. Les PDF numérisés, fréquents pour les procès-verbaux, sont pris en charge par la reconnaissance du texte. Les formulaires produits par un logiciel se lisent à l'aide d'un modèle, qui propose d'un coup les éléments de chaque rubrique.
 
 Cette documentation s'adresse aux utilisateurs du plugin. Les informations destinées aux développeurs se trouvent dans le [README du dépôt](https://github.com/MeltingBot/MarkNeurone#readme).
 
@@ -19,19 +19,20 @@ Cette documentation s'adresse aux utilisateurs du plugin. Les informations desti
 4. [Créer des objets à partir d'un passage](creer-des-objets.md)
 5. [Créer des liens](liens.md)
 6. [Suggestions](suggestions.md)
-7. [Retrouver les passages d'origine](retrouver-les-passages.md)
-8. [Export, import et suppression](export-import.md)
-9. [Réglages](reglages.md)
-10. [Raccourcis clavier](raccourcis.md)
-11. [Extraction avec OneNeurone](oneneurone.md)
+7. [Formulaires](formulaires.md)
+8. [Retrouver les passages d'origine](retrouver-les-passages.md)
+9. [Export, import et suppression](export-import.md)
+10. [Réglages](reglages.md)
+11. [Raccourcis clavier](raccourcis.md)
+12. [Extraction avec OneNeurone](oneneurone.md)
 
 ## Principes de fonctionnement
 
 - **Traitement local.** Le plugin n'effectue aucun appel réseau : le moteur de reconnaissance du texte et le modèle de langue française sont inclus dans le plugin. Les surlignages et les références des documents sont enregistrés avec le dossier ZeroNeurone. Dans un dossier partagé, ils sont transmis aux autres membres par la synchronisation chiffrée de ZeroNeurone, comme les éléments et les documents du dossier. Le texte reconnu et les préférences d'affichage restent sur le poste. Seule la recherche d'adresse du sélecteur de carte, qui appartient à ZeroNeurone, utilise un service en ligne.
-- **Rien n'entre dans le graphe sans votre action.** Chaque objet est créé par une action explicite. Les suggestions se traitent une par une, sans validation groupée.
+- **Rien n'entre dans le graphe sans votre action.** Chaque objet est créé par une action explicite. Les suggestions se traitent une par une, sans validation groupée. Seuls les blocs d'un formulaire que vous avez relus un par un peuvent être ajoutés ensemble.
 - **Pas de rattachement automatique.** Lorsqu'un élément du dossier porte un nom proche du passage, il est proposé, mais l'action par défaut reste la création d'un nouvel élément. Rattacher un passage à un élément existant est toujours votre choix, pour éviter de confondre deux homonymes.
 - **Vous choisissez les catégories.** Les tags proposés par défaut (Personne, Entreprise, Lieu...) se modifient dans les réglages.
-- **Origine conservée.** Chaque objet indique s'il a été créé à partir d'une sélection manuelle ou d'une suggestion, et conserve la référence au passage source.
+- **Origine conservée.** Chaque objet indique s'il a été créé à partir d'une sélection manuelle, d'une suggestion ou d'un modèle de formulaire, et conserve la référence au passage source.
 
 ## Ce que MarkNeurone ne fait pas
 
