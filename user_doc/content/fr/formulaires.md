@@ -108,7 +108,7 @@ Exemple :
 | `fields[].label` | Libellé du champ, ou liste de formulations |
 | `fields[].property` | Nom de la propriété créée. `type` vaut `text` (par défaut), `date` ou `number` |
 | `fields[].event` | La valeur est une date ou une période : elle devient un événement de l'élément, nommé selon ce modèle de nom |
-| `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés. Un bloc commence à chaque ligne à puce, ou à la première ligne sous un libellé (« Objets perdus ») |
+| `block.free` | Bloc sans libellés : son texte est proposé comme nom d'élément, et les paires « Clé : valeur » qu'il contient comme propriétés. Un bloc commence à chaque ligne à puce, à la première ligne sous un libellé (« Objets perdus ») et à chaque ligne précédée d'un espace vide. Une ligne qui suit directement la précédente continue le même bloc |
 | `block.links` | Liens proposés vers les éléments créés depuis la rubrique indiquée par `to` |
 | `text` | Rubrique de texte libre : rien n'y est proposé, les suggestions habituelles s'y appliquent |
 

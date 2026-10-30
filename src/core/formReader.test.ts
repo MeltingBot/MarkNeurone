@@ -11,13 +11,16 @@ interface Row {
   str: string;
   font?: 'T' | 'L' | 'V';
   x?: number;
+  /** Blank rows left before this one. */
+  skip?: number;
 }
 
 /** Items of one page, one row per line from the top; `order` gives the file order of the rows. */
 function page(rows: Row[], order?: number[]): FormPageInput {
+  let skipped = 0;
   const items: FormTextItem[] = rows.map((r, i) => ({
     str: r.str,
-    transform: [SIZE, 0, 0, SIZE, r.x ?? 60, 780 - i * 14],
+    transform: [SIZE, 0, 0, SIZE, r.x ?? 60, 780 - (i + (skipped += r.skip ?? 0)) * 14],
     width: r.str.length * SIZE * 0.5,
     fontName: r.font ?? 'V',
     hasEOL: true,
@@ -324,6 +327,22 @@ describe('readForm', () => {
     expect(r.document.map((v) => [v.label, v.text])).toEqual([
       ['Montant estimé', '1 200 euros'],
       ['Date du dépôt', '21/09/2026'],
+    ]);
+  });
+
+  it('splits items under one label at a blank space, not at a line break', () => {
+    const p = page([
+      L('Référence'),
+      V('FS-2026-0417'),
+      T('Objets'),
+      L('Objets perdus'),
+      { str: 'Sac (Perdu) : Couleur : Bleu - Matière :', skip: 1 },
+      V('Toile'),
+      { str: 'Montre (Perdue) : Marque : EXEMPLAR', skip: 1 },
+    ]);
+    expect(readForm([p], MODEL).blocks.map((b) => b.free?.text)).toEqual([
+      'Sac (Perdu) : Couleur : Bleu - Matière : Toile',
+      'Montre (Perdue) : Marque : EXEMPLAR',
     ]);
   });
 

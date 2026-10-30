@@ -85,6 +85,8 @@ interface Line {
   text: string;
   pieces: Piece[];
   fonts: Set<string>;
+  /** Font size of its first item. */
+  size: number;
 }
 
 interface PageData {
@@ -125,7 +127,7 @@ function pageLines(pageNumber: number, data: PageData): Line[] {
     }
     const from = raw.length - raw.trimStart().length;
     const to = raw.trimEnd().length;
-    return { page: pageNumber, y: group[0].t[5], raw, from, to, text: raw.slice(from, to), pieces, fonts };
+    return { page: pageNumber, y: group[0].t[5], raw, from, to, text: raw.slice(from, to), pieces, fonts, size: sizeOf(group[0].t) };
   });
 }
 
@@ -226,6 +228,8 @@ export function matchesSignature(firstPage: FormPageInput, model: FormModel): bo
 }
 
 const BULLET_LINE = /^[*•\-–]\s*/;
+/** Space between two lines, in font sizes, above which they belong to two items. */
+const ITEM_GAP = 2;
 const MASKED = /^[xX\s.]+$/;
 const INLINE = /^(.+?)\s*:\s*(.*)$/;
 
@@ -457,7 +461,14 @@ export function readForm(pages: FormPageInput[], model: FormModel): FormReading 
         openBlock(line);
         freeSpans = [whole(line)];
         afterLabel = false;
-      } else if (freeSpans) freeSpans.push(whole(line));
+      } else if (freeSpans) {
+        // A blank space before the line, wider than a line break: a new item.
+        const prev = freeSpans[freeSpans.length - 1].line;
+        if (prev.page === line.page && prev.y - line.y > line.size * ITEM_GAP) {
+          openBlock(line);
+          freeSpans = [whole(line)];
+        } else freeSpans.push(whole(line));
+      }
       continue;
     }
     const hit = matchLabel(line, blockIndex.get(section!.id)!);
