@@ -13,7 +13,18 @@ La lecture de formulaires s'applique aux PDF qui ont une couche texte. Les pages
 
 ## Lire un formulaire
 
-Lorsque la première page d'un document correspond à un modèle importé dans les [réglages](reglages.md), le bouton « Lire comme formulaire » apparaît dans la barre d'outils du lecteur. Si plusieurs modèles correspondent, le bouton propose de choisir.
+Le bouton formulaire de la barre d'outils du lecteur (icône presse-papiers) ouvre le formulaire lorsqu'un seul modèle correspond à la première page du document. Sinon, il ouvre la liste des modèles.
+
+## Gérer les modèles depuis le lecteur
+
+La liste « Modèles de formulaire » s'ouvre par le bouton formulaire, ou par l'icône liste en haut du panneau d'un formulaire. Elle présente tous les modèles, ceux qui correspondent au document en premier. Pour chacun :
+
+- un clic sur son nom ouvre le formulaire (seulement si le modèle correspond au document) ;
+- le crayon l'ouvre dans l'éditeur, appliqué au document ouvert ;
+- la flèche l'exporte en JSON ;
+- la corbeille le supprime, après confirmation.
+
+« Importer un modèle » ajoute un fichier JSON. « Créer depuis ce document » ouvre l'éditeur avec un modèle tiré du document. Les mêmes modèles se gèrent aussi dans l'onglet « Formulaires » des [réglages](reglages.md).
 
 Le panneau de droite affiche alors :
 
@@ -51,7 +62,7 @@ Un clic sur un passage déjà surligné ferme le formulaire et affiche la fiche 
 
 ## Créer un modèle depuis un document
 
-Lorsqu'aucun modèle ne correspond au document, le même bouton de la barre d'outils propose « Créer un modèle de formulaire depuis ce document ». MarkNeurone analyse les polices du document et propose un premier modèle : les titres (plus grands) délimitent les rubriques, les libellés (dans une police à part) sont suivis de leur valeur, un libellé qui revient dans une rubrique ouvre des blocs, et une rubrique de lignes à puce ou de paires « Clé : valeur » devient une liste.
+« Créer depuis ce document », dans la liste des modèles, analyse les polices du document et propose un premier modèle : les titres (plus grands) délimitent les rubriques, les libellés (dans une police à part) sont suivis de leur valeur, un libellé qui revient dans une rubrique ouvre des blocs, et une rubrique de lignes à puce ou de paires « Clé : valeur » devient une liste.
 
 Le panneau de droite affiche ce modèle, rubrique par rubrique, et le document montre au fur et à mesure les valeurs qu'il lit. Pour chaque rubrique, choisissez son type :
 

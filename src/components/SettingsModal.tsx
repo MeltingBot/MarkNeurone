@@ -3,6 +3,7 @@
 // Opened from MarkNeurone's card on ZN's home page. Settings apply to every
 // dossier. Tag colors are ZN's (TagSets): they are written on save.
 
+import { downloadModel, readModelFile } from '../services/formModelFiles.ts';
 import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
@@ -16,7 +17,7 @@ import type { ZnTagSet } from '../services/znTypes.ts';
 import { ColorDot } from './ColorDot.tsx';
 import { TagSetPicker } from './TagSetPicker.tsx';
 import * as S from './znStyles.ts';
-import { normalizeFormModel, type FormModel, type ModelIssue } from '../core/formModel.ts';
+import type { ModelIssue } from '../core/formModel.ts';
 
 
 const INPUT = 'w-full px-2 py-1 text-xs rounded border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:border-accent';
@@ -85,30 +86,16 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   // ─── Form models: imported from JSON, kept on save ───────
   const issueText = (i: ModelIssue) => t(`form_issue_${i.reason}`, { section: i.section ?? t('form_document'), subject: i.subject ?? '' });
   const importModel = async (file: File) => {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(await file.text());
-    } catch {
-      api.toast.error(t('settings_forms_invalid'));
-      return;
-    }
-    const { model, dropped } = normalizeFormModel(raw);
+    const { model, dropped } = await readModelFile(file);
     if (!model) {
-      api.toast.error(`${t('settings_forms_invalid')} ${dropped.map(issueText).join(' ; ')}`);
+      api.toast.error(`${t('settings_forms_invalid')} ${dropped.map(issueText).join(' ; ')}`.trim());
       return;
     }
     const others = draft.formModels.filter((m) => m.id !== model.id);
     setDraft({ ...draft, formModels: [...others, model] });
     if (dropped.length) api.toast.warning(t('settings_forms_dropped', { name: model.name, list: dropped.map(issueText).join(' ; ') }));
   };
-  const exportModel = (model: FormModel) => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${model.name.replace(/[\\/:*?"<>|]/g, '_')}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  const exportModel = downloadModel;
   const scopes: CooccurrenceScope[] = ['off', 'sentence', 'paragraph'];
   const countries = draft.identifiers.countries;
   const toggleCountry = (c: Country, on: boolean) =>

@@ -47,13 +47,16 @@ import { cooccurrences, elementHighlights, pairKey, verbEnds } from '../core/lin
 import { loadDismissedPairs, saveDismissedPairs } from '../services/linkAssistStore.ts';
 import type { NamedElement } from '../core/dictionary.ts';
 import { loadViewPrefs, saveViewPrefs } from '../services/viewPrefs.ts';
-import { getProfile, getSettings, getSettingsVersion, saveSettings, subscribeSettings } from '../services/settingsStore.ts';
+import { getProfile, getSettings, getSettingsVersion, subscribeSettings } from '../services/settingsStore.ts';
 import { isMapPickerOpen } from '../services/mapPicker.ts';
 import { ReaderContextMenu, type MenuItem } from './ReaderContextMenu.tsx';
 import { matchesSignature, readForm, type FormPageInput, type FormTextItem, type ValueAnchor } from '../core/formReader.ts';
 import { blockDraft, documentRows, formHighlights, type FormHighlight } from '../core/formSession.ts';
 import { DOCUMENT_KEY, FormPanel } from './FormPanel.tsx';
 import { FormModelEditor } from './FormModelEditor.tsx';
+import { FormModelsPanel } from './FormModelsPanel.tsx';
+import { downloadModel, readModelFile, removeModel, storeModel } from '../services/formModelFiles.ts';
+import type { ModelIssue } from '../core/formModel.ts';
 import { draftFromModel, draftFromPages, draftToRaw, withDetected, type FormDraft } from '../core/formDraft.ts';
 import { normalizeFormModel, type FormModel } from '../core/formModel.ts';
 import { handOverView, isElement, readerDocument, readerWindow, takeView } from '../services/readerWindow.ts';
@@ -1901,11 +1904,15 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const [formSelected, setFormSelected] = React.useState<string | null>(null);
   /** A model being drafted or changed: the reader shows what it reads. */
   const [modelDraft, setModelDraft] = React.useState<FormDraft | null>(null);
+  /** The models panel: every model of the settings, managed from the reader. */
+  const [modelsOpen, setModelsOpen] = React.useState(false);
   React.useEffect(() => {
     setFormModelId(null);
     setFormSelected(null);
     setModelDraft(null);
+    setModelsOpen(false);
   }, [asset.id]);
+  const allModels = React.useMemo(() => getSettings().formModels, [settingsVersion]);
   const matchingModels = React.useMemo(
     () => (formPages.length ? getSettings().formModels.filter((m) => matchesSignature(formPages[0], m)) : []),
     [formPages, settingsVersion],
@@ -1935,10 +1942,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   const saveModel = () => {
     const model = drafted?.model;
     if (!model) return;
-    const settings = getSettings();
-    saveSettings({ ...settings, formModels: [...settings.formModels.filter((m) => m.id !== model.id), model] })
+    storeModel(model)
       .then(() => {
         setModelDraft(null);
+        setModelsOpen(false);
         setFormModelId(model.id);
         api.toast.success(t('model_saved', { name: model.name }));
       })
@@ -1948,35 +1955,49 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       });
   };
   const exportModel = () => {
-    const model = drafted?.model;
-    if (!model) return;
-    const url = URL.createObjectURL(new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${model.name.replace(/[\\/:*?"<>|]/g, '_')}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (drafted?.model) downloadModel(drafted.model);
+  };
+  const issueText = (i: ModelIssue) => t(`form_issue_${i.reason}`, { section: i.section ?? t('form_document'), subject: i.subject ?? '' });
+  const importModel = async (file: File) => {
+    const { model, dropped } = await readModelFile(file);
+    if (!model) {
+      api.toast.error(`${t('settings_forms_invalid')} ${dropped.map(issueText).join(' ; ')}`.trim());
+      return;
+    }
+    try {
+      await storeModel(model);
+    } catch (err) {
+      console.error('MarkNeurone: cannot save the form model', err);
+      api.toast.error(t('write_error'));
+      return;
+    }
+    if (dropped.length) api.toast.warning(t('settings_forms_dropped', { name: model.name, list: dropped.map(issueText).join(' ; ') }));
+    else api.toast.success(t('model_saved', { name: model.name }));
+  };
+  const deleteModel = (model: FormModel) => {
+    if (formModelId === model.id) setFormModelId(null);
+    removeModel(model.id).catch((err: unknown) => {
+      console.error('MarkNeurone: cannot delete the form model', err);
+      api.toast.error(t('write_error'));
+    });
+  };
+  const closeForms = () => {
+    setModelDraft(null);
+    setModelsOpen(false);
+    setFormModelId(null);
+    setFormSelected(null);
   };
   const openForm = (id: string) => {
     setFormModelId(id);
     setFormSelected(null);
     setSheetCollapsed(false);
   };
-  const toggleForm = (e: ReactTypes.MouseEvent) => {
-    if (modelDraft) setModelDraft(null);
-    else if (formModel) {
-      setFormModelId(null);
-      setFormSelected(null);
-    } else if (!matchingModels.length) editModel(null);
+  const toggleForm = () => {
+    if (modelDraft || modelsOpen || formModel) closeForms();
     else if (matchingModels.length === 1) openForm(matchingModels[0].id);
     else {
-      const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setMenu({
-        x: box.left,
-        y: box.bottom,
-        header: t('form_choose'),
-        sections: [matchingModels.map((m) => ({ id: m.id, label: m.name, icon: api.icons.ClipboardList, action: () => openForm(m.id) }))],
-      });
+      setModelsOpen(true);
+      setSheetCollapsed(false);
     }
   };
 
@@ -2365,15 +2386,11 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       ? h('button', {
           onClick: toggleForm,
           disabled: !ready,
-          'aria-pressed': !!formModel,
-          title: modelDraft
-            ? t('model_close')
-            : formModel
-              ? t('form_close')
-              : !matchingModels.length
-                ? t('form_model_create')
-                : matchingModels.length === 1 ? t('form_open_named', { name: matchingModels[0].name }) : t('form_open'),
-          className: `p-1.5 rounded disabled:opacity-40 ${formModel ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
+          'aria-pressed': !!formModel || modelsOpen,
+          title: modelDraft || modelsOpen || formModel
+            ? t('form_close')
+            : matchingModels.length === 1 ? t('form_open_named', { name: matchingModels[0].name }) : t('models_title'),
+          className: `p-1.5 rounded disabled:opacity-40 ${formModel || modelsOpen ? 'text-accent bg-accent/10 hover:bg-accent/20' : 'text-text-secondary hover:bg-bg-secondary'}`,
         }, h(api.icons.ClipboardList, { size: 14 }))
       : null,
     // Framing tools, as in the context menu (PDF only).
@@ -2574,6 +2591,20 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       onExport: exportModel,
       onClose: () => setModelDraft(null),
       onCollapse: () => setSheetCollapsed(true),
+    }) : modelsOpen ? h(FormModelsPanel, {
+      models: allModels,
+      matching: new Set(matchingModels.map((m) => m.id)),
+      onOpen: (m: FormModel) => {
+        setModelsOpen(false);
+        openForm(m.id);
+      },
+      onEdit: (m: FormModel) => editModel(m),
+      onExport: downloadModel,
+      onDelete: deleteModel,
+      onImport: importModel,
+      onCreate: () => editModel(null),
+      onClose: () => setModelsOpen(false),
+      onCollapse: () => setSheetCollapsed(true),
     }) : formModel && formReading ? h(FormPanel, {
       ctx: docCtx,
       model: formModel,
@@ -2591,6 +2622,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       onCollapse: () => setSheetCollapsed(true),
       onClearAll: annotations.length ? askClear : undefined,
       onEditModel: () => editModel(formModel),
+      onModels: () => setModelsOpen(true),
     }) : h(ElementSheet, {
       ctx: docCtx,
       elementId: sheetElementId,

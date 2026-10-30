@@ -41,6 +41,8 @@ interface Props {
   onClearAll?: () => void;
   /** Opens the model in the editor. */
   onEditModel: () => void;
+  /** Opens the list of models. */
+  onModels: () => void;
 }
 
 function host() {
@@ -593,6 +595,7 @@ export function FormPanel(p: Props) {
     h('div', { className: 'flex items-center gap-2 px-4 py-3 border-b border-border-default' },
       h(api.icons.ClipboardList, { size: 14, className: 'text-text-tertiary shrink-0' }),
       h('span', { className: 'flex-1 text-sm font-semibold text-text-primary truncate' }, model.name),
+      h('button', { type: 'button', onClick: p.onModels, title: t('models_title'), 'aria-label': t('models_title'), className: `${S.ICON_BUTTON} shrink-0` }, h(api.icons.List, { size: 14 })),
       h('button', { type: 'button', onClick: p.onEditModel, title: t('form_model_edit'), 'aria-label': t('form_model_edit'), className: `${S.ICON_BUTTON} shrink-0` }, h(api.icons.Pencil, { size: 14 })),
       p.onClearAll
         ? h('button', { type: 'button', onClick: p.onClearAll, title: t('clear_all'), 'aria-label': t('clear_all'), className: `${S.ICON_BUTTON} shrink-0` }, h(api.icons.Trash2, { size: 14 }))
