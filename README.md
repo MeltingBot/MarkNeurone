@@ -9,7 +9,6 @@
   <a href="LICENSE"><img alt="Licence MIT" src="https://img.shields.io/badge/licence-MIT-green" /></a>
   <a href="https://github.com/MeltingBot/zeroneurone"><img alt="Plugin ZeroNeurone" src="https://img.shields.io/badge/plugin-ZeroNeurone-c2410c" /></a>
   <a href="https://mark.zeroneurone.com/"><img alt="Documentation" src="https://img.shields.io/badge/documentation-mark.zeroneurone.com-informational" /></a>
-  <img alt="Aucun appel réseau" src="https://img.shields.io/badge/r%C3%A9seau-aucun%20appel-success" />
 </p>
 
 Plugin de lecture annotée pour [ZeroNeurone](https://github.com/MeltingBot/zeroneurone). MarkNeurone affiche un document (PDF, DOCX, ODT, TXT, Markdown, courriel EML) dans ZeroNeurone et permet de créer, à partir d'un passage surligné, des éléments, des propriétés, des événements, des localisations et des liens dans le graphe. Chaque objet créé conserve une référence vers le passage d'origine.
