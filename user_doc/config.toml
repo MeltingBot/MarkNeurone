@@ -29,6 +29,9 @@ defaultContentLanguageInSubdir = true
   # missing target fails the build.
   BookPortableLinks = "error"
 
+  # Logo
+  BookLogo = "/images/logo.png"
+
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]
