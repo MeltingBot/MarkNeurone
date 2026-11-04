@@ -28,6 +28,8 @@ export interface MarkHostAPI {
     sourceLinks?: boolean;
     /** Slot `source:scheme` */
     sourceSchemes?: boolean;
+    /** `locate` of the slot `source:scheme`, used by exports (ZN 2.89 and later) */
+    sourceSchemeLocate?: boolean;
     /** pluginData.shareKeys / list / onRemoteChange (ZN 2.63 and later, required) */
     sharedPluginData?: boolean;
     /** pluginServices (ZN 2.64 and later) */

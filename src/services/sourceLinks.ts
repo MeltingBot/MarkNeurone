@@ -3,14 +3,15 @@
 // ZN 2.62 shows `[pv.pdf p.3](mn:1a2b3c4d)` as a link when a plugin
 // registers the scheme (slot `source:scheme`): a click opens the reader on
 // the passage. After a merge, the source of the element keeps the link of
-// every passage, each one clickable.
+// every passage, each one clickable. From ZN 2.89, `locate` gives the file
+// and page of the passage, which the Obsidian export links to.
 
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS, PLUGIN_ID } from '../constants.ts';
 import { ANCHOR_SCHEME } from '../core/anchors.ts';
 import { openReader } from '../readerLauncher.ts';
 import { findByAnchor, isDossierLoaded, loadDossier } from './annotationStore.ts';
-import { findAssetByHash } from './documentAssets.ts';
+import { findAssetByHash, isPdf } from './documentAssets.ts';
 
 interface SchemeContext {
   dossierId: string;
@@ -51,6 +52,12 @@ export function registerSourceScheme(): void {
         return;
       }
       openReader({ dossierId: ctx.dossierId, assetId: found.asset.id, annotationId: found.annotation.id });
+    },
+    // Synchronous, called by exports: null until the highlights are loaded.
+    // No page for a text document, whose pages are not the original ones.
+    locate: (value: string, ctx: SchemeContext) => {
+      const found = target(value, ctx.dossierId);
+      return found ? { assetId: found.asset.id, page: isPdf(found.asset) ? found.annotation.page : null } : null;
     },
   }, PLUGIN_ID);
 
