@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.2 (2026-11-04)
+
+- Plusieurs sources d'un même élément, lien ou événement sont séparées par « ; » au lieu d'un retour à la ligne, que l'export ANX (i2 Analyst's Notebook) refuse. Les sources déjà écrites sur plusieurs lignes restent lues.
+- Export Obsidian (ZeroNeurone 2.89 et suivantes) : la source d'un passage devient un lien vers le document joint, ouvert à la page du passage pour un PDF.
+
 ## 1.8.1 (2026-10-31)
 
 - Correctif : dans la version compilée du plugin, les champs d'un PDF à champs (textes, cases et boutons) restaient vides dans le lecteur, alors qu'ils s'affichaient en développement. La compilation renommait des propriétés internes de pdf.js, qui les lit par leur nom.
