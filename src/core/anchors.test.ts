@@ -19,7 +19,8 @@ describe('anchors', () => {
   it('appends to an existing source without duplicates', () => {
     const label = anchorLabel('pv.pdf', 3, ID);
     expect(appendAnchor('', label)).toBe(label);
-    expect(appendAnchor('Fichier SIV', label)).toBe(`Fichier SIV\n${label}`);
+    expect(appendAnchor('Fichier SIV', label)).toBe(`Fichier SIV ; ${label}`);
+    expect(appendAnchor('[autre.pdf p.1](mn:99aa00ff)', label)).toBe(`[autre.pdf p.1](mn:99aa00ff) ; ${label}`);
     expect(appendAnchor(`Fichier SIV\n${label}`, label)).toBe(`Fichier SIV\n${label}`);
     expect(appendAnchor(`Fichier SIV ; ${label}`, label)).toBe(`Fichier SIV ; ${label}`);
   });

@@ -4,9 +4,10 @@
 // The anchor lets the plugin find the object an annotation points to again:
 // it survives export/import and `mergeElements`, which concatenates sources.
 //
-// A source field holds one source per line (ZN joins merged sources with a
-// line break). Fields written earlier separate them with " ; ": both
-// separators are read, and kept as they are.
+// The plugin separates the sources of a field with " ; ": a line break would
+// break the ANX export. ZN joins merged sources with a line break, and fields
+// written by earlier versions hold one source per line: both separators are
+// read, and kept as they are.
 //
 // It is a Markdown link, `[pv.pdf p.3](mn:1a2b3c4d)`, which ZN (2.62 and
 // later) shows as a link opening the passage (slot `source:scheme`).
@@ -76,13 +77,13 @@ function hasAnchor(part: string, id: string): boolean {
   return anchorIds(part).includes(id);
 }
 
-/** Appends an anchor to an existing source, without duplicating it. */
+/** Appends an anchor to an existing source after " ; ", without duplicating it. */
 export function appendAnchor(source: string | undefined | null, label: string): string {
   const current = (source ?? '').trim();
   if (!current) return label;
   const [id] = anchorIds(label);
   if (id && hasAnchor(current, id)) return current;
-  return `${current}\n${label}`;
+  return `${current} ; ${label}`;
 }
 
 /** Removes the anchor of one annotation from a source field, keeping the rest. */
