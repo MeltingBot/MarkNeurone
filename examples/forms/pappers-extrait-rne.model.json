@@ -1,0 +1,1620 @@
+{
+  "id": "pappers-extrait-rne",
+  "name": "Extrait Pappers du registre national des entreprises",
+  "signature": [
+    "Extrait Pappers du registre national des entreprises",
+    "IDENTITÉ DE LA PERSONNE MORALE"
+  ],
+  "empty": [
+    "Non communiqué",
+    "Non communiquée",
+    "Non renseigné",
+    "Non renseignée",
+    "Néant"
+  ],
+  "sections": [
+    {
+      "id": "identite",
+      "title": [
+        "IDENTITÉ DE LA PERSONNE MORALE"
+      ],
+      "block": {
+        "startsWith": [
+          "Immatriculation au RCS, numéro",
+          "Immatriculation au RNE, numéro"
+        ],
+        "element": {
+          "tag": "Société",
+          "label": "{Dénomination ou raison sociale}"
+        },
+        "fields": [
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RNE, numéro"
+            ],
+            "property": "Immatriculation"
+          },
+          {
+            "label": "Date d'immatriculation",
+            "property": "Date d'immatriculation",
+            "type": "date"
+          },
+          {
+            "label": "Transfert du",
+            "property": "Transfert du RCS"
+          },
+          {
+            "label": "Date d'immatriculation d'origine",
+            "property": "Date d'immatriculation d'origine",
+            "type": "date"
+          },
+          {
+            "label": "Date de radiation",
+            "property": "Date de radiation",
+            "type": "date"
+          },
+          {
+            "label": "Dénomination ou raison sociale",
+            "offer": false
+          },
+          {
+            "label": "Sigle",
+            "property": "Sigle"
+          },
+          {
+            "label": "Nom commercial",
+            "property": "Nom commercial"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": "Associé unique",
+            "property": "Associé unique",
+            "type": "boolean"
+          },
+          {
+            "label": [
+              "Capital social",
+              "Capital variable"
+            ],
+            "property": "Capital social"
+          },
+          {
+            "label": "Adresse du siège",
+            "property": "Adresse du siège"
+          },
+          {
+            "label": "Activités principales",
+            "property": "Activités principales"
+          },
+          {
+            "label": "Durée de la personne morale",
+            "property": "Durée"
+          },
+          {
+            "label": "Date de clôture de l'exercice social",
+            "property": "Clôture de l'exercice"
+          },
+          {
+            "label": "Date de clôture du 1er exercice social",
+            "property": "Clôture du 1er exercice"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dirigeants",
+      "title": [
+        "DIRIGEANTS OU ASSOCIÉS"
+      ],
+      "text": true
+    },
+    {
+      "id": "president",
+      "title": "Président",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Président"
+          }
+        ]
+      }
+    },
+    {
+      "id": "president-directeur-general",
+      "title": "Président-directeur général",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Président-directeur général"
+          }
+        ]
+      }
+    },
+    {
+      "id": "directeur-general",
+      "title": "Directeur général",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Directeur général"
+          }
+        ]
+      }
+    },
+    {
+      "id": "directeur-general-delegue",
+      "title": "Directeur général délégué",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Directeur général délégué"
+          }
+        ]
+      }
+    },
+    {
+      "id": "directeur-general-unique",
+      "title": "Directeur général unique",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Directeur général unique"
+          }
+        ]
+      }
+    },
+    {
+      "id": "president-du-conseil-d-administration",
+      "title": "Président du conseil d'administration",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Président du conseil d'administration"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vice-president-du-conseil-d-administration",
+      "title": "Vice-président du conseil d'administration",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Vice-président du conseil d'administration"
+          }
+        ]
+      }
+    },
+    {
+      "id": "administrateur",
+      "title": "Administrateur",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Administrateur"
+          }
+        ]
+      }
+    },
+    {
+      "id": "president-du-directoire",
+      "title": "Président du directoire",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Président du directoire"
+          }
+        ]
+      }
+    },
+    {
+      "id": "membre-du-directoire",
+      "title": "Membre du directoire",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Membre du directoire"
+          }
+        ]
+      }
+    },
+    {
+      "id": "president-du-conseil-de-surveillance",
+      "title": "Président du conseil de surveillance",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Président du conseil de surveillance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vice-president-du-conseil-de-surveillance",
+      "title": "Vice-président du conseil de surveillance",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Vice-président du conseil de surveillance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "membre-du-conseil-de-surveillance",
+      "title": "Membre du conseil de surveillance",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Membre du conseil de surveillance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gerant",
+      "title": "Gérant",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Gérant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cogerant",
+      "title": "Cogérant",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Cogérant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "associe",
+      "title": "Associé",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Associé"
+          }
+        ]
+      }
+    },
+    {
+      "id": "associe-unique",
+      "title": "Associé unique",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Associé unique"
+          }
+        ]
+      }
+    },
+    {
+      "id": "associe-indefiniment-responsable",
+      "title": "Associé indéfiniment responsable",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Associé indéfiniment responsable"
+          }
+        ]
+      }
+    },
+    {
+      "id": "associe-gerant",
+      "title": "Associé gérant",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Associé gérant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "liquidateur",
+      "title": "Liquidateur",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Personne",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Liquidateur"
+          }
+        ]
+      }
+    },
+    {
+      "id": "commissaire-aux-comptes-titulaire",
+      "title": "Commissaire aux comptes titulaire",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Société",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Commissaire aux comptes titulaire"
+          }
+        ]
+      }
+    },
+    {
+      "id": "commissaire-aux-comptes-suppleant",
+      "title": "Commissaire aux comptes suppléant",
+      "block": {
+        "startsWith": [
+          "Nom, prénoms",
+          "Dénomination"
+        ],
+        "element": {
+          "tag": "Société",
+          "label": "{Nom, prénoms}{Dénomination}"
+        },
+        "fields": [
+          {
+            "label": "Nom, prénoms",
+            "offer": false
+          },
+          {
+            "label": "Dénomination",
+            "offer": false
+          },
+          {
+            "label": "Nom d'usage",
+            "property": "Nom d'usage"
+          },
+          {
+            "label": [
+              "Date",
+              "Date de naissance",
+              "Date et lieu de naissance"
+            ],
+            "property": "Naissance"
+          },
+          {
+            "label": "Nationalité",
+            "property": "Nationalité"
+          },
+          {
+            "label": [
+              "Adresse",
+              "Domicile"
+            ],
+            "property": "Adresse"
+          },
+          {
+            "label": "SIREN",
+            "property": "SIREN"
+          },
+          {
+            "label": "Forme juridique",
+            "property": "Forme juridique"
+          },
+          {
+            "label": [
+              "Immatriculation au RCS, numéro",
+              "Immatriculation au RCS"
+            ],
+            "property": "Immatriculation RCS"
+          }
+        ],
+        "links": [
+          {
+            "to": "identite",
+            "label": "Commissaire aux comptes suppléant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "etablissement",
+      "title": [
+        "RENSEIGNEMENTS SUR L'ACTIVITÉ ET L'ÉTABLISSEMENT PRINCIPAL"
+      ],
+      "text": true,
+      "note": true
+    }
+  ]
+}

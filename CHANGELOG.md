@@ -1,5 +1,11 @@
 # Changelog
 
+## Non publié
+
+- Formulaires : un libellé suivi de sa valeur sur la même ligne, sans deux-points, est reconnu lorsque libellé et valeur sont écrits dans deux polices différentes (extraits Pappers, par exemple). Un deux-points entre les deux n'entre ni dans le libellé ni dans la valeur. Un libellé inconnu écrit ainsi est proposé à part, décoché, au lieu de rejoindre la valeur précédente.
+- Formulaires : un pied de page répété sur chaque page n'est plus versé dans les valeurs lorsqu'il se termine par le numéro de la page (« ... 1/5 »).
+- Modèle d'exemple pour les extraits Pappers du registre national des entreprises dans `examples/forms/`.
+
 ## 1.8.1 (2026-10-31)
 
 - Correctif : dans la version compilée du plugin, les champs d'un PDF à champs (textes, cases et boutons) restaient vides dans le lecteur, alors qu'ils s'affichaient en développement. La compilation renommait des propriétés internes de pdf.js, qui les lit par leur nom.

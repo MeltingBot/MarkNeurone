@@ -139,7 +139,7 @@ Le modèle des réglages et un fichier exporté sont deux copies distinctes. Imp
 
 Un modèle est un fichier JSON. MarkNeurone n'en fournit aucun : chaque service décrit les formulaires qu'il reçoit, avec l'éditeur ou à la main.
 
-Les libellés sont comparés sans tenir compte des majuscules, des accents, des espaces en trop ni des deux-points finaux. La valeur peut se trouver sous son libellé ou sur la même ligne après deux-points (« Nom : Camille ARNOUX »), y compris dans une liste à tirets (« - Date du dépôt : 21/09/2026 »).
+Les libellés sont comparés sans tenir compte des majuscules, des accents, des espaces en trop ni des deux-points finaux. La valeur peut se trouver sous son libellé ou sur la même ligne après deux-points (« Nom : Camille ARNOUX »), y compris dans une liste à tirets (« - Date du dépôt : 21/09/2026 »). Elle peut aussi se trouver à droite de son libellé, sans deux-points, lorsque le libellé est écrit dans une police à part (« Nom, prénoms     Camille ARNOUX ») ; c'est le cas des extraits Pappers. Un pied de page répété sur chaque page est ignoré, même s'il se termine par le numéro de la page (« ... 1/5 »).
 
 Exemple :
 

@@ -89,6 +89,7 @@ interface Piece {
   item: number;
   /** Where the item's string starts in the line text. */
   at: number;
+  font?: string;
 }
 
 interface Line {
@@ -136,7 +137,7 @@ function pageLines(pageNumber: number, data: PageData): Line[] {
         const gap = prevEnd === null ? Infinity : p.t[4] - prevEnd;
         if (gap > sizeOf(p.t) * 0.15 && !/\s$/.test(raw) && !/^\s/.test(str)) raw += ' ';
       }
-      pieces.push({ item: p.item, at: raw.length });
+      pieces.push({ item: p.item, at: raw.length, font: p.it.fontName });
       raw += str;
       prevEnd = typeof p.it.width === 'number' ? p.t[4] + p.it.width : null;
       if (p.it.fontName) fonts.add(p.it.fontName);
@@ -148,6 +149,8 @@ function pageLines(pageNumber: number, data: PageData): Line[] {
 }
 
 const PAGE_NUMBER = /^(page\s*)?\d+\s*((\/|sur)\s*\d+)?$/i;
+/** A page number closing a running line ("... informatif. 1/5"): not part of what repeats. */
+const TRAILING_PAGE = /\s+(page\s*\d+|\d+\s*(\/|sur)\s*\d+)$/i;
 const BAND = 0.1;
 
 /** Lines repeated at the top or bottom of several pages, and page numbers there. */
@@ -159,7 +162,7 @@ function withoutRunningLines(lines: Line[], heights: number[]): Line[] {
   const pagesOf = new Map<string, Set<number>>();
   for (const l of lines) {
     if (!inBand(l)) continue;
-    const key = `${foldLabel(l.text)}@${Math.round(l.y)}`;
+    const key = `${foldLabel(l.text).replace(TRAILING_PAGE, '')}@${Math.round(l.y)}`;
     const set = pagesOf.get(key) ?? new Set<number>();
     set.add(l.page);
     pagesOf.set(key, set);
@@ -167,7 +170,7 @@ function withoutRunningLines(lines: Line[], heights: number[]): Line[] {
   return lines.filter((l) => {
     if (!inBand(l)) return true;
     if (PAGE_NUMBER.test(l.text)) return false;
-    return (pagesOf.get(`${foldLabel(l.text)}@${Math.round(l.y)}`)?.size ?? 0) < 2;
+    return (pagesOf.get(`${foldLabel(l.text).replace(TRAILING_PAGE, '')}@${Math.round(l.y)}`)?.size ?? 0) < 2;
   });
 }
 
@@ -268,6 +271,8 @@ interface LabelHit {
   /** Value on the same line, after "Label :". */
   inline: Span | null;
   opensBlock: boolean;
+  /** Label and value side by side, told apart by their fonts: the fonts of each. */
+  columns?: { label: string[]; value: string[] };
 }
 
 /** Labels a line may be, with what each means. */
@@ -288,9 +293,35 @@ function labelIndex(fields: FormField[], startsWith: string[] = []): Map<string,
   return index;
 }
 
+/**
+ * "Label   value" on one line without a colon: the label in pieces of its own
+ * font, the value after it in another. The longest known label wins.
+ */
+function columnSplits(line: Line): { label: string; value: Span; fonts: { label: string[]; value: string[] } }[] {
+  const out: { label: string; value: Span; fonts: { label: string[]; value: string[] } }[] = [];
+  const { pieces } = line;
+  for (let k = pieces.length - 1; k >= 1; k--) {
+    const before = pieces.slice(0, k);
+    const after = pieces.slice(k);
+    if (!before.every((p) => p.font) || before.some((p) => p.font === after[0].font)) continue;
+    if (new Set(before.map((p) => p.font)).size !== 1) continue;
+    // A colon on either side belongs to neither the label nor the value.
+    const label = line.raw.slice(line.from, after[0].at).replace(/\s*:\s*$/, '').trim();
+    if (!label) continue;
+    const from = after[0].at + (/^\s*:?\s*/.exec(line.raw.slice(after[0].at, line.to))?.[0].length ?? 0);
+    const fontsOf = (ps: Piece[]) => [...new Set(ps.map((p) => p.font).filter((f): f is string => !!f))];
+    out.push({ label, value: { line, from, to: line.to }, fonts: { label: fontsOf(before), value: fontsOf(after) } });
+  }
+  return out;
+}
+
 function matchLabel(line: Line, index: Map<string, LabelEntry>): LabelHit | null {
   const exact = index.get(foldLabel(line.text));
   if (exact) return { label: line.text, field: exact.field, inline: null, opensBlock: exact.opensBlock };
+  for (const split of columnSplits(line)) {
+    const entry = index.get(foldLabel(split.label));
+    if (entry) return { label: split.label, field: entry.field, inline: split.value.from < split.value.to ? split.value : null, opensBlock: entry.opensBlock, columns: split.fonts };
+  }
   // "- Label : value" in a list reads as "Label : value".
   const m = INLINE.exec(line.text.replace(BULLET_LINE, ''));
   if (!m) return null;
@@ -402,9 +433,17 @@ function readByLines(pages: FormPageInput[], model: FormModel): FormReading {
   const asValue = new Map<string, number>();
   const bump = (counts: Map<string, number>, fonts: Set<string>) => fonts.forEach((f) => counts.set(f, (counts.get(f) ?? 0) + 1));
   const allLabels = new Map<string, LabelEntry>([...docIndex, ...[...blockIndex.values()].flatMap((m) => [...m])]);
+  /** Known labels were read beside their values: unknown ones may be too. */
+  let sideBySide = false;
   lines.forEach((line, i) => {
     if (sectionOf(line)) line.fonts.forEach((f) => titleFonts.add(f));
-    else if (matchLabel(line, allLabels)) {
+    else if (matchLabel(line, allLabels)?.columns) {
+      // Label and value side by side: each counts for its own fonts.
+      const { columns } = matchLabel(line, allLabels)!;
+      sideBySide = true;
+      bump(asLabel, new Set(columns!.label));
+      bump(asValue, new Set(columns!.value));
+    } else if (matchLabel(line, allLabels)) {
       bump(asLabel, line.fonts);
       const next = lines[i + 1];
       if (next && !sectionOf(next) && !matchLabel(next, allLabels)) bump(asValue, next.fonts);
@@ -539,6 +578,15 @@ function readByLines(pages: FormPageInput[], model: FormModel): FormReading {
       if (hit.opensBlock || !block) openBlock(line);
       else closeValue();
       pending = { label: hit.label, field: hit.field, unknown: false, spans: hit.inline ? [hit.inline] : [] };
+      continue;
+    }
+    // An unknown label in the labels' font, its value beside it, in a form
+    // whose known labels are read that way too.
+    const beside =
+      block && sideBySide ? columnSplits(line).find((s) => s.fonts.label.every((f) => labelFonts.has(f)) && !s.fonts.value.some((f) => labelFonts.has(f))) : undefined;
+    if (beside) {
+      closeValue();
+      pending = { label: beside.label, field: null, unknown: true, spans: beside.value.from < beside.value.to ? [beside.value] : [] };
       continue;
     }
     // The line after a label is its value, whatever its font.
