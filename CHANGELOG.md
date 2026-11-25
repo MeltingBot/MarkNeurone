@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.3 (2026-11-25)
+
+- Propriétés de lien : un passage surligné peut devenir une propriété du lien dont la fiche est ouverte (touche P). La fiche du lien affiche et modifie ses propriétés, et la source du lien renvoie au passage.
+
 ## 1.8.2 (2026-11-04)
 
 - Plusieurs sources d'un même élément, lien ou événement sont séparées par « ; » au lieu d'un retour à la ligne, que l'export ANX (i2 Analyst's Notebook) refuse. Les sources déjà écrites sur plusieurs lignes restent lues.
