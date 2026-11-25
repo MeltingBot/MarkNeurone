@@ -1,7 +1,7 @@
 // annotations.json in the dossier ZIP (next to dossier.json), and the rewiring
 // needed on import: ZN gives new ids to every element, link and asset.
 
-import type { Annotation, Quad } from './model.ts';
+import { targetsLink, type Annotation, type Quad } from './model.ts';
 import { anchorIds, shortId } from './anchors.ts';
 import { cleanReference } from './reference.ts';
 
@@ -92,6 +92,7 @@ export function sanitizeAnnotation(raw: unknown, hash: string): Annotation | nul
   if (isString(x.extractor)) a.extractor = x.extractor;
   if (isString(x.targetId)) a.targetId = x.targetId;
   if (isString(x.propertyKey)) a.propertyKey = x.propertyKey;
+  if (x.onLink === true && a.kind === 'property') a.onLink = true;
   const linkEnds = asPair(x.linkEnds, isString);
   if (linkEnds) a.linkEnds = linkEnds;
   const linkAnchors = asPair(x.linkAnchors, isStringOrNull);
@@ -154,7 +155,7 @@ export function rewire(annotations: Annotation[], graph: ImportedGraph): Annotat
     // A rejected suggestion has no graph object to find.
     if (a.kind === 'suggestion') return out;
 
-    if (a.kind === 'link') {
+    if (targetsLink(a)) {
       const link = linkByToken.get(token);
       return link ? { ...out, targetId: link.id, linkEnds: [link.fromId, link.toId] } : orphan;
     }

@@ -29,7 +29,7 @@ Il convient à tout document rédigé dont on veut tirer des éléments du graph
 
 - Lecture des PDF avec couche texte, des PDF numérisés (OCR locale en arrière-plan avec Tesseract, mise en cache avec le dossier), des DOCX, ODT, TXT et Markdown, et des courriels EML (en-têtes, texte du message, noms des pièces jointes).
 - Relecture d'une sélection à haute résolution, passage encadré à la souris pour l'écriture manuscrite, retrait de l'encre des tampons avant la reconnaissance.
-- Création d'éléments, de propriétés (les huit types de ZeroNeurone), d'événements datés et de localisations à partir d'un passage, par une touche (E, P, V, G).
+- Création d'éléments, de propriétés (les huit types de ZeroNeurone), d'événements datés et de localisations à partir d'un passage, par une touche (E, P, V, G). Une propriété s'ajoute à l'élément, à l'un de ses événements ou au lien dont la fiche est ouverte.
 - Liens entre deux passages surlignés, et, en option, mode verbe et liens possibles signalés dans la marge.
 - Suggestions : noms des éléments du dossier et identifiants français, et en option belges, suisses et luxembourgeois (téléphones, plaques, IBAN, identifiants d'entreprise et de personne), e-mails, URL, IP, adresses Bitcoin et Ethereum, montants en euros et en francs suisses, dates, avec contrôle des clés.
 - Fiche de l'élément sur le modèle du panneau de ZeroNeurone, cotation comprise.

@@ -8,7 +8,7 @@
 import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
-import type { Annotation } from '../core/model.ts';
+import { targetsLink, type Annotation } from '../core/model.ts';
 import { defaultAttachment, findCandidates, type MatchKind } from '../core/dictionary.ts';
 import { findDateRange, findDates, toDateInputValue } from '../core/dates.ts';
 import { dateFromInputKeys, dateInputKeys } from '../core/timeZones.ts';
@@ -31,6 +31,8 @@ import {
   qualifyAsLink,
   qualifyAsLocation,
   qualifyAsProperty,
+  qualifyAsLinkProperty,
+  qualifyAsExistingLinkProperty,
   qualifyAsExistingProperty,
   qualifyAsEventProperty,
   reattachEvent,
@@ -196,6 +198,7 @@ function propertyDefinitions(env: Env): Map<string, ZnPropertyDefinition> {
       if (!defs.has(pr.key)) defs.set(pr.key, { key: pr.key, type: pr.type ?? 'text' });
     }
   }
+  for (const link of env.links) for (const pr of link.properties ?? []) if (!defs.has(pr.key)) defs.set(pr.key, { key: pr.key, type: pr.type ?? 'text' });
   return defs;
 }
 
@@ -724,19 +727,29 @@ function SegmentedChoice<T extends string | boolean>(p: { label: string; value: 
 
 const sameValue = (a: string, b: string) => a.replace(/\s+/g, ' ').trim().toLowerCase() === b.replace(/\s+/g, ' ').trim().toLowerCase();
 
-function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDone: () => void }) {
+/** What a property goes to: an element (or one of its events), or a link. */
+type PropertyOwner = { element: ZnElement; link?: undefined } | { link: ZnLink; element?: undefined };
+
+const ownerTags = (o: PropertyOwner): string[] => o.element?.tags ?? o.link?.tags ?? [];
+const ownerProperties = (o: PropertyOwner): ZnProperty[] => o.element?.properties ?? o.link?.properties ?? [];
+
+function PropertyDraft(p: PropertyOwner & { env: Env; passage: Passage; onDone: () => void }) {
   const { api, React, h } = host();
-  const { env, element, passage } = p;
-  const defs = React.useMemo(() => propertyDefinitions(env), [env.elements, env.tagSets]);
-  // The element's tags' keys first, then every key known to the dossier.
+  const { env, passage, link } = p;
+  const owner: PropertyOwner = p.link ? { link: p.link } : { element: p.element! };
+  const tags = ownerTags(owner);
+  const events = p.element?.events ?? [];
+  const ownerId = p.element?.id ?? p.link!.id;
+  const defs = React.useMemo(() => propertyDefinitions(env), [env.elements, env.links, env.tagSets]);
+  // The owner's tags' keys first, then every key known to the dossier.
   const suggested = React.useMemo(() => {
     const keys = new Map<string, ZnPropertyType>();
-    for (const tag of element.tags) {
+    for (const tag of tags) {
       for (const sp of env.tagSets.find((ts) => ts.name === tag)?.suggestedProperties ?? []) keys.set(sp.key, sp.type);
     }
     for (const d of defs.values()) if (!keys.has(d.key)) keys.set(d.key, d.type);
     return keys;
-  }, [element, env.tagSets, defs]);
+  }, [p.element?.tags, p.link?.tags, env.tagSets, defs]);
   const [key, setKey] = React.useState((passage.suggestion && getProfile().suggestionKeys[passage.suggestion.kind]) ?? '');
   const [type, setType] = React.useState<ZnPropertyType>(guessType(trimPunctuation(passage.text)));
   const firstDate = React.useMemo(() => findDates(passage.text, passage.referenceYear)[0], [passage]);
@@ -753,14 +766,14 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   const [eventId, setEventId] = React.useState<string | null>(null);
   // Events read on the same page come first in the search.
   const samePage = React.useMemo(
-    () => new Set(env.annotations.filter((a) => a.kind === 'event' && a.page === passage.page && a.eventIds?.[element.id]).map((a) => a.eventIds![element.id])),
-    [env.annotations, passage.page, element.id],
+    () => new Set(env.annotations.filter((a) => a.kind === 'event' && a.page === passage.page && a.eventIds?.[ownerId]).map((a) => a.eventIds![ownerId])),
+    [env.annotations, passage.page, ownerId],
   );
-  const onEvent = toEvent && eventId ? element.events.find((ev) => ev.id === eventId) : undefined;
+  const onEvent = toEvent && eventId ? events.find((ev) => ev.id === eventId) : undefined;
 
   // The passage may point to a property the target already has, left as it is.
   // Proposed only when the values are the same; the user still confirms.
-  const existing = toEvent ? onEvent?.properties ?? [] : element.properties;
+  const existing = toEvent ? onEvent?.properties ?? [] : ownerProperties(owner);
   const matchOf = (list: ZnProperty[]) => list.findIndex((pr) => sameValue(formatValue(pr.value), trimPunctuation(passage.text)));
   const targetKey = toEvent ? `event:${eventId ?? ''}` : 'element';
   const [attachFor, setAttachFor] = React.useState<string | null>(null);
@@ -805,7 +818,8 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   const submit = async () => {
     setBusy(true);
     if (attaching) {
-      const ok = await env.run(() => qualifyAsExistingProperty(env.ctx, passage, element.id, existing[attachIndex!].key, onEvent?.id));
+      const key = existing[attachIndex!].key;
+      const ok = await env.run(() => (link ? qualifyAsExistingLinkProperty(env.ctx, passage, link.id, key) : qualifyAsExistingProperty(env.ctx, passage, ownerId, key, onEvent?.id)));
       if (ok) p.onDone();
       else setBusy(false);
       return;
@@ -814,8 +828,13 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
       ? datetimeProperty(key.trim(), value.trim(), time, timeZone)
       : { key: key.trim(), value: parseValue(type, value.trim()), type };
     const ok = await env.run(async () => {
-      await registerDefinition({ key: property.key, type, ...(type === 'choice' ? { choices } : {}) }, element.tags);
-      await (onEvent ? qualifyAsEventProperty(env.ctx, passage, element.id, onEvent.id, property) : qualifyAsProperty(env.ctx, passage, element.id, property));
+      // ZN's link panel keeps a new key in the dossier only, with no tag.
+      await registerDefinition({ key: property.key, type, ...(type === 'choice' ? { choices } : {}) }, link ? [] : tags);
+      await (link
+        ? qualifyAsLinkProperty(env.ctx, passage, link.id, property)
+        : onEvent
+          ? qualifyAsEventProperty(env.ctx, passage, ownerId, onEvent.id, property)
+          : qualifyAsProperty(env.ctx, passage, ownerId, property));
     });
     if (ok) p.onDone();
     else setBusy(false);
@@ -831,7 +850,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
   },
   h(OcrPreview, { passage }),
   // With events, the property goes to the element or to one of them.
-  element.events.length
+  events.length
     ? h('div', { className: 'space-y-1' },
         h('label', { className: S.SMALL_LABEL }, env.t('property_target')),
         h(SegmentedChoice<boolean>, {
@@ -845,7 +864,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
         }),
         toEvent
           ? h(EventPicker, {
-              events: element.events,
+              events,
               first: samePage,
               value: eventId,
               autoFocus: true,
@@ -885,7 +904,7 @@ function PropertyDraft(p: { env: Env; element: ZnElement; passage: Passage; onDo
     : null,
   attaching ? null : h('div', { className: 'space-y-1' },
     h('label', { className: S.SMALL_LABEL }, env.t('field_key')),
-    h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: (onEvent ? onEvent.properties ?? [] : element.properties).map((pr) => pr.key), onChange: onKeyChange })),
+    h(KeySuggestInput, { env, value: key, suggestions: suggested, exclude: (onEvent ? onEvent.properties ?? [] : ownerProperties(owner)).map((pr) => pr.key), onChange: onKeyChange })),
   attaching ? null : h('div', { className: 'flex gap-2' },
     h('div', { className: 'space-y-1', style: { width: 120 } },
       h('label', { className: S.SMALL_LABEL }, env.t('field_type')),
@@ -1262,43 +1281,47 @@ function AnchorButton(p: { env: Env; annotation: Annotation | undefined; onGoto:
     h(Highlighter, { size: 12 }));
 }
 
-function PropertyRows(p: { env: Env; element: ZnElement; onGoto: (a: Annotation) => void }) {
+function PropertyRows(p: PropertyOwner & { env: Env; onGoto: (a: Annotation) => void }) {
   const { api, h } = host();
   const { X } = api.icons;
-  const { env, element } = p;
-  if (!element.properties.length) return h('p', { className: 'text-xs text-text-tertiary' }, env.t('no_properties'));
+  const { env } = p;
+  const owner: PropertyOwner = p.link ? { link: p.link } : { element: p.element! };
+  const own = ownerProperties(owner);
+  if (!own.length) return h('p', { className: 'text-xs text-text-tertiary' }, env.t('no_properties'));
+  const ownerId = p.element?.id ?? p.link!.id;
+  const save = (properties: ZnProperty[]) => (p.link ? graph.updateLink(ownerId, { properties }) : graph.updateElement(ownerId, { properties }));
+  /** Passages of the owner's own properties (not those of its events). */
+  const isMine = (a: Annotation, key: string) => a.kind === 'property' && !a.eventIds && a.targetId === ownerId && !!a.onLink === !!p.link && a.propertyKey === key;
 
   const update = (index: number, raw: string) => {
-    const properties = element.properties.map((pr, i) => (i === index ? { ...pr, value: parseValue(pr.type, raw) } : pr));
-    env.run(() => graph.updateElement(element.id, { properties }));
+    const properties = own.map((pr, i) => (i === index ? { ...pr, value: parseValue(pr.type, raw) } : pr));
+    env.run(() => save(properties));
   };
   /** A 'datetime' value with its zone; no zone means the computer's. */
   const setAt = (index: number, value: Date, timeZone: string | undefined) => {
-    const properties = element.properties.map((pr, i) => {
+    const properties = own.map((pr, i) => {
       if (i !== index) return pr;
       const { timeZone: _previous, ...rest } = pr;
       return { ...rest, value, ...(timeZone ? { timeZone } : {}) };
     });
-    env.run(() => graph.updateElement(element.id, { properties }));
+    env.run(() => save(properties));
   };
   const remove = (index: number) => {
-    const key = element.properties[index].key;
-    const properties = element.properties.filter((_, i) => i !== index);
+    const key = own[index].key;
+    const properties = own.filter((_, i) => i !== index);
     env.run(async () => {
-      await graph.updateElement(element.id, { properties });
-      // Highlights of a key that no longer exists on the element go too.
+      await save(properties);
+      // Highlights of a key that no longer exists on the owner go too.
       if (!properties.some((pr) => pr.key === key)) {
-        for (const a of env.annotations.filter((x) => x.kind === 'property' && !x.eventIds && x.targetId === element.id && x.propertyKey === key)) {
-          await deleteAnnotation(env.ctx, a);
-        }
+        for (const a of env.annotations.filter((x) => isMine(x, key))) await deleteAnnotation(env.ctx, a);
       }
     });
   };
 
   return h('div', { className: 'space-y-2' },
-    element.properties.map((pr, i) => {
+    own.map((pr, i) => {
       const type = pr.type ?? 'text';
-      const annotation = env.annotations.find((a) => a.kind === 'property' && !a.eventIds && a.targetId === element.id && a.propertyKey === pr.key);
+      const annotation = env.annotations.find((a) => isMine(a, pr.key));
       return h('div', { key: `${pr.key}-${i}`, className: 'flex items-start gap-2' },
         h('div', { className: 'flex-1 min-w-0' },
           h('div', { className: 'flex items-center gap-1.5' },
@@ -1691,6 +1714,9 @@ function LinkRows(p: { env: Env; element: ZnElement; onOpenLink: (linkId: string
 function LinkSheet(p: {
   env: Env;
   link: ZnLink;
+  /** A property passage waiting for this link. */
+  draft: Draft | null;
+  onDraftDone: () => void;
   selectedId: string | null;
   onOpenElement: (id: string) => void;
   onGoto: (a: Annotation) => void;
@@ -1700,7 +1726,9 @@ function LinkSheet(p: {
   const { ArrowRight, ArrowLeftRight, Link2 } = api.icons;
   const { env, link } = p;
   const name = (id: string) => env.elements.find((el) => el.id === id)?.label ?? env.t('unnamed');
-  const passages = env.annotations.filter((a) => a.kind === 'link' && a.targetId === link.id);
+  // The link's own passages and those of its properties.
+  const passages = env.annotations.filter((a) => targetsLink(a) && a.targetId === link.id);
+  const properties = link.properties ?? [];
   const end = (id: string) =>
     h('button', {
       type: 'button',
@@ -1746,6 +1774,12 @@ function LinkSheet(p: {
         evaluation: link.evaluation,
         onChange: (changes: EvaluationChanges) => env.run(() => graph.updateLink(link.id, changes)),
       })),
+    h(Section, { title: env.t('section_properties'), badge: properties.length },
+      h('div', { className: 'space-y-2' },
+        p.draft?.gesture === 'property'
+          ? h(PropertyDraft, { key: `lp-${p.draft.passage.page}-${passageKey(p.draft.passage)}`, env, link, passage: p.draft.passage, onDone: p.onDraftDone })
+          : null,
+        h(PropertyRows, { env, link, onGoto: p.onGoto }))),
     h(Section, { title: env.t('section_passages'), badge: passages.length },
       h(PassageRows, { env, items: passages, selectedId: p.selectedId, onGoto: p.onGoto })),
     h('div', { className: 'px-4 py-3' },
@@ -2062,14 +2096,16 @@ export function ElementSheet(props: Props) {
       }));
   }
 
-  // A link replaces the element, like ZN's link detail panel.
+  // A link replaces the element, like ZN's link detail panel; a property goes to it.
   const link = props.linkId ? links.find((l) => l.id === props.linkId) : undefined;
-  if (props.linkId && !draft) {
+  if (props.linkId && (!draft || (draft.gesture === 'property' && link))) {
     return container(
       link
         ? h(LinkSheet, {
             env,
             link,
+            draft,
+            onDraftDone: props.onDraftDone,
             selectedId: selectedAnnotationId,
             onOpenElement: (id: string) => props.onElementChange(id),
             onGoto: props.onGoto,

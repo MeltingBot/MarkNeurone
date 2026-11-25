@@ -5,7 +5,7 @@
 // and its anchor token, never the graph object: the user decides in ZN.
 
 import { getHostAPI } from '../hostAPI.ts';
-import type { Annotation, AnnotationKind, AnnotationOrigin } from '../core/model.ts';
+import { targetsLink, type Annotation, type AnnotationKind, type AnnotationOrigin } from '../core/model.ts';
 import { anchorLabel, relabelAnchor, removeAnchor } from '../core/anchors.ts';
 import type { Passage } from './selectionCapture.ts';
 import { isPdf, type DocumentAsset } from './documentAssets.ts';
@@ -122,6 +122,24 @@ export async function qualifyAsExistingProperty(ctx: DocumentContext, passage: P
   await saveAnnotation(ctx.dossierId, { ...a, targetId: elementId, propertyKey: key, ...(eventId ? { eventIds: { [elementId]: eventId } } : {}) });
 }
 
+/** Property of a link; the annotation keeps the link's ends, as a link passage does. */
+export async function qualifyAsLinkProperty(ctx: DocumentContext, passage: Passage, linkId: string, property: ZnProperty): Promise<void> {
+  const link = graph.getLink(linkId);
+  if (!link) throw new Error('link not found');
+  const a = typeof property.value === 'string' ? withValidatedText(draft(ctx, passage, 'property'), property.value) : draft(ctx, passage, 'property');
+  await graph.addLinkProperty(linkId, property, anchorOf(ctx, a));
+  await saveAnnotation(ctx.dossierId, { ...a, targetId: linkId, propertyKey: property.key, onLink: true, linkEnds: [link.fromId, link.toId] });
+}
+
+/** Passage of a property the link already has: the property is left as it is. */
+export async function qualifyAsExistingLinkProperty(ctx: DocumentContext, passage: Passage, linkId: string, key: string): Promise<void> {
+  const link = graph.getLink(linkId);
+  if (!link) throw new Error('link not found');
+  const a = draft(ctx, passage, 'property');
+  await graph.attachLinkAnchor(linkId, anchorOf(ctx, a));
+  await saveAnnotation(ctx.dossierId, { ...a, targetId: linkId, propertyKey: key, onLink: true, linkEnds: [link.fromId, link.toId] });
+}
+
 /** Place read in the document (an address), located on the element. */
 export async function qualifyAsLocation(ctx: DocumentContext, passage: Passage, elementId: string, geo: ZnGeo): Promise<void> {
   const a = draft(ctx, passage, 'location');
@@ -180,7 +198,7 @@ export async function qualifyAsLink(
 
 /** Elements carrying the anchor of an annotation (links carry their own). */
 export function anchoredElements(a: Annotation): string[] {
-  if (a.kind === 'link') return [];
+  if (targetsLink(a)) return [];
   const ids = new Set<string>();
   if (a.targetId) ids.add(a.targetId);
   for (const id of Object.keys(a.eventIds ?? {})) ids.add(id);
@@ -189,7 +207,7 @@ export function anchoredElements(a: Annotation): string[] {
 
 /** Elements an annotation is about: its anchors, or both ends of a link. */
 export function concernedElements(a: Annotation): string[] {
-  return a.kind === 'link' ? [...(a.linkEnds ?? [])] : anchoredElements(a);
+  return targetsLink(a) ? [...(a.linkEnds ?? [])] : anchoredElements(a);
 }
 
 export async function deleteAnnotation(ctx: DocumentContext, a: Annotation): Promise<void> {
@@ -198,7 +216,7 @@ export async function deleteAnnotation(ctx: DocumentContext, a: Annotation): Pro
 
 /** The highlight and its anchor in the graph object's source; never the object. */
 async function removePassage(dossierId: string, a: Annotation): Promise<void> {
-  if (a.kind === 'link' && a.targetId) await graph.detachLinkAnchor(a.targetId, a.id);
+  if (targetsLink(a) && a.targetId) await graph.detachLinkAnchor(a.targetId, a.id);
   for (const elementId of anchoredElements(a)) await graph.detachAnchor(elementId, a.id);
   await removeAnnotation(dossierId, a.documentHash, a.id);
 }
@@ -256,6 +274,12 @@ function attached(a: Annotation, changes: Partial<Annotation>): Annotation {
   return { ...rest, ...changes };
 }
 
+/** A property of a lost link, reattached to an element: it is now the element's. */
+function onElement(a: Annotation): Annotation {
+  const { onLink: _onLink, linkEnds: _ends, ...rest } = a;
+  return rest;
+}
+
 /** Element, location or property passage, onto an element chosen by the user. */
 export async function reattachToElement(
   ctx: DocumentContext,
@@ -269,7 +293,7 @@ export async function reattachToElement(
   } else {
     await graph.attachAnchor(elementId, anchor);
   }
-  await saveAnnotation(ctx.dossierId, attached(a, { targetId: elementId }));
+  await saveAnnotation(ctx.dossierId, attached(onElement(a), { targetId: elementId }));
 }
 
 /** The event was lost with its element: it is created again on the chosen elements. */
@@ -304,7 +328,7 @@ export function planRelabel(ctx: DocumentContext, annotations: Annotation[]): Re
   for (const a of annotations) {
     if (a.kind === 'suggestion' || a.orphan || !a.targetId) continue;
     const label = anchorOf(ctx, a);
-    if (a.kind === 'link') {
+    if (targetsLink(a)) {
       const current = plan.links.get(a.targetId) ?? graph.getLink(a.targetId)?.source;
       const next = relabelAnchor(current, a.id, label);
       if (next !== null) plan.links.set(a.targetId, next);

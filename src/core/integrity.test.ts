@@ -153,3 +153,21 @@ describe('reconcile, passages just recorded', () => {
     expect(reconcile([fresh], graph, { settling: () => false }).annotations[0].orphan).toBe(true);
   });
 });
+
+describe('reconcile a property of a link', () => {
+  const PROP = 'eeeeeeee-0000-4000-8000-000000000000';
+  const prop = ann(PROP, 'property', { targetId: 'L', propertyKey: 'Depuis', onLink: true, linkEnds: ['B', 'C'] });
+
+  it('follows the link when an end is merged, and is not taken for an element', () => {
+    const graph = { elements: [{ id: 'A', source: '' }, { id: 'C', source: '' }], links: [{ id: 'L', source: label(PROP), fromId: 'A', toId: 'C' }] };
+    const { annotations: [out], moved } = reconcile([prop], graph);
+    expect(out).toMatchObject({ targetId: 'L', linkEnds: ['A', 'C'], onLink: true });
+    expect(out.orphan).toBeUndefined();
+    expect(moved).toEqual({});
+  });
+
+  it('is flagged orphan when the link is deleted', () => {
+    const graph = { elements: [{ id: 'B', source: '' }, { id: 'C', source: '' }], links: [] };
+    expect(reconcile([prop], graph).annotations[0]).toMatchObject({ orphan: true, targetId: 'L' });
+  });
+});

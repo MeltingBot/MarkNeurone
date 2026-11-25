@@ -204,9 +204,22 @@ export async function createLink(fromId: string, toId: string, label: string, an
   return store().createLink(fromId, toId, { label, direction: 'forward', directed: true, source: anchor });
 }
 
-export async function updateLink(id: string, changes: Partial<Pick<ZnLink, 'label' | 'fromId' | 'toId' | 'confidence' | 'evaluation' | 'source'>>): Promise<void> {
+export async function updateLink(id: string, changes: Partial<Pick<ZnLink, 'label' | 'fromId' | 'toId' | 'confidence' | 'evaluation' | 'source' | 'properties'>>): Promise<void> {
   if (!getLink(id)) throw new Error('link not found');
   await store().updateLink(id, changes);
+}
+
+/** A property of the link, as ZN's link panel adds one; the anchor goes on the link. */
+export async function addLinkProperty(linkId: string, property: ZnProperty, anchor: string): Promise<void> {
+  const link = getLink(linkId);
+  if (!link) throw new Error('link not found');
+  await store().updateLink(linkId, { properties: [...(link.properties ?? []), property], source: appendAnchor(link.source, anchor) });
+}
+
+export async function attachLinkAnchor(linkId: string, anchor: string): Promise<void> {
+  const link = getLink(linkId);
+  if (!link) throw new Error('link not found');
+  await store().updateLink(linkId, { source: appendAnchor(link.source, anchor) });
 }
 
 export async function deleteLink(id: string): Promise<void> {

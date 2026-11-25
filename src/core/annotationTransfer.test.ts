@@ -93,6 +93,12 @@ describe('sanitizeAnnotation', () => {
     expect(a?.context).toBe('Phrase.');
   });
 
+  it('keeps the link of a property, on a property only', () => {
+    expect(sanitizeAnnotation({ ...ann(PROPERTY, 'property'), onLink: true }, HASH)?.onLink).toBe(true);
+    expect(sanitizeAnnotation({ ...ann(ELEMENT, 'element'), onLink: true }, HASH)).not.toHaveProperty('onLink');
+    expect(sanitizeAnnotation({ ...ann(PROPERTY, 'property'), onLink: 'yes' }, HASH)).not.toHaveProperty('onLink');
+  });
+
   it('keeps a framed picture as such', () => {
     expect(sanitizeAnnotation(ann(ELEMENT, 'element', { area: true }), HASH)?.area).toBe(true);
     expect(sanitizeAnnotation({ ...ann(ELEMENT, 'element'), area: 'yes' }, HASH)).not.toHaveProperty('area');
@@ -137,6 +143,13 @@ describe('rewire', () => {
   it('rewires a link and its ends', () => {
     const [link] = rewire([ann(LINK, 'link', { linkEnds: ['a', 'b'] })], graph);
     expect(link).toMatchObject({ targetId: 'new-link', linkEnds: ['new-el', 'other-el'] });
+  });
+
+  it('rewires a property of a link onto the imported link', () => {
+    const withProp = { ...graph, links: [{ ...graph.links[0], source: `${anchorLabel('pv.pdf', 1, LINK)} ; ${anchorLabel('pv.pdf', 1, PROPERTY)}` }] };
+    const [prop] = rewire([ann(PROPERTY, 'property', { propertyKey: 'Depuis', onLink: true, linkEnds: ['a', 'b'] })], withProp);
+    expect(prop).toMatchObject({ targetId: 'new-link', linkEnds: ['new-el', 'other-el'], onLink: true, propertyKey: 'Depuis' });
+    expect(prop.orphan).toBeUndefined();
   });
 
   it('keeps an annotation whose object was not imported, flagged orphan', () => {

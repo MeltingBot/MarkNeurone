@@ -34,11 +34,13 @@ export interface Annotation {
   status: AnnotationStatus;
   /** Kept after validation: tells human reading from accepted suggestions. */
   origin: AnnotationOrigin;
-  /** Element id (element, property, event, location) or link id (link). */
+  /** Element id (element, property, event, location) or link id (link, property of a link). */
   targetId?: string;
   /** Property key, for kind 'property'. */
   propertyKey?: string;
-  /** Link ends [from, to], for kind 'link'; the anchor is on the link itself. */
+  /** Kind 'property': the property belongs to the link targetId, whose ends are in linkEnds. */
+  onLink?: true;
+  /** Link ends [from, to], for kind 'link' or a property of a link; the anchor is on the link itself. */
   linkEnds?: [string, string];
   /** Link: its passage is the words of the relation, selected by the user (verb mode). */
   relationWords?: boolean;
@@ -56,4 +58,9 @@ export interface Annotation {
     corrected: boolean;
   };
   createdAt: string;
+}
+
+/** The annotation's target is a link (its passage, or one of its properties), not an element. */
+export function targetsLink(a: Pick<Annotation, 'kind' | 'onLink'>): boolean {
+  return a.kind === 'link' || (a.kind === 'property' && a.onLink === true);
 }

@@ -5,7 +5,7 @@
 // retargeted links. Following the token follows the merge the user made; it
 // never attaches a passage to an element the user did not choose.
 
-import type { Annotation } from './model.ts';
+import { targetsLink, type Annotation } from './model.ts';
 import { anchorIds, shortId } from './anchors.ts';
 
 export interface LiveGraph {
@@ -61,7 +61,8 @@ export function reconcile(annotations: Annotation[], graph: LiveGraph, options: 
     const token = shortId(a.id);
     let next: Annotation = a;
 
-    if (a.kind === 'link') {
+    // A link passage, or a property of the link: both follow the link.
+    if (targetsLink(a)) {
       const link =
         graph.links.find((l) => l.id === a.targetId) ?? graph.links.find((l) => anchorIds(l.source).includes(token));
       next = link
@@ -101,10 +102,10 @@ export function reconcile(annotations: Annotation[], graph: LiveGraph, options: 
     const differs =
       next.targetId !== a.targetId ||
       !!next.orphan !== !!a.orphan ||
-      (a.kind === 'link' && !sameEnds(next.linkEnds, a.linkEnds)) ||
+      (targetsLink(a) && !sameEnds(next.linkEnds, a.linkEnds)) ||
       ((a.kind === 'event' || a.kind === 'property') && !sameIds(next.eventIds, a.eventIds));
     if (differs) changed++;
-    if (a.kind !== 'link' && a.targetId && next.targetId && next.targetId !== a.targetId && !elementIds.has(a.targetId)) {
+    if (!targetsLink(a) && a.targetId && next.targetId && next.targetId !== a.targetId && !elementIds.has(a.targetId)) {
       moved[a.targetId] = next.targetId;
     }
     return differs ? next : a;

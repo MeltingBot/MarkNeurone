@@ -13,7 +13,7 @@ import type { DocumentAsset } from '../services/documentAssets.ts';
 import type { OpenedPdf, PDFDocumentProxy } from '../services/pdfjs.ts';
 import { analyseTextLayer, countTextChars, type TextLayerReport } from '../core/textLayerDetection.ts';
 import { fitTextStyles } from '../core/textLayerFonts.ts';
-import type { Annotation, Quad } from '../core/model.ts';
+import { targetsLink, type Annotation, type Quad } from '../core/model.ts';
 import { applyTransform, linkArc, pdfQuadToViewport, scaleTransform, viewportRectToPdf, type Rect, type Transform } from '../core/geometry.ts';
 import {
   annotationAt,
@@ -1003,9 +1003,10 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
   /** What a highlight is, shown when the pointer rests on it. */
   const describeHighlight = (a: Annotation): string => {
     const parts: string[] = [];
-    if (a.kind === 'link') {
+    if (targetsLink(a)) {
       const link = links.find((l) => l.id === a.targetId);
       parts.push(link ? `${nameOf(link.fromId)} → ${link.label || t('link_unnamed')} → ${nameOf(link.toId)}` : t('link_unnamed'));
+      if (a.kind === 'property' && a.propertyKey) parts.push(a.propertyKey);
     } else if (a.kind === 'event') {
       // The event first: its passage may not name the element (a date alone).
       const el = elements.find((x) => x.id === a.targetId);
@@ -1047,7 +1048,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
       if (isDeducedLinkPassage(a)) continue;
       const target = a.targetId ? elements.find((el) => el.id === a.targetId) : undefined;
       let color: string;
-      if (a.kind === 'link') color = links.some((l) => l.id === a.targetId) ? LINK_COLOR : ORPHAN_COLOR;
+      if (targetsLink(a)) color = links.some((l) => l.id === a.targetId) ? LINK_COLOR : ORPHAN_COLOR;
       else if (!target) color = ORPHAN_COLOR;
       else if (a.kind === 'event') color = tagColor('Événement') ?? EVENT_FALLBACK_COLOR;
       else color = tagColor(target.tags[0]) ?? 'var(--color-accent)';
@@ -1134,7 +1135,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
 
   // ─── Selection and clicks ────────────────────────────────
 
-  const elementOf = (a: Annotation): string | null => (a.kind !== 'link' && a.targetId ? a.targetId : null);
+  const elementOf = (a: Annotation): string | null => (!targetsLink(a) && a.targetId ? a.targetId : null);
 
   /**
    * Link draft between two elements. Nothing is deduced from the text between
@@ -1226,7 +1227,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
     }
     setSelectedAnnotationId(hit.id);
     if (hit.orphan) setActiveOrphanId(hit.id);
-    else if (hit.kind === 'link' && hit.targetId) showLink(hit.targetId);
+    else if (targetsLink(hit) && hit.targetId) showLink(hit.targetId);
     else if (hit.targetId) showElement(hit.targetId);
   };
 
@@ -1709,7 +1710,7 @@ export function PdfViewer({ dossierId, asset, focus, onMinimize }: ViewerProps) 
           action: () => openLinkDraft(selected, hit),
         });
       }
-      const label = hit.kind === 'link' ? (links.find((l) => l.id === hit.targetId)?.label || t('link_unnamed')) : nameOf(hit.targetId ?? '');
+      const label = targetsLink(hit) ? (links.find((l) => l.id === hit.targetId)?.label || t('link_unnamed')) : nameOf(hit.targetId ?? '');
       setMenu({
         ...at,
         header: label,

@@ -1,6 +1,6 @@
 // Elements highlighted in a document, in reading order, for the sheet's list.
 
-import type { Annotation } from './model.ts';
+import { targetsLink, type Annotation } from './model.ts';
 
 export interface IndexEntry {
   elementId: string;
@@ -25,7 +25,7 @@ function before(a: Annotation, b: Annotation): boolean {
 export function documentIndex(annotations: Annotation[]): IndexEntry[] {
   const byElement = new Map<string, IndexEntry>();
   for (const a of annotations) {
-    if (a.kind === 'link' || a.kind === 'suggestion' || a.status === 'rejected' || a.orphan) continue;
+    if (targetsLink(a) || a.kind === 'suggestion' || a.status === 'rejected' || a.orphan) continue;
     const toCheck = a.status === 'suggested' ? 1 : 0;
     const ids = new Set([...(a.targetId ? [a.targetId] : []), ...Object.keys(a.eventIds ?? {})]);
     for (const id of ids) {

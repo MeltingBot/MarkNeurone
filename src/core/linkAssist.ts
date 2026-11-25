@@ -2,7 +2,7 @@
 // co-occurrence marks (scoping note, sections 4.2 and 4.3). Nothing is
 // created here: both only prefill the link form.
 
-import type { Annotation } from './model.ts';
+import { targetsLink, type Annotation } from './model.ts';
 import { paragraphRanges, sentenceRanges } from './sentences.ts';
 
 /** A validated highlight of an element, with its offsets in the page text. */
@@ -15,7 +15,7 @@ export interface ElementHighlight {
 /** Highlights of elements (links, suggestions, rejected and orphans aside) of one page. */
 export function elementHighlights(annotations: Annotation[], page: number): ElementHighlight[] {
   return annotations
-    .filter((a) => a.page === page && a.kind !== 'link' && a.kind !== 'suggestion' && a.status === 'validated' && !a.orphan && a.targetId && a.textRange)
+    .filter((a) => a.page === page && !targetsLink(a) && a.kind !== 'suggestion' && a.status === 'validated' && !a.orphan && a.targetId && a.textRange)
     .map((a) => ({ annotation: a, elementId: a.targetId!, range: a.textRange! }))
     .sort((x, y) => x.range[0] - y.range[0]);
 }

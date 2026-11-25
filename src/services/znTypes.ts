@@ -71,6 +71,8 @@ export interface ZnLink {
   source: string;
   confidence?: number | null;
   evaluation?: Evaluation | null;
+  tags?: string[];
+  properties?: ZnProperty[];
 }
 
 export interface ZnTagSet {

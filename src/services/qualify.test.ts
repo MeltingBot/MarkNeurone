@@ -11,6 +11,8 @@ vi.mock('./graphWriter.ts', () => ({
   attachAnchor: async (...args: unknown[]) => void calls.push({ fn: 'attachAnchor', args }),
   attachEventAnchor: async (...args: unknown[]) => void calls.push({ fn: 'attachEventAnchor', args }),
   addProperty: async (...args: unknown[]) => void calls.push({ fn: 'addProperty', args }),
+  addLinkProperty: async (...args: unknown[]) => void calls.push({ fn: 'addLinkProperty', args }),
+  attachLinkAnchor: async (...args: unknown[]) => void calls.push({ fn: 'attachLinkAnchor', args }),
   createElement: async (...args: unknown[]) => {
     calls.push({ fn: 'createElement', args });
     return { id: 'new' };
@@ -27,7 +29,19 @@ vi.mock('./annotationStore.ts', () => ({
   saveAnnotation: async (_dossierId: string, a: Annotation) => void saved.push(a),
   removeAnnotation: async (...args: unknown[]) => void calls.push({ fn: 'removeAnnotation', args }),
 }));
-const { clearDocument, planClear, qualifyAsExistingElement, qualifyAsExistingProperty, qualifyAsNewElement, removeOrphans, validatePassage } = await import('./qualify.ts');
+const {
+  clearDocument,
+  deleteAnnotation,
+  planClear,
+  qualifyAsExistingElement,
+  qualifyAsExistingLinkProperty,
+  qualifyAsExistingProperty,
+  qualifyAsLinkProperty,
+  qualifyAsNewElement,
+  reattachToElement,
+  removeOrphans,
+  validatePassage,
+} = await import('./qualify.ts');
 
 const ctx = { dossierId: 'd', asset: { id: 'a', hash: 'h', filename: 'pv.pdf', mimeType: 'application/pdf', size: 1 }, reference: 'PV n° 347' };
 const passage = { page: 2, quads: [], text: '06 12 34 56 78', clientBox: { left: 0, top: 0, right: 0, bottom: 0 } };
@@ -149,5 +163,42 @@ describe('clearing a document', () => {
     calls.length = 0;
     await clearDocument('d', { annotations: [ann('11111111', 'element', 'e1', { created: true })], elementIds: ['e1'], linkIds: [] }, false);
     expect(calls.map((c) => c.fn)).toEqual(['detachAnchor', 'removeAnnotation']);
+  });
+});
+
+describe('property of a link', () => {
+  beforeEach(() => {
+    calls.length = 0;
+    saved.length = 0;
+    graphLinks.L = { id: 'L', fromId: 'jean', toId: 'sarl', source: '' };
+  });
+  const anchor = '[PV n° 347 p.2](mn:1a2b3c4d)';
+
+  it('adds the property to the link, which carries the anchor', async () => {
+    const property = { key: 'Depuis', value: '2021', type: 'text' as const };
+    await qualifyAsLinkProperty(ctx, passage, 'L', property);
+    expect(calls).toEqual([{ fn: 'addLinkProperty', args: ['L', property, anchor] }]);
+    expect(saved[0]).toMatchObject({ kind: 'property', targetId: 'L', propertyKey: 'Depuis', onLink: true, linkEnds: ['jean', 'sarl'] });
+  });
+
+  it('points to a property the link already has', async () => {
+    await qualifyAsExistingLinkProperty(ctx, passage, 'L', 'Depuis');
+    expect(calls).toEqual([{ fn: 'attachLinkAnchor', args: ['L', anchor] }]);
+    expect(saved[0]).toMatchObject({ targetId: 'L', propertyKey: 'Depuis', onLink: true });
+  });
+
+  it('removes its anchor from the link, never from an element', async () => {
+    const a = { ...saved[0], id: '1a2b3c4d-0000-4000-8000-000000000000', kind: 'property' as const, targetId: 'L', onLink: true as const, linkEnds: ['jean', 'sarl'] as [string, string] } as Annotation;
+    await deleteAnnotation(ctx, a);
+    expect(calls.map((c) => c.fn)).toEqual(['detachLinkAnchor', 'removeAnnotation']);
+  });
+
+  it('becomes a property of the element it is reattached to', async () => {
+    const orphan = { id: 'x', documentId: 'a', documentHash: 'h', page: 2, quads: [], text: '2021', kind: 'property', status: 'validated', origin: 'manual', createdAt: '', targetId: 'L', propertyKey: 'Depuis', onLink: true, linkEnds: ['jean', 'sarl'], orphan: true } as Annotation;
+    await reattachToElement(ctx, orphan, 'el');
+    expect(saved[0]).toMatchObject({ targetId: 'el', propertyKey: 'Depuis' });
+    expect(saved[0]).not.toHaveProperty('onLink');
+    expect(saved[0]).not.toHaveProperty('linkEnds');
+    expect(saved[0]).not.toHaveProperty('orphan');
   });
 });

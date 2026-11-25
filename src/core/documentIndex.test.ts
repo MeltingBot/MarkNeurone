@@ -18,6 +18,11 @@ const ann = (id: string, page: number, start: number, extra: Partial<Annotation>
 });
 
 describe('documentIndex', () => {
+  it('leaves out the properties of a link', () => {
+    const index = documentIndex([ann('1', 1, 0, { targetId: 'martin' }), ann('2', 1, 9, { kind: 'property', targetId: 'L', onLink: true, linkEnds: ['martin', 'vallier'] })]);
+    expect(index.map((e) => e.elementId)).toEqual(['martin']);
+  });
+
   it('lists highlighted elements by first appearance, with their passage count', () => {
     const index = documentIndex([
       ann('1', 2, 10, { targetId: 'martin' }),

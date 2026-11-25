@@ -7,7 +7,7 @@
 import type * as ReactTypes from 'react';
 import { getHostAPI } from '../hostAPI.ts';
 import { I18N_NS } from '../constants.ts';
-import type { Annotation } from '../core/model.ts';
+import { targetsLink, type Annotation } from '../core/model.ts';
 import { annotatedDocuments, getAnnotations, getVersion, loadAnnotations, subscribe } from '../services/annotationStore.ts';
 import { absentDocuments, forgetDocument, type AbsentDocument } from '../services/documentData.ts';
 import { getReferencesVersion, loadReference, subscribeReferences } from '../services/documentRef.ts';
@@ -69,7 +69,7 @@ export function MarkerPanel({ dossierId }: { dossierId: string }) {
         .filter((a) => a.status !== 'rejected' && a.kind !== 'suggestion')
         // A link's passages show when the link is selected; an element shows its own passages only.
         .filter((a) =>
-          a.kind === 'link'
+          targetsLink(a)
             ? !!a.targetId && selectedLinks.has(a.targetId)
             : concernedElements(a).some((id) => selectedElements.has(id)),
         )
